@@ -35,6 +35,16 @@ class_name ProceduralTerrain
 		ridge_weight = v
 		_queue_rebuild()
 
+@export_group("Look")
+## Surface material for the generated mesh. Defaults to the painterly regolith
+## resource — open it in the inspector to dial bands, brush stamps and shadow
+## hue live. Clear it to fall back to the plain PBR placeholder.
+@export var surface_material: Material = preload("res://materials/regolith_painterly.tres"):
+	set(v):
+		surface_material = v
+		if _mesh_instance != null:
+			_mesh_instance.material_override = _resolve_material()
+
 @export_group("Actions")
 ## Inspector button: ticking this regenerates and immediately unticks itself.
 @export var rebuild := false:
@@ -198,10 +208,16 @@ func _build_mesh() -> void:
 		# Deliberately no owner: this must never be serialised into the .tscn,
 		# or every save bakes a six-figure-triangle mesh into the scene file.
 	_mesh_instance.mesh = mesh
-	_mesh_instance.material_override = _regolith_material()
+	_mesh_instance.material_override = _resolve_material()
 
 
-func _regolith_material() -> StandardMaterial3D:
+func _resolve_material() -> Material:
+	return surface_material if surface_material != null else _fallback_material()
+
+
+## Plain PBR stand-in, kept so the terrain is still visible if the painterly
+## material is cleared or fails to load.
+func _fallback_material() -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	# Iron-rich dust under a red sun. Desaturated, not orange-cartoon.
 	mat.albedo_color = Color(0.34, 0.24, 0.19)

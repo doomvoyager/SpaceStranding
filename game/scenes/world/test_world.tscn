@@ -1,7 +1,7 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene format=3 uid="uid://bi5cxd8kfmbnl"]
 
-[ext_resource type="Script" path="res://scripts/world/test_world.gd" id="1_world"]
-[ext_resource type="Script" path="res://scripts/world/terrain.gd" id="2_terrain"]
+[ext_resource type="Script" uid="uid://brecirucyovjd" path="res://scripts/world/test_world.gd" id="1_world"]
+[ext_resource type="Script" uid="uid://v6n8lwttprn0" path="res://scripts/world/terrain.gd" id="2_terrain"]
 [ext_resource type="PackedScene" path="res://scenes/player/astronaut.tscn" id="3_astronaut"]
 [ext_resource type="PackedScene" path="res://scenes/vehicle/rover.tscn" id="4_rover"]
 
@@ -23,6 +23,8 @@ sky_material = SubResource("ProceduralSkyMaterial_vesper")
 background_mode = 2
 sky = SubResource("Sky_vesper")
 ambient_light_source = 3
+ambient_light_color = Color(0.318, 0.36969995, 0.6, 1)
+ambient_light_sky_contribution = 0.7
 ambient_light_energy = 0.55
 tonemap_mode = 3
 tonemap_white = 4.0
@@ -33,11 +35,13 @@ glow_enabled = true
 glow_intensity = 0.5
 glow_bloom = 0.05
 fog_enabled = true
-fog_light_color = Color(0.42, 0.22, 0.16, 1)
+fog_light_color = Color(0.72280014, 0.7002148, 0.87511814, 1)
 fog_light_energy = 0.7
 fog_density = 0.0016
-fog_sky_affect = 0.35
 fog_aerial_perspective = 0.5
+fog_sky_affect = 0.35
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.005
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_beacon"]
 top_radius = 0.18
@@ -50,19 +54,18 @@ albedo_color = Color(0.62, 0.6, 0.55, 1)
 metallic = 0.7
 roughness = 0.45
 
-[node name="TestWorld" type="Node3D"]
+[node name="TestWorld" type="Node3D" unique_id=1504669831]
 script = ExtResource("1_world")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2058511155]
 environment = SubResource("Environment_vesper")
 
-[node name="Star" type="DirectionalLight3D" parent="."]
+[node name="Star" type="DirectionalLight3D" parent="." unique_id=422264066]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 400, 0)
 light_color = Color(1, 0.42, 0.22, 1)
 light_energy = 0.85
 light_angular_distance = 1.2
 shadow_enabled = true
-directional_shadow_mode = 2
 directional_shadow_split_1 = 0.06
 directional_shadow_split_2 = 0.16
 directional_shadow_split_3 = 0.42
@@ -70,26 +73,23 @@ directional_shadow_blend_splits = true
 directional_shadow_max_distance = 320.0
 directional_shadow_pancake_size = 40.0
 
-[node name="Terrain" type="Node3D" parent="."]
+[node name="Terrain" type="Node3D" parent="." unique_id=1919902232]
+transform = Transform3D(1, 0, 0, 0, 0.2, 0, 0, 0, 1, 0, 0, 0)
 script = ExtResource("2_terrain")
-size = 512.0
-resolution = 2.0
-height_scale = 48.0
-ridge_weight = 0.55
 
-[node name="Beacon" type="Node3D" parent="."]
+[node name="Beacon" type="Node3D" parent="." unique_id=95117728]
 
-[node name="Mast" type="MeshInstance3D" parent="Beacon"]
+[node name="Mast" type="MeshInstance3D" parent="Beacon" unique_id=1650547877]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9, 0)
 mesh = SubResource("CylinderMesh_beacon")
 surface_material_override/0 = SubResource("Material_beacon")
 
-[node name="Light" type="OmniLight3D" parent="Beacon"]
+[node name="Light" type="OmniLight3D" parent="Beacon" unique_id=636628255]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 18.4, 0)
 light_color = Color(1, 0.32, 0.24, 1)
 light_energy = 8.0
 omni_range = 60.0
 
-[node name="Astronaut" parent="." instance=ExtResource("3_astronaut")]
+[node name="Astronaut" parent="." unique_id=2068191989 instance=ExtResource("3_astronaut")]
 
-[node name="Rover" parent="." instance=ExtResource("4_rover")]
+[node name="Rover" parent="." unique_id=1609840956 instance=ExtResource("4_rover")]

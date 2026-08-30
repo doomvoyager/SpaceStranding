@@ -9,6 +9,32 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-30 - Stylized painterly, saturated, surface treatment only
+
+Mac brought their own space paintings and asked for that look. Nothing in this
+log had settled render style, so it was open.
+
+**Three calls, all Mac's:**
+
+- **Painterly, yes.** The specific version is cheap to shade: the stamps in the
+  reference are *rectangular and hard-edged*, not organic brushwork. Organic
+  strokes need a flow field and swim under camera motion; blocky patches hold
+  still. This is why the look is achievable at all.
+- **Saturated, not the muted palette.** This **supersedes** "desaturated browns
+  and rust, not orange cartoon" in [[Visual-Direction]]. The paintings are
+  ferociously red with teal accents and the saturation carries the appeal.
+- **Surface treatment only.** Banded lighting, no specular, brush stamps in
+  albedo. **No post-process pass** - deliberately rejected for now. Post alone
+  cannot create the look, only unify it, and leading with it is the standard
+  way to end up with a realistic game wearing a filter. Geometry stays grounded.
+
+Costs accepted: normal, roughness and metallic maps stop earning their keep, so
+Mac's Blender workflow moves toward silhouette and flat painted albedo. The
+poly budget goes *down*.
+
+The direction is not proven until it has been judged **in motion** - stills
+cannot show swimming, which is the one failure mode that would sink it.
+
 ## 2026-08-30 - Godot 4, not Unity or Unreal
 
 Mac was openly willing to switch engines and asked which one Claude could

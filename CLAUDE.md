@@ -126,6 +126,17 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   leaves steering genuinely wrong. On the corrected throttle, positive
   `steering` yaws left, which is already what `A` produces. Re-measure with
   `tests/probe_vehicle_axes.gd` rather than reasoning about it.
+- **`AMBIENT_LIGHT` is not a spatial-shader built-in in 4.7.1** - not in
+  `fragment()` and not in `light()`. Both fail to compile with "Unknown
+  identifier". A stylized shader that needs ambient control has to set
+  `render_mode ambient_light_disabled` and roll its own fill term. Measured
+  both function bodies rather than trusting the docs.
+- **Quantising a noisy signal amplifies the noise into a visible pattern.**
+  Godot's soft-shadow filter carries per-pixel PCSS dither that is invisible
+  against a smooth penumbra. Fold `ATTENUATION` in *before* a banding `floor()`
+  and it becomes a loud ordered stipple along every shadow edge. Band the
+  terminator only; apply shadow smoothly on top. Applies to any stylized
+  quantisation, not just this shader.
 - **Godot treats clockwise-wound triangles as front faces.** Wound the other
   way, generated terrain is backface-culled and the player falls through an
   invisible world.
