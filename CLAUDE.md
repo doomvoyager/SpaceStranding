@@ -114,6 +114,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ca
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_analog_input.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_cargo_damage.tscn
+```
+
 Capture stills of the look, or of the loaded cargo racks. Both must run
 **windowed** - `--headless` is the dummy renderer and writes no image:
 
@@ -189,6 +193,25 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   Worth knowing before concluding an analog input is behaving as a switch -
   synthesise events through the real `InputMap` with
   `tests/probe_analog_input.gd` rather than guessing.
+- **A one-frame velocity change reads as an acceleration of `dv/dt`, so any
+  impact model built on raw acceleration is frame-rate dependent.** The same
+  landing costs four times as much at 120 Hz as at 30 Hz. Worse, the two body
+  types are not comparable instruments: `move_and_slide` zeroes a
+  `CharacterBody3D` in a *single* frame, while a `RigidBody3D` collision is
+  spread over several by the solver - measured at 434 m/s^2 against 181 for a
+  similar event. Smoothing the signal with a time constant in *seconds* fixes
+  both at once, because the smoothed peak of an impulse is `dv/tau` regardless
+  of tick rate. Measured across 30-120 Hz in `tests/test_cargo_damage.tscn`:
+  2.7% variation. See [[Cargo]].
+- **Proper acceleration, `|dv/dt - g|`, is almost always the quantity you
+  want** when asking how violent something was. Free fall reads zero and
+  resting reads one gravity, which is exactly right for damage, comfort or
+  camera shake - and it costs one vector subtraction.
+- **An `Area3D` is a trigger, not a floor.** A pad built as a bare `Area3D`
+  detected crates perfectly and let them fall straight through onto the terrain
+  beneath, where they still counted as delivered. Every headless test passed;
+  only a render showed it. Anything meant to be stood on needs its own
+  `StaticBody3D`.
 - **`Area3D` overlap lists only refresh on a physics step.** Teleporting a body
   and asking `get_overlapping_bodies()` in the same frame returns the old list.
   Tests that move things and then probe interaction range have to step physics

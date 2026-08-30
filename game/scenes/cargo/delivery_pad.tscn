@@ -1,0 +1,52 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/cargo/delivery_pad.gd" id="1_pad"]
+[ext_resource type="Material" path="res://materials/hull_painterly.tres" id="2_hull"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_zone"]
+size = Vector3(3.6, 1.4, 3.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_deck"]
+size = Vector3(3.6, 0.32, 3.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_deck"]
+size = Vector3(3.6, 0.32, 3.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_marks"]
+size = Vector3(2.7, 0.02, 2.7)
+
+[sub_resource type="StandardMaterial3D" id="Material_marks"]
+albedo_color = Color(0.94, 0.72, 0.22, 1)
+metallic = 0.2
+roughness = 0.6
+
+[node name="DeliveryPad" type="Area3D" groups=["delivery"]]
+collision_layer = 0
+collision_mask = 1
+script = ExtResource("1_pad")
+
+[node name="Zone" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7, 0)
+shape = SubResource("BoxShape3D_zone")
+
+[node name="Deck" type="StaticBody3D" parent="."]
+
+[node name="Shape" type="CollisionShape3D" parent="Deck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.16, 0)
+shape = SubResource("BoxShape3D_deck")
+
+[node name="Mesh" type="MeshInstance3D" parent="Deck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.16, 0)
+mesh = SubResource("BoxMesh_deck")
+surface_material_override/0 = ExtResource("2_hull")
+
+[node name="Marks" type="MeshInstance3D" parent="Deck"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.005, 0)
+mesh = SubResource("BoxMesh_marks")
+surface_material_override/0 = SubResource("Material_marks")
+
+[node name="Light" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.4, 0)
+light_color = Color(1, 0.78, 0.52, 1)
+light_energy = 2.2
+omni_range = 8.0

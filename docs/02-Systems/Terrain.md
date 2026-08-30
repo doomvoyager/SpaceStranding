@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-08-30
+verified: 2026-08-31
 godot: res://scripts/world/terrain.gd
 tags: [system, world, scaffolding]
 ---
@@ -36,6 +36,20 @@ scaled height shapes.** The trimesh costs more memory and is correct.
 The generated `MeshInstance3D` and `StaticBody3D` are deliberately created with
 **no `owner`**, so they are never serialised into the `.tscn`. Setting owner
 would bake a six-figure-triangle mesh into the scene file on every save.
+
+## height_at() reports LOCAL height
+
+`height_at()` returns a height in the terrain node's **own** space, and the
+Terrain node in `test_world.tscn` carries a 0.5 scale on Y - Mac flattens the
+world in the editor by scaling it. Using that returned height as a world Y puts
+things at *twice* the ground height.
+
+`test_world.gd` did exactly that from the day it was written, so the rover, the
+astronaut, the beacon and every crate spawned in mid-air and fell a couple of
+metres on load. Nothing noticed until [[Cargo]] started taking damage from
+landings, at which point the world quietly pre-scuffed its own crates before
+the player touched anything. Convert back through `to_global()` rather than
+assuming the terrain transform is the identity.
 
 ## Known issues
 

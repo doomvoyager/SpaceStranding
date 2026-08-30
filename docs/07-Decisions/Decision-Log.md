@@ -9,6 +9,66 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-31 - Cargo damage comes from the carrier's jolt
+
+Mac asked for crate fragility. The obvious implementation - crates take damage
+from their own collisions - **cannot work for the case that matters**, and
+finding that out first is what set the design.
+
+A stowed crate is frozen with its collision switched off, so it can never
+receive a contact event. All the damage that matters happens while cargo is on
+a rack, which is exactly when the crate is blind. So the **rack** measures the
+carrier and passes the jolt down to whatever it is holding.
+
+That is not a workaround. Strapped-down cargo is not hurt by its own
+collisions, it is hurt by the vehicle slamming into things - so the damage a
+load takes is a direct read on how the [[Rover]] is being driven, which is the
+mechanic we actually wanted. A loose crate is its own carrier and measures
+itself, so there is one damage curve with two sources.
+
+**Jolt is proper acceleration**, `|dv/dt - g|` - what an accelerometer bolted
+to the crate would read. Free fall reads zero, which is correct: falling is
+free and the landing is what costs. Damage is integrated over time rather than
+fired on a threshold crossing, so there is no edge detection to get wrong, no
+double-counting a landing that spans frames, and no frame-rate dependence.
+
+**The thresholds were measured, not chosen.** `probe_carrier_jolt.tscn` drives
+the loaded rover over real terrain: parked reads 3.96, ten seconds of full
+throttle over broken ground peaks at 7.44, a 7 m drop runs 33 at p99. The floor
+sits at 12 - clear of everything ordinary, with headroom for a shipping terrain
+and a retuned engine. The first guess had been 8, which left 7% margin.
+
+**Costs accepted:**
+
+- Damage is invisible on the crate itself. Only the HUD word and the delivery
+  receipt change. That is now the top `#now` in [[Cargo]] and it is Mac's call
+  how far the art goes.
+- The astronaut hits about twice as hard as the rover for a comparable fall,
+  because `move_and_slide` stops dead where a sprung chassis does not. Kept
+  deliberately - it makes the rover the safe way to move something delicate.
+- The jolt is smoothed over 0.05 s, without which the same landing would cost
+  four times as much at 120 Hz as at 30 Hz.
+
+## 2026-08-31 - Delivery pays on condition, and cargo must be set down
+
+The other half of the same decision: damage that is never scored is a hidden
+number, and a hidden number changes nobody's driving.
+
+`DeliveryPad` grades a crate on arrival and pays
+`base_value * condition ^ 1.5`. The exponent is above 1 on purpose - a
+half-condition crate pays 42 of 120, not 60 - so "arrive slowly" is a strategy
+rather than a preference.
+
+**Cargo has to come off the rack and be set down on the pad.** Nobody chose
+that either: a stowed crate is on collision layer 0 so the camera spring arm
+ignores the tower on the astronaut's back, which means an `Area3D` cannot see
+it. Driving a loaded rover across the pad delivers nothing. The same accident
+that fixed the camera gives us the depot, and unloading becomes a deliberate
+act rather than a drive-through.
+
+Condition is graded in words, never a percentage, from one static shared
+function - so the HUD and the receipt cannot disagree about the same crate.
+
 ## 2026-08-30 - Triggers drive the rover; the stick only steers
 
 Mac's call, immediately after the first gamepad pass bound throttle to the left

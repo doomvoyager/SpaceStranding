@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-08-30
+verified: 2026-08-31
 godot: res://scripts/cargo/cargo_rack.gd
 tags: [system, core-loop]
 ---
@@ -9,9 +9,9 @@ tags: [system, core-loop]
 
 Cargo is the verb of the game, so it has to have texture.
 
-The slot mechanics and the load's effect on the [[Rover]] are built. Everything
-that gives a crate *character* - fragility, thermal needs, condition on delivery
-- is not.
+The slot mechanics, the load's effect on the [[Rover]], crate condition and
+delivery payout are built. What is still missing is everything that makes one
+crate different from another: thermal needs, radiation sensitivity, size.
 
 ## Behaviour
 
@@ -20,7 +20,8 @@ Every item carries:
 - **Mass** - affects [[Rover]] handling, braking, climb ability, and on-foot
   stamina. *Built for the rover; there is no stamina system yet.*
 - **Volume** - competes for rack space. *Built, as one crate per slot.*
-- **Fragility** - impact and vibration damage it. *Not built.*
+- **Fragility** - impact and vibration damage it. *Built - see "Damage",
+  below. `fragility` on the crate is the per-item multiplier.*
 - **Special needs** - thermal (stay hot/cold), radiation-sensitive (see
   [[Flares]]), pressure-sensitive, live samples, unstable. *Not built.*
 
@@ -28,7 +29,108 @@ Placement on the rover matters. High loads raise the centre of mass; uneven
 loads pull the vehicle in turns. In 0.34 g a badly balanced rover does not
 skid - it *tips*, slowly, with plenty of time to watch it happen.
 
-Delivery pays on **condition**, not just arrival. *Not built.*
+Delivery pays on **condition**, not just arrival. *Built - see "Delivery".*
+
+## Damage
+
+Cargo takes damage from **jolt** - proper acceleration, the thing an
+accelerometer bolted to the crate would read. Proper rather than coordinate
+acceleration because that is what cargo actually feels: in free fall an
+accelerometer reads zero and a falling crate is perfectly comfortable, and all
+the damage happens on the landing. Subtracting the gravity vector buys that
+distinction for nothing.
+
+Damage is **integrated over time**, not applied on a threshold crossing:
+
+```
+excess = max(0, jolt - jolt_floor)
+damage = (excess / (jolt_ruin - jolt_floor))^2 * dt * fragility
+```
+
+No edge detection to get wrong, no double-counting a landing that spans several
+frames, and the same total cost at any tick rate. The square is what makes one
+hard landing matter more than a long rough drive.
+
+### Who measures what
+
+**A stowed crate cannot measure itself.** It is frozen with its collision
+switched off, so it can never receive a contact event - which is not a
+limitation to work around but the honest case. Strapped-down cargo is not hurt
+by its own collisions, it is hurt by the vehicle slamming into things. So the
+**rack** watches the carrier and passes the jolt down to whatever it holds, and
+the damage a load takes is a direct read on how the [[Rover]] is being driven.
+
+A loose crate is its own carrier and measures itself. One damage curve, two
+sources, and `JoltMeter` is shared by both.
+
+### The numbers came from measuring
+
+`res://tests/probe_carrier_jolt.tscn` drives the loaded rover over real terrain
+and reports the distribution. That is where `jolt_floor` comes from:
+
+| | smoothed jolt, m/s2 |
+|---|---|
+| Parked, loaded | 3.96 |
+| 10 s of full throttle over broken ground | 7.44 peak |
+| Crate resting on the ground | 6.32 |
+| Loaded rover dropped 7 m | 33 at p99, 58 peak |
+| Astronaut falling 8 m | 65 at p99, 123 peak |
+
+`jolt_floor` is 12 - clear of everything ordinary with real headroom, because
+the shipping terrain and a retuned engine will both push the driving numbers
+up. Ordinary driving costs exactly nothing, and that is asserted, not hoped.
+
+The astronaut hits roughly twice as hard as the rover for a comparable fall,
+and that is kept deliberately: the rover has suspension and a person does not.
+It makes the rover the safe way to move something delicate, which is most of
+the point of having one.
+
+### Smoothing is load-bearing
+
+The jolt is exponentially smoothed with a 0.05 s time constant before anything
+reads it. This is not cosmetic. `move_and_slide` zeroes the astronaut's
+velocity in a **single frame**, so the raw signal is a spike of dv/dt whose
+height depends on the tick rate rather than on the severity of the landing -
+measured at 434 m/s2 against the rover's 181 for a similar event. Smoothing
+makes the two instruments comparable, gives a brief impact enough duration to
+be integrated, and makes the cost of an event independent of frame rate.
+Measured across 30-120 Hz: 2.7% variation.
+
+It also models the real thing it stands in for. Straps and packing have give,
+so cargo never feels an infinitely sharp edge.
+
+## Delivery
+
+`DeliveryPad` is an `Area3D` with a solid deck. Set a crate down on it and it
+is accepted, graded and paid for, once.
+
+```
+payout = base_value * condition ^ payout_exponent
+```
+
+`payout_exponent` is 1.5, so damage bites harder than linearly - a
+half-condition crate pays 42 of 120, not 60. That is what makes "arrive slowly"
+a strategy rather than a preference.
+
+**Cargo has to be taken off the rack and set down.** Nobody wrote that rule: a
+stowed crate sits on collision layer 0 so the camera spring arm ignores the
+tower on the astronaut's back, which means an `Area3D` cannot see it either.
+Driving a loaded rover across the pad delivers nothing. The same accident that
+fixed the camera gives us the depot.
+
+Condition is graded in words, not percentages - pristine, scuffed, damaged,
+failing, ruined - because the player should be reading the crate, not a number.
+`Crate.label_for()` is static and shared, so the HUD and the receipt can never
+grade the same crate differently.
+
+## Where the code is
+
+| | |
+|---|---|
+| Slots, occupancy, load maths, carrier jolt | `res://scripts/cargo/cargo_rack.gd` |
+| Condition, fragility, the damage curve | `res://scripts/cargo/crate.gd` |
+| Proper-acceleration measurement | `res://scripts/cargo/jolt_meter.gd` |
+| Acceptance and payout | `res://scripts/cargo/delivery_pad.gd` |
 
 ## Racks and slots
 
@@ -89,15 +191,36 @@ off, so nothing in the physics world complains if it silently stops tracking its
 slot. The test drives the rover 11 m and asserts the crate is still exactly on
 the slot.
 
+`res://tests/test_cargo_damage.tscn` covers condition, the damage model and
+payout. It has a deterministic half that never touches the physics engine at
+all - it feeds a synthetic velocity profile straight through `JoltMeter` and
+`Crate.apply_jolt` at 30, 60 and 120 Hz, because tick-rate independence is the
+property the whole design rests on and nothing else would catch it regressing.
+The physics half asserts the thing that would ruin the game if it broke:
+**ordinary driving must cost nothing.**
+
 `res://tests/cargo_capture.tscn` writes stills of the loaded racks. Slot
 *placement* is the one thing the headless test cannot judge - it proves a crate
 is on its slot, not that the slot is anywhere sensible. Re-run it after moving
-any marker.
+any marker. `res://tests/delivery_capture.tscn` does the same job for the pad,
+and earned its keep immediately: the pad shipped as a bare `Area3D` with no
+solid deck, so crates fell straight through it and rested on the terrain
+underneath. Nothing headless noticed, because delivery still worked.
 
 ## Open
 
-- [ ] TODO: fragility and condition. Crates currently arrive in the state they
-      left in, which removes the entire reason to drive carefully. #now
+- [x] Fragility, condition, and a delivery point that grades them. Built
+      2026-08-31.
+- [ ] TODO: damage is invisible. A ruined crate looks exactly like a pristine
+      one - only the HUD word and the receipt differ. It needs to read on the
+      crate itself: dents, a cracked lid, a spilled load. Mac's call on how far
+      that goes. #now
+- [ ] TODO: there is one pad, found by group. Per-settlement pads need the HUD
+      to show *the pad you are standing at*, not the first one in the tree.
+      #next
+- [ ] TODO: crates are one size and share one `base_value`. Contracts, cargo
+      types and per-item value are the next layer, and [[Progression]] wants
+      them. #question
 - [ ] TODO: does carrying cargo on foot affect balance and stumble the way
       Death Stranding's does? Two slots exist; nothing reads them yet. #next
 - [ ] TODO: the back rack fills a lot of the third-person camera's lower frame
