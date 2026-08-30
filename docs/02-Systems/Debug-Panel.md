@@ -27,8 +27,8 @@ The panel reads `get_property_list()` and builds a control for anything marked
 declares. `@export_group` headings come through as group entries;
 `@export_range` hints become the slider bounds.
 
-**This is the whole point.** There are around fifty tunables across seven
-scripts, and a hand-written panel would have been wrong the first time either
+**This is the whole point.** There are eighty tunables across eight scripts and
+a shader, and a hand-written panel would have been wrong the first time either
 of us added an `@export`. This one cannot drift: add an export, get a slider.
 
 A property with no `@export_range` gets a guessed range - `0` to `4x` the
@@ -60,16 +60,27 @@ are still iterating. "Reset all" restores what the scenes were authored with.
 | Cargo | the first crate | every crate, re-queried at write time |
 | Cargo racks | the first rack | both |
 | Delivery pad | the pad | the pad |
+| Post | the film material | the film material |
 | Terrain | the terrain | the terrain, on drag release only |
 
 Reading from one and writing to many is what makes "all crates" a single set of
 sliders rather than six identical copies. Terrain regenerates a six-figure mesh
 on every write, so it is the one target that commits when a drag *ends*.
 
-**The wheels are the exception to the reflection rule.** Suspension stiffness,
-travel, damping and friction slip are built-in `VehicleWheel3D` properties, not
-script variables, so they are named explicitly. They are also precisely the
-numbers [[Rover]] has been carrying as tuned-by-reasoning-never-driven.
+**Two targets are exceptions to the reflection rule**, and both take the same
+explicit-list path.
+
+Suspension stiffness, travel, damping and friction slip are built-in
+`VehicleWheel3D` properties rather than script variables, so they are named
+outright. They are also precisely the numbers [[Rover]] has been carrying as
+tuned-by-reasoning-never-driven.
+
+The post stack's tunables are shader uniforms on a `ShaderMaterial`, which
+surface as `shader_parameter/<name>` with `PROPERTY_USAGE_EDITOR` but *not*
+`PROPERTY_USAGE_SCRIPT_VARIABLE`. Their names are read from the shader's own
+uniform list rather than hardcoded, so that target cannot drift either: change
+a uniform in `film.gdshader` and the slider follows. `hint_range` comes through
+as the bounds, and the `group_uniforms` headings survive as section titles.
 
 ## Two things it forced
 
@@ -87,15 +98,18 @@ test asserts that real rows get built for real properties, that a broadcast
 write lands on every crate, that Reset restores the authored values, and that
 retuning gravity actually makes a rigid body fall faster.
 
-`res://tests/debug_panel_capture.tscn` writes stills. Whether sixty generated
-rows scroll sensibly and the labels fit is not something the headless test can
-judge.
+`res://tests/debug_panel_capture.tscn` writes stills, and measures what the
+panel costs to have open. Whether eighty generated rows scroll sensibly and the
+labels fit is not something the headless test can judge.
 
 ## Known issues
 
 - [ ] Only float, int, bool, Vector3 and Color are supported. Strings, node
       paths and resources are skipped, so `cargo_name` and `surface_material`
       do not appear.
+- [ ] Open, with 80 rows, the panel costs about 5% of a frame (0.969 to 1.021
+      ms at 1600x900). Fine for tuning while driving; worth remembering before
+      leaving it open during a performance measurement.
 - [ ] Targets are discovered when the panel opens. Something that spawns while
       it is open needs a close and reopen - except crates, whose writes
       re-query the group.

@@ -1,25 +1,37 @@
 [gd_resource type="ShaderMaterial" load_steps=2 format=3]
 
-[ext_resource type="Shader" path="res://shaders/post/film.gdshader" id="1_film"]
+; The post stack for Space Stranding, in one material.
+;
+; These are the values the four-ColorRect chain was running before it was merged
+; into film.gdshader: each effect's own shader defaults, plus the one value Mac
+; changed (grain_saturation). The merge was verified to render the same frame,
+; not just to compile - tests/probe_post_cost.tscn measures a mean per-channel
+; difference of 0.13/255 against a no-post control of 2.47/255.
+;
+; This file previously carried StarChef's tuning, which is a different look.
+; Those values are in git history at 253e9f4 if they are ever wanted back.
+
+[ext_resource type="Shader" uid="uid://cicfdg8iufkc5" path="res://shaders/post/film.gdshader" id="1_film"]
 
 [resource]
+resource_name = "Film (post stack)"
 shader = ExtResource("1_film")
-shader_parameter/ca_amount = 0.00350000016625
-shader_parameter/lens_softness = 0.65000000968578
-shader_parameter/edge_falloff = 0.5
-shader_parameter/glow_threshold = 0.43999999016512
-shader_parameter/glow_knee = 0.33499999251208
-shader_parameter/glow_radius = 3.6000000536443197
-shader_parameter/glow_intensity = 0.16999999620016
-shader_parameter/glow_tint = Color(0.9910392, 0.8886081, 0.66946584, 1)
-shader_parameter/halation_threshold = 0.57999998703584
-shader_parameter/halation_knee = 0.26999999396496
-shader_parameter/halation_radius = 1.0000000149012
-shader_parameter/channel_spread = 1.20000001788144
-shader_parameter/halation_intensity = 0.18999999575312
+shader_parameter/ca_amount = 0.003
+shader_parameter/lens_softness = 0.6
+shader_parameter/edge_falloff = 2.0
+shader_parameter/glow_threshold = 0.75
+shader_parameter/glow_knee = 0.15
+shader_parameter/glow_radius = 3.0
+shader_parameter/glow_intensity = 0.5
+shader_parameter/glow_tint = Color(1, 0.97, 0.9, 1)
+shader_parameter/halation_threshold = 0.7
+shader_parameter/halation_knee = 0.2
+shader_parameter/halation_radius = 5.0
+shader_parameter/channel_spread = 1.2
+shader_parameter/halation_intensity = 0.6
 shader_parameter/halation_tint = Color(1, 0.32, 0.12, 1)
-shader_parameter/grain_intensity = 0.1990000094525
-shader_parameter/grain_saturation = 0.1170000055575
+shader_parameter/grain_intensity = 0.1
+shader_parameter/grain_saturation = 0.117
 shader_parameter/min_lum = 0.0
 shader_parameter/max_lum = 1.0
 shader_parameter/time_scale = 0.5

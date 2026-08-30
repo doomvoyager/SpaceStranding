@@ -251,6 +251,23 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   engine's own groups, and a heading has to be discarded the moment a
   non-script property follows it, or the delivery pad inherits `Area3D`'s
   "Reverb Bus" as a section title. Used by the F1 panel; see [[Debug-Panel]].
+- **A `canvas_item` shader declaring `hint_screen_texture` with
+  `filter_linear_mipmap` already gets a full mip chain, with no `BackBufferCopy`
+  in front of it.** Worth knowing before building a chain of full-screen
+  effects: each `BackBufferCopy` is a full-screen copy *plus* a mip rebuild, and
+  four stacked ColorRects cost three of each per frame for nothing. Merging the
+  post stack to one pass took it from 1.174 ms/frame to 0.965 at 1600x900 with
+  a mean per-channel difference of 0.13/255. Adding a `BackBufferCopy` back
+  changes the image not at all. Measured by `tests/probe_post_cost.tscn`.
+- **A missing `#include` in a shader reports as a tokenizer error, not a missing
+  file.** Godot's shader preprocessor hands the unresolved text straight to the
+  tokenizer, which stops on the `#` and says `Unknown character #35: '#'` - which
+  reads like `#include` is unsupported rather than like the target is absent.
+  Check the path exists before believing the message.
+- **A `ShaderMaterial` exposes its uniforms as `shader_parameter/<name>`** with
+  `PROPERTY_USAGE_EDITOR` but *not* `PROPERTY_USAGE_SCRIPT_VARIABLE`, so
+  reflection that filters on script variables will not see them.
+  `hint_range` survives into `hint_string`, and `get()`/`set()` round-trip.
 - **`Area3D` overlap lists only refresh on a physics step.** Teleporting a body
   and asking `get_overlapping_bodies()` in the same frame returns the old list.
   Tests that move things and then probe interaction range have to step physics

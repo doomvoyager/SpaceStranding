@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-08-30
+verified: 2026-08-31
 godot: res://shaders/painterly.gdshader
 tags: [art]
 ---
@@ -39,7 +39,16 @@ The surface response is **banded, unlit-looking and specular-free**, carried by
    star. This is what puts teal in red dirt.
 5. **No contact AO, no micro-detail.** Texture is painted macro-noise.
 
-Scope is **surface treatment only** - no post-process pass, no canvas grain.
+Scope was **surface treatment only** - no post-process pass, no canvas grain.
+
+**That is now under trial rather than settled.** Mac had a film post stack
+already built for StarChef and brought it across on 2026-08-31 to see what it
+does here. The rejection stands as the *default* - see [[Decision-Log]] - and
+what it was protecting against is unchanged: post cannot create this look, only
+unify it, and leading with it is the standard way to end up with a realistic
+game wearing a filter. The question the trial answers is whether it flatters
+the painterly surface or fights it, and that is a judgement to make while
+driving, not from a still.
 Geometry and silhouettes stay grounded and machined. The frame reads as a
 stylized simulation, not as a moving painting. Revisit only if the surface
 layer alone turns out not to carry it.
@@ -80,6 +89,49 @@ repaired in gloves. No glowing holograms without a stated in-world reason.
 `res://materials/` holds the tuned presets - `regolith_painterly.tres` for
 ground (slope tint on) and `hull_painterly.tres` for props (slope tint off,
 stronger rim). Fork a `.tres`, never the shader.
+
+## The post stack (on trial)
+
+`res://scenes/postprocessing_effects.tscn`, a `CanvasLayer` at layer 10 holding
+one full-screen `ColorRect` with `res://shaders/post/film_material.tres`.
+
+Four effects in one pass, in the order film actually applies them:
+
+| | What it is |
+|---|---|
+| Lens | Chromatic aberration and softness, both worsening toward the corners off one shared falloff |
+| Glow | Broad neutral spill on highlights - lens scatter |
+| Halation | The warm fringe. Channels spread at *different* radii, red widest, so the colour emerges from the spread rather than from a flat tint |
+| Grain | Soft-light blended, weighted to the shadows, coloured. Last, always - grain sits in the emulsion, so run it earlier and the glow blooms the noise instead of the image |
+
+**It arrived as four ColorRects with a `BackBufferCopy` between each** and was
+merged into the single pass `film.gdshader` was written for. That is three
+fewer full-screen copies and three fewer mip-chain rebuilds every frame:
+
+| | ms/frame at 1600x900 |
+|---|---|
+| No post at all | 0.870 |
+| Four ColorRects + 3 BackBufferCopy | 1.174 |
+| One ColorRect | 0.965 |
+
+The post work itself went from 0.30 ms to 0.10 - **a third of the cost** - and
+the merged pass renders the same frame, measured at a mean per-channel
+difference of 0.13/255 against a no-post control of 2.47/255.
+
+**No `BackBufferCopy` is needed at all.** Adding one changes nothing and costs
+0.01 ms: a `canvas_item` shader declaring `hint_screen_texture` with
+`filter_linear_mipmap` already gets a full mip chain. Glow and halation read at
+LOD 3-6, so if that were not true they would silently collapse to a plain copy
+and vanish - which is exactly what the probe was written to catch.
+
+Every one of the 19 settings survived the merge, and they are also live on
+sliders in the F1 panel - see [[Debug-Panel]]. Tuning a look is a thing to do
+while driving.
+
+Measured by `res://tests/probe_post_cost.tscn`, which freezes the scene and the
+grain's clock so two renders of the same frame are byte-comparable. Now that
+the scene *is* the single pass, its first two rows should agree; if the first
+climbs again, something has put the chain back.
 
 ## Known issues
 

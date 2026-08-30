@@ -179,6 +179,25 @@ func _discover() -> Array[Target]:
 		t.nodes = [pad]
 		out.append(t)
 
+	# The post stack. Its tunables are shader uniforms on a material rather than
+	# exports on a script, so they are named explicitly - built from the
+	# shader's own uniform list, so this still cannot drift as uniforms change.
+	for node in tree.get_nodes_in_group("post"):
+		for child in node.get_children():
+			var rect := child as ColorRect
+			if rect == null:
+				continue
+			var mat := rect.material as ShaderMaterial
+			if mat == null or mat.shader == null:
+				continue
+			var t := Target.new()
+			t.title = "Post — %s" % rect.name
+			t.sample = mat
+			t.nodes = [mat]
+			t.allow = _uniform_names(mat)
+			if not t.allow.is_empty():
+				out.append(t)
+
 	var terrain: Array = []
 	_collect(tree.current_scene if tree.current_scene != null else tree.root,
 		"ProceduralTerrain", terrain)
@@ -191,6 +210,16 @@ func _discover() -> Array[Target]:
 		out.append(t)
 
 	return out
+
+
+## Every uniform the material actually exposes, as property names.
+func _uniform_names(mat: ShaderMaterial) -> Array[String]:
+	var names: Array[String] = []
+	for prop in mat.get_property_list():
+		var name: String = prop["name"]
+		if name.begins_with("shader_parameter/"):
+			names.append(name)
+	return names
 
 
 func _collect(n: Node, klass: String, out: Array) -> void:
@@ -217,35 +246,34 @@ func _properties_for(target: Target) -> Array[Dictionary]:
 	for prop in target.sample.get_property_list():
 		meta[prop["name"]] = prop
 
-	if not target.allow.is_empty():
-		for name in target.allow:
-			if not meta.has(name):
-				continue
-			var p: Dictionary = meta[name]
-			if _supported(p["type"]):
-				out.append(_entry(p, ""))
-		return out
+	var allowed := {}
+	for name in target.allow:
+		allowed[name] = true
 
-	# Built-in Node groups ("Transform", "Collision", ...) appear in the list
-	# too, so a header is only emitted once a script variable turns up beneath
-	# it. Otherwise the panel is mostly empty headings.
+	# Built-in Node groups ("Transform", "Collision", ...) appear in this list
+	# alongside a script's own @export_group entries, so a heading is only
+	# emitted once something we are actually showing turns up beneath it, and
+	# discarded the moment anything else does. Without that the delivery pad
+	# inherits Area3D's "Reverb Bus" as a section title.
 	var pending := ""
 	for prop in target.sample.get_property_list():
 		var usage: int = prop["usage"]
 		if usage & PROPERTY_USAGE_GROUP:
 			pending = prop["name"]
 			continue
-		if not (usage & PROPERTY_USAGE_SCRIPT_VARIABLE):
-			# A built-in property under a built-in group. Forget the heading:
-			# an @export_group is always followed immediately by the script
-			# variables it heads, so a group interrupted by anything else was
-			# never ours. Without this the delivery pad inherits Area3D's
-			# "Reverb Bus" as a section title.
+
+		var included := false
+		if allowed.is_empty():
+			# A script's own exports, told apart from the hundred built-ins.
+			included = bool(usage & PROPERTY_USAGE_SCRIPT_VARIABLE) \
+				and bool(usage & PROPERTY_USAGE_EDITOR)
+		else:
+			# An explicit list: built-in wheel suspension, or a shader's
+			# uniforms, neither of which are script variables.
+			included = allowed.has(prop["name"])
+
+		if not included or not _supported(prop["type"]):
 			pending = ""
-			continue
-		if not (usage & PROPERTY_USAGE_EDITOR):
-			continue
-		if not _supported(prop["type"]):
 			continue
 		out.append(_entry(prop, pending))
 		pending = ""
@@ -425,10 +453,19 @@ func _row_label(text: String) -> Label:
 	return l
 
 
+## Shader uniforms are addressed as "shader_parameter/glow_intensity"; only the
+## uniform's own name is worth reading on a row.
+func _label_for(prop: String, component: int) -> String:
+	var name := prop.trim_prefix("shader_parameter/")
+	if component < 0:
+		return name
+	return "%s.%s" % [name, "xyz"[component]]
+
+
 func _bool_row(target: Target, p: Dictionary) -> HBoxContainer:
 	var prop: String = p["name"]
 	var row := HBoxContainer.new()
-	row.add_child(_row_label(prop))
+	row.add_child(_row_label(_label_for(prop, -1)))
 	var box := CheckBox.new()
 	box.button_pressed = bool(_read(target, prop))
 	_baseline[_key(target, prop, -1)] = box.button_pressed
@@ -442,7 +479,7 @@ func _color_row(target: Target, p: Dictionary) -> HBoxContainer:
 	var prop: String = p["name"]
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
-	row.add_child(_row_label(prop))
+	row.add_child(_row_label(_label_for(prop, -1)))
 	var picker := ColorPickerButton.new()
 	picker.color = _read(target, prop)
 	picker.edit_alpha = false
@@ -466,8 +503,7 @@ func _number_row(target: Target, p: Dictionary, component: int) -> HBoxContainer
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
-	var label := prop if component < 0 else "%s.%s" % [prop, "xyz"[component]]
-	row.add_child(_row_label(label))
+	row.add_child(_row_label(_label_for(prop, component)))
 
 	var slider := HSlider.new()
 	slider.min_value = bounds.x

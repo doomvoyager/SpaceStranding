@@ -36,6 +36,7 @@ func _physics_process(delta: float) -> void:
 	match _frames:
 		SETTLE:
 			_test_discovery()
+			_test_post_target()
 			_test_broadcast_write()
 			_test_reset()
 			_test_gravity_reaches_physics_server()
@@ -61,7 +62,7 @@ func _test_discovery() -> void:
 	_expect(Debug._targets.size() >= 6,
 		"only %d targets discovered; expected the planet, astronaut, rover, wheels, cargo, racks and terrain"
 		% Debug._targets.size())
-	for wanted in ["Planet", "Astronaut", "Rover", "wheels", "Cargo", "Terrain"]:
+	for wanted in ["Planet", "Astronaut", "Rover", "wheels", "Cargo", "Post", "Terrain"]:
 		_expect(_has_target(wanted), "no target matching %s was discovered" % wanted)
 
 	# Sliders, not just headers. Rows include labels, so count the ones that
@@ -81,6 +82,29 @@ func _test_discovery() -> void:
 	_expect(wheels != null and Debug._properties_for(wheels).size() >= 8,
 		"the wheel target exposed %d properties; suspension and grip are the tunables the Rover note is waiting on"
 		% (Debug._properties_for(wheels).size() if wheels != null else -1))
+
+
+## The post stack is the second thing that is not a script variable: its
+## tunables are shader uniforms on a ShaderMaterial. If the explicit-list path
+## regresses, the whole film look becomes untweakable without an editor restart.
+func _test_post_target() -> void:
+	var post = _target("Post")
+	if post == null:
+		_expect(false, "no post target; the film stack is not tweakable from the panel")
+		return
+	var props := Debug._properties_for(post)
+	print("post target exposes %d uniforms" % props.size())
+	_expect(props.size() >= 18,
+		"post target exposed only %d of the film shader 19 uniforms" % props.size())
+
+	var mat: ShaderMaterial = post.sample
+	var before = mat.get_shader_parameter("glow_intensity")
+	Debug._write(post, "shader_parameter/glow_intensity", 1.75)
+	var after = mat.get_shader_parameter("glow_intensity")
+	print("glow_intensity %s -> %s through the panel" % [before, after])
+	_expect(is_equal_approx(float(after), 1.75),
+		"writing a shader uniform through the panel left it at %s" % after)
+	Debug._write(post, "shader_parameter/glow_intensity", before)
 
 
 # --- writing through one slider hits every object ----------------------
