@@ -6,6 +6,7 @@ extends Node3D
 @onready var _astronaut: Astronaut = $Astronaut
 @onready var _rover: Rover = $Rover
 @onready var _star: DirectionalLight3D = $Star
+@onready var _crates: Node3D = $Crates
 
 
 func _ready() -> void:
@@ -13,6 +14,16 @@ func _ready() -> void:
 	_place_on_ground(_astronaut, Vector3(6.0, 0.0, 0.0), 1.2)
 	_place_on_ground(_rover, Vector3(-6.0, 0.0, 0.0), 1.6)
 	_place_on_ground($Beacon, Vector3(0.0, 0.0, -140.0), 0.0)
+	_settle_crates()
+
+
+## Crates are hand-placed in the editor on X/Z; only their height is solved
+## here, against whatever the terrain generator happened to produce.
+func _settle_crates() -> void:
+	for child in _crates.get_children():
+		var crate := child as Node3D
+		if crate != null:
+			_place_on_ground(crate, crate.global_position, 0.45)
 
 
 ## Point the key light along the fixed star direction from World.

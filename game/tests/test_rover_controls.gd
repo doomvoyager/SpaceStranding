@@ -98,7 +98,10 @@ func _check_steering() -> void:
 func _finish() -> void:
 	if _failures.is_empty():
 		print("PASS: rover control axes are correct.")
+		# quit() only schedules the exit, so this must return or the failure
+		# path below runs anyway and overwrites the code with 1.
 		get_tree().quit(0)
+		return
 	for f in _failures:
 		printerr("FAIL: " + f)
 	get_tree().quit(1)

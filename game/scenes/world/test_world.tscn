@@ -4,6 +4,8 @@
 [ext_resource type="Script" uid="uid://v6n8lwttprn0" path="res://scripts/world/terrain.gd" id="2_terrain"]
 [ext_resource type="PackedScene" path="res://scenes/player/astronaut.tscn" id="3_astronaut"]
 [ext_resource type="PackedScene" path="res://scenes/vehicle/rover.tscn" id="4_rover"]
+[ext_resource type="PackedScene" path="res://scenes/cargo/crate.tscn" id="5_crate"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="6_hud"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_vesper"]
 sky_top_color = Color(0.07, 0.05, 0.07, 1)
@@ -93,3 +95,39 @@ omni_range = 60.0
 [node name="Astronaut" parent="." unique_id=2068191989 instance=ExtResource("3_astronaut")]
 
 [node name="Rover" parent="." unique_id=1609840956 instance=ExtResource("4_rover")]
+
+[node name="Crates" type="Node3D" parent="."]
+
+[node name="Crate1" parent="Crates" instance=ExtResource("5_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.2, 0, 2.2)
+mass = 35.0
+cargo_name = "Supply crate"
+
+[node name="Crate2" parent="Crates" instance=ExtResource("5_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, 0, 2.9)
+mass = 55.0
+cargo_name = "Water canister"
+
+[node name="Crate3" parent="Crates" instance=ExtResource("5_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0, 3.7)
+mass = 35.0
+cargo_name = "Supply crate"
+
+[node name="Crate4" parent="Crates" instance=ExtResource("5_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.3, 0, 1.7)
+mass = 22.0
+cargo_name = "Core samples"
+
+[node name="Crate5" parent="Crates" instance=ExtResource("5_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.9, 0, 4.5)
+mass = 48.0
+cargo_name = "Spare cell"
+
+[node name="Crate6" parent="Crates" instance=ExtResource("5_crate")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.9, 0, 3.5)
+mass = 35.0
+cargo_name = "Supply crate"
+
+[node name="HUD" parent="." instance=ExtResource("6_hud")]
+astronaut_path = NodePath("../Astronaut")
+rover_path = NodePath("../Rover")

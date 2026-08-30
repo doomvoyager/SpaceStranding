@@ -59,7 +59,8 @@ mechanics. Mac makes their own scene edits between sessions.
 `res://scripts/Foo.gd` on disk is `game/scripts/Foo.gd`.
 
 Inside `game/`, scripts and scenes mirror each other: `scripts/player/` pairs
-with `scenes/player/`, and so on for `vehicle/`, `world/`, `core/`, `cargo/`.
+with `scenes/player/`, and so on for `vehicle/`, `world/`, `core/`, `cargo/`,
+`ui/`.
 
 ---
 
@@ -91,10 +92,29 @@ after touching any `.gd` or `.tscn`:
 engine/Godot.app/Contents/MacOS/Godot --headless --path game --quit-after 120
 ```
 
-Run the rover control-axes regression test - non-zero exit on failure:
+**After adding or renaming any script with a `class_name`, run an import first**
+or the boot above will report every new class as undefined - see "Verified
+engine facts":
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game --import
+```
+
+Run the regression tests - non-zero exit on failure:
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_rover_controls.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_cargo_flow.tscn
+```
+
+Capture stills of the look, or of the loaded cargo racks. Both must run
+**windowed** - `--headless` is the dummy renderer and writes no image:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/cargo_capture.tscn
 ```
 
 Run a standalone engine-behaviour probe. These build what they need from
@@ -146,6 +166,20 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
 - **Procedurally generated nodes must not be given an `owner`** in a `@tool`
   script, or they are serialised into the `.tscn` - baking a six-figure-triangle
   mesh into the scene file on every save.
+- **A new `class_name` is invisible until the project is imported.** The global
+  class cache is only rebuilt by a filesystem scan, so a plain headless boot
+  after adding a script reports *every* new class as "Could not find type" -
+  including ones with no dependencies at all. Run `--import` first. The symptom
+  is a dead ringer for a cyclic dependency and will send you chasing one.
+- **`get_tree().quit(code)` only schedules the exit.** Execution continues to
+  the end of the function, so a test that calls `quit(0)` on success and falls
+  through to `quit(1)` always exits 1 - it prints PASS and reports failure.
+  `test_rover_controls.gd` did exactly this from the day it was written, which
+  made the documented CI check useless. Always `return` after `quit()`.
+- **`Area3D` overlap lists only refresh on a physics step.** Teleporting a body
+  and asking `get_overlapping_bodies()` in the same frame returns the old list.
+  Tests that move things and then probe interaction range have to step physics
+  in between.
 
 ---
 

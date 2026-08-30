@@ -1,0 +1,36 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/cargo/crate.gd" id="1_crate"]
+[ext_resource type="Material" path="res://materials/crate_painterly.tres" id="2_crate_mat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_crate"]
+size = Vector3(0.6, 0.6, 0.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_crate"]
+size = Vector3(0.6, 0.6, 0.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_band"]
+size = Vector3(0.63, 0.09, 0.63)
+
+[sub_resource type="StandardMaterial3D" id="Material_band"]
+albedo_color = Color(0.94, 0.72, 0.22, 1)
+metallic = 0.3
+roughness = 0.5
+
+[node name="Crate" type="RigidBody3D" groups=["cargo"]]
+collision_layer = 1
+collision_mask = 1
+mass = 35.0
+script = ExtResource("1_crate")
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_crate")
+
+[node name="Mesh" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_crate")
+surface_material_override/0 = ExtResource("2_crate_mat")
+
+[node name="Band" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.14, 0)
+mesh = SubResource("BoxMesh_band")
+surface_material_override/0 = SubResource("Material_band")

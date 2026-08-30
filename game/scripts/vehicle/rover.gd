@@ -30,8 +30,16 @@ const ENGINE_FORCE_SIGN := -1.0
 @export var steer_falloff_speed := 14.0
 @export_range(0.1, 1.0) var steer_falloff_floor := 0.35
 
+@export_group("Load")
+## Where the mass sits when the rack is empty. Low in the chassis, so the rover
+## resists rolling on side slopes — and so a loaded roof rack has something to
+## fight against.
+@export var empty_center_of_mass := Vector3(0.0, -0.35, 0.0)
+
 @export_group("Camera")
 @export var mouse_sensitivity := 0.0022
+## Right-stick turn rate, radians/sec.
+@export var stick_sensitivity := 2.6
 @export_range(-80.0, 0.0) var pitch_min := -50.0
 @export_range(0.0, 80.0) var pitch_max := 40.0
 
@@ -39,16 +47,20 @@ const ENGINE_FORCE_SIGN := -1.0
 @onready var _spring_arm: SpringArm3D = $CamPivot/SpringArm3D
 @onready var _camera: Camera3D = $CamPivot/SpringArm3D/Camera3D
 @onready var _exit_point: Marker3D = $ExitPoint
+@onready var _rack: CargoRack = $CargoRack
 
 var driver: Astronaut = null
 var _steer_target := 0.0
+## Kerb mass, captured from the inspector value before any cargo is counted.
+var _empty_mass := 950.0
 
 
 func _ready() -> void:
 	add_to_group("rover")
-	# Keep the mass low in the chassis so it resists rolling on side slopes.
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	center_of_mass = Vector3(0.0, -0.35, 0.0)
+	# `mass` in the inspector is the *empty* rover; cargo is added on top.
+	_empty_mass = mass
+	refresh_load()
 	set_physics_process(false)
 
 
@@ -68,6 +80,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("interact"):
 		exit()
 		get_viewport().set_input_as_handled()
+
+
+func _process(delta: float) -> void:
+	if driver == null:
+		return
+	StickLook.apply(
+		_cam_pivot, _spring_arm, stick_sensitivity, pitch_min, pitch_max, delta
+	)
 
 
 func _physics_process(delta: float) -> void:
@@ -109,6 +129,30 @@ func _apply_drivetrain(throttle: float, braking: bool) -> void:
 	else:
 		engine_force = ENGINE_FORCE_SIGN * throttle * max_reverse_force
 		brake = 0.0
+
+
+# --- Load ---------------------------------------------------------------
+
+func cargo_rack() -> CargoRack:
+	return _rack
+
+
+## Recompute mass and centre of mass from what is actually on the rack. Called
+## by the astronaut after every transfer — cheap, and it means occupancy has
+## exactly one source of truth: the scene tree.
+##
+## Six crates is roughly +22% mass, and because they sit on the roof the centre
+## of mass climbs toward them. Load one side only and it moves sideways too,
+## which at 0.34 g is the difference between a corner and a slow roll.
+func refresh_load() -> void:
+	var cargo := _rack.load_mass()
+	mass = _empty_mass + cargo
+	if cargo <= 0.0:
+		center_of_mass = empty_center_of_mass
+		return
+	center_of_mass = (
+		_empty_mass * empty_center_of_mass + cargo * _rack.load_centroid()
+	) / mass
 
 
 # --- Boarding -----------------------------------------------------------

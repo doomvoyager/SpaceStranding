@@ -1,6 +1,7 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/vehicle/rover.gd" id="1_rover"]
+[ext_resource type="Script" path="res://scripts/cargo/cargo_rack.gd" id="2_rack"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_chassis"]
 size = Vector3(2.0, 1.0, 4.4)
@@ -25,7 +26,7 @@ metallic = 0.1
 roughness = 0.88
 
 [sub_resource type="BoxMesh" id="BoxMesh_rack"]
-size = Vector3(1.8, 0.12, 1.7)
+size = Vector3(1.5, 0.12, 2.0)
 
 [sub_resource type="StandardMaterial3D" id="Material_rack"]
 albedo_color = Color(0.38, 0.4, 0.42, 1)
@@ -43,10 +44,33 @@ shape = SubResource("BoxShape3D_chassis")
 mesh = SubResource("BoxMesh_hull")
 surface_material_override/0 = SubResource("Material_hull")
 
-[node name="CargoRack" type="MeshInstance3D" parent="."]
+[node name="RackDeck" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.56, 1.15)
 mesh = SubResource("BoxMesh_rack")
 surface_material_override/0 = SubResource("Material_rack")
+
+[node name="CargoRack" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.56, 1.15)
+script = ExtResource("2_rack")
+rack_name = "Rover"
+
+[node name="SlotFL" type="Marker3D" parent="CargoRack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.36, 0.36, -0.64)
+
+[node name="SlotFR" type="Marker3D" parent="CargoRack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.36, 0.36, -0.64)
+
+[node name="SlotML" type="Marker3D" parent="CargoRack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.36, 0.36, 0.0)
+
+[node name="SlotMR" type="Marker3D" parent="CargoRack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.36, 0.36, 0.0)
+
+[node name="SlotRL" type="Marker3D" parent="CargoRack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.36, 0.36, 0.64)
+
+[node name="SlotRR" type="Marker3D" parent="CargoRack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.36, 0.36, 0.64)
 
 [node name="HeadlightL" type="SpotLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 0.15, -2.25)

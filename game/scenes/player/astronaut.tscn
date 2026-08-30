@@ -1,6 +1,7 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/astronaut.gd" id="1_astronaut"]
+[ext_resource type="Script" path="res://scripts/cargo/cargo_rack.gd" id="2_rack"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -67,6 +68,20 @@ light_color = Color(0.86, 0.92, 1, 1)
 light_energy = 2.5
 spot_range = 30.0
 spot_angle = 38.0
+
+[node name="CargoRack" type="Node3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0.78)
+script = ExtResource("2_rack")
+rack_name = "Back"
+
+[node name="SlotLower" type="Marker3D" parent="Body/CargoRack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.32, 0)
+
+[node name="SlotUpper" type="Marker3D" parent="Body/CargoRack"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.32, 0)
+
+[node name="DropPoint" type="Marker3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, -1.15)
 
 [node name="CamPivot" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)

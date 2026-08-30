@@ -9,6 +9,47 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-30 - Cargo is a slot grid, not a physics placement puzzle
+
+Answers the `#blocking` question that had been sitting in [[Cargo]] since the
+note was written: *is loading a physics placement puzzle on the rack, or a slot
+grid with derived centre of mass?* Mac chose the slot grid, with the load
+feeding back into the rover's mass and centre of mass.
+
+The note itself said physics was "the better fantasy and the worse UX". What
+tips it is that the slot grid keeps most of the fantasy: mass and *placement*
+still change how the rover drives, because the centre of mass is derived from
+which slots are occupied. What is given up is the fiddling, not the consequence.
+
+**Six slots on the rover in a 2×3 roof grid, two on the astronaut's back.** The
+slots are Node3D children of a `CargoRack`, so capacity and layout are authored
+by dragging markers in the editor and no slot count exists in code. One script
+serves both racks.
+
+Costs accepted: crates are one size, so *volume* is not yet a real axis - every
+item occupies exactly one slot. Multi-slot items would be the way back toward
+the puzzle if the load ever feels too frictionless.
+
+## 2026-08-30 - Two cargo verbs, not one priority-ordered interact
+
+`E` already boarded the rover, and cargo needed pick up, stow and unload. The
+tempting shape is a single context-sensitive `E` that tries the nearest thing
+first.
+
+Rejected because it makes the common case worst: walk up to a **loaded** rover
+intending to drive it and a priority-ordered `E` hands you a crate. Instead:
+
+- **`E` / `A` - deal with the world.** Loose crate in range, or board the rover.
+- **`F` / `X` - move cargo.** Carrying: stow on the rack or put it down.
+  Empty-handed beside a loaded rover: take one off.
+
+Boarding never competes with unloading, and unloading needs no third binding.
+The HUD asks the astronaut what each key *would* do rather than describing the
+rules itself, so a prompt cannot drift from the behaviour it describes.
+
+Gamepad was wired at the same time on Mac's request - deliberately early, while
+there is little enough input code that parity is cheap.
+
 ## 2026-08-30 - Stylized painterly, saturated, surface treatment only
 
 Mac brought their own space paintings and asked for that look. Nothing in this

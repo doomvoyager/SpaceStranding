@@ -22,8 +22,29 @@ input, and that single ratio does more for the feel than the hang time does.
 Ground acceleration is deliberately low too: the suit has mass and the regolith
 has no grip.
 
-Also built: coyote time (0.15 s), sprint, head lamp, `E` to board the [[Rover]],
-`Esc` to release the mouse.
+Also built: coyote time (0.15 s), sprint, head lamp, `Esc` to release the mouse,
+a two-slot back rack, and the interaction verbs for [[Cargo]].
+
+**Full gamepad parity.** Left stick moves, right stick looks, `A` interacts, `X`
+moves cargo, `B` jumps (and brakes in the [[Rover]], exactly as `Space` already
+did for both), `L3` sprints. Mouse look is an event; stick look is a held
+position, so it is polled in `_process` via the shared `StickLook` helper that
+both camera rigs use.
+
+## Interaction
+
+Two verbs, and they never compete for the same press:
+
+- **`E` / `A`** - pick up a loose crate if one is in range, otherwise board the
+  [[Rover]].
+- **`F` / `X`** - carrying: stow on the rover if beside it, else put it down.
+  Empty-handed beside a loaded rover: take one off the rack.
+
+Boarding therefore never competes with unloading. The alternative - one key,
+priority-ordered - hands you a crate when you walk up to a loaded rover meaning
+to drive it. `interact_prompt()` and `cargo_prompt()` expose what each key would
+do right now, and the HUD only renders those, so the prompt cannot drift from
+the behaviour.
 
 ## Input handover
 
@@ -40,6 +61,7 @@ both sides guard.
 ## Open
 
 - [ ] TODO: balance and stumble under load, the way Death Stranding handles
-      it. Gated on how [[Cargo]] is carried on foot. #question
+      it. The two back slots now exist and carry real mass; nothing on foot
+      reads it yet. #next
 - [ ] TODO: suit systems - O₂, thermal, dose - are a separate survival system
       and are not written. #next

@@ -26,6 +26,9 @@ class_name Astronaut
 
 @export_group("Camera")
 @export var mouse_sensitivity := 0.0022
+## Right-stick turn rate, radians/sec. A stick holds a position rather than
+## emitting deltas, so this is a speed where the mouse figure is a multiplier.
+@export var stick_sensitivity := 2.6
 @export_range(-80.0, 0.0) var pitch_min := -65.0
 @export_range(0.0, 80.0) var pitch_max := 45.0
 ## How fast the body swings to face the direction of travel, radians/sec.
@@ -36,6 +39,8 @@ class_name Astronaut
 @onready var _camera: Camera3D = $CamPivot/SpringArm3D/Camera3D
 @onready var _body: Node3D = $Body
 @onready var _interact_zone: Area3D = $InteractZone
+@onready var _back_rack: CargoRack = $Body/CargoRack
+@onready var _drop_point: Marker3D = $Body/DropPoint
 
 var _time_since_grounded := 0.0
 var _mouse_captured := false
@@ -44,6 +49,7 @@ var _driving := false
 
 
 func _ready() -> void:
+	add_to_group("player")
 	_capture_mouse(true)
 
 
@@ -73,7 +79,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		)
 
 	if event.is_action_pressed("interact"):
-		_try_enter_rover()
+		_interact()
+		get_viewport().set_input_as_handled()
+
+	if event.is_action_pressed("drop_cargo"):
+		_move_cargo()
+		get_viewport().set_input_as_handled()
+
+
+func _process(delta: float) -> void:
+	if _driving:
+		return
+	StickLook.apply(
+		_cam_pivot, _spring_arm, stick_sensitivity, pitch_min, pitch_max, delta
+	)
 
 
 func _physics_process(delta: float) -> void:
@@ -124,15 +143,113 @@ func _face_travel_direction(delta: float) -> void:
 	_body.rotation.y = rotate_toward(_body.rotation.y, target_yaw, turn_speed * delta)
 
 
+# --- Interaction --------------------------------------------------------
+##
+## Two verbs, and they never overlap:
+##
+##   interact (E / A) — deal with the world. Pick up a loose crate if one is in
+##                      range, otherwise board the rover.
+##   drop_cargo (F / X) — move cargo. Carrying something, it goes on the rover's
+##                      rack if you are beside it and there is room, otherwise
+##                      on the ground. Empty-handed beside a loaded rover, it
+##                      comes off the rack instead.
+##
+## Boarding therefore never competes with unloading, so walking up to a loaded
+## rover to drive it always just drives it.
+
+func _interact() -> void:
+	var crate := nearest_loose_crate()
+	if crate != null and not _back_rack.is_full():
+		_back_rack.load_crate(crate)
+		return
+	_try_enter_rover()
+
+
+func _move_cargo() -> void:
+	var rover := nearby_rover()
+
+	if _back_rack.is_empty():
+		# Empty-handed: pull the last crate off the rover.
+		if rover == null:
+			return
+		var rack := rover.cargo_rack()
+		var stowed := rack.last_loaded_crate()
+		if stowed == null:
+			return
+		_back_rack.load_crate(stowed)
+		rover.refresh_load()
+		return
+
+	var carried := _back_rack.last_loaded_crate()
+	if rover != null and not rover.cargo_rack().is_full():
+		rover.cargo_rack().load_crate(carried)
+		rover.refresh_load()
+		return
+
+	carried.release(get_parent(), _drop_point.global_transform)
+
+
+## Nearest crate lying loose within the interact zone, or null.
+func nearest_loose_crate() -> Crate:
+	var best: Crate = null
+	var best_dist := INF
+	for body in _interact_zone.get_overlapping_bodies():
+		var crate := body as Crate
+		if crate == null or crate.is_stowed():
+			continue
+		var dist := global_position.distance_squared_to(crate.global_position)
+		if dist < best_dist:
+			best_dist = dist
+			best = crate
+	return best
+
+
+## The rover within reach, or null.
+func nearby_rover() -> Rover:
+	for body in _interact_zone.get_overlapping_bodies():
+		var rover := body as Rover
+		if rover != null:
+			return rover
+	return null
+
+
+func back_rack() -> CargoRack:
+	return _back_rack
+
+
+## What `interact` would do right now, for the HUD. Empty when there is nothing.
+func interact_prompt() -> String:
+	if _driving:
+		return "Leave the rover"
+	var crate := nearest_loose_crate()
+	if crate != null and not _back_rack.is_full():
+		return "Pick up %s" % crate.cargo_name
+	if nearby_rover() != null:
+		return "Board the rover"
+	return ""
+
+
+## What `drop_cargo` would do right now, for the HUD.
+func cargo_prompt() -> String:
+	if _driving:
+		return ""
+	var rover := nearby_rover()
+	if _back_rack.is_empty():
+		if rover != null and not rover.cargo_rack().is_empty():
+			return "Take a crate off the rack"
+		return ""
+	if rover != null and not rover.cargo_rack().is_full():
+		return "Stow on the rover"
+	return "Put the crate down"
+
+
 # --- Vehicles -----------------------------------------------------------
 
 func _try_enter_rover() -> void:
-	for body in _interact_zone.get_overlapping_bodies():
-		if body.is_in_group("rover") and body.has_method("enter"):
-			body.enter(self)
-			# Stop the same press reaching the rover, which would exit immediately.
-			get_viewport().set_input_as_handled()
-			return
+	var rover := nearby_rover()
+	if rover == null:
+		return
+	rover.enter(self)
 
 
 ## Called by the rover when we climb in.
