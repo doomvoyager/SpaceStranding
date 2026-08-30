@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://bi5cxd8kfmbnl"]
 
 [ext_resource type="Script" uid="uid://brecirucyovjd" path="res://scripts/world/test_world.gd" id="1_world"]
+[ext_resource type="PackedScene" uid="uid://kmvii0ij0k7g" path="res://scenes/postprocessing_effects.tscn" id="2_f38oy"]
 [ext_resource type="Script" uid="uid://v6n8lwttprn0" path="res://scripts/world/terrain.gd" id="2_terrain"]
 [ext_resource type="PackedScene" uid="uid://b7p7lge6nwgn8" path="res://scenes/player/astronaut.tscn" id="3_astronaut"]
 [ext_resource type="PackedScene" uid="uid://r6qgw87guhki" path="res://scenes/vehicle/rover.tscn" id="4_rover"]
@@ -59,6 +60,8 @@ roughness = 0.45
 
 [node name="TestWorld" type="Node3D" unique_id=1504669831]
 script = ExtResource("1_world")
+
+[node name="PostprocessingEffects" parent="." unique_id=370119235 instance=ExtResource("2_f38oy")]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2058511155]
 environment = SubResource("Environment_vesper")
