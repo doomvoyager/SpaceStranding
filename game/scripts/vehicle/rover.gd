@@ -30,7 +30,12 @@ const ENGINE_FORCE_SIGN := -1.0
 @export_range(0.0, 60.0) var max_steer_angle := 32.0
 ## Radians/sec the wheels can be turned. Deliberately slow: hydraulic, loaded.
 @export var steer_speed := 1.6
-## Above this speed (m/s) steering authority is reduced to the floor value below.
+## Below this speed (m/s) you get the full lock, and the falloff does not bite
+## at all. Without the dead band the ramp starts at a standstill, so the first
+## metre per second already eats your lock and the throttle reads as if it were
+## stealing the steering. Measured: tests/probe_steer_under_throttle.gd.
+@export var steer_falloff_start := 5.0
+## By this speed (m/s) steering authority has fallen to the floor value below.
 @export var steer_falloff_speed := 14.0
 @export_range(0.1, 1.0) var steer_falloff_floor := 0.35
 
@@ -110,15 +115,19 @@ func _physics_process(delta: float) -> void:
 
 
 func _apply_steering(steer_input: float, delta: float) -> void:
-	# Speed-sensitive steering. At speed, full lock in 0.34 g puts you on your roof.
-	var speed := linear_velocity.length()
-	var authority := lerpf(
-		1.0,
-		steer_falloff_floor,
-		clampf(speed / steer_falloff_speed, 0.0, 1.0)
-	)
-	_steer_target = steer_input * deg_to_rad(max_steer_angle) * authority
+	_steer_target = steer_input * deg_to_rad(max_steer_angle) * steer_authority()
 	steering = move_toward(steering, _steer_target, steer_speed * delta)
+
+
+## Fraction of full lock available at the current speed. Full below
+## steer_falloff_start, ramping to steer_falloff_floor by steer_falloff_speed.
+## At speed, full lock in 0.34 g puts you on your roof - but manoeuvring speed
+## has to keep the lock, or parking and turning around feel broken.
+func steer_authority() -> float:
+	var speed := linear_velocity.length()
+	var span := maxf(steer_falloff_speed - steer_falloff_start, 0.001)
+	var t := clampf((speed - steer_falloff_start) / span, 0.0, 1.0)
+	return lerpf(1.0, steer_falloff_floor, t)
 
 
 func _apply_drivetrain(throttle: float, braking: bool) -> void:

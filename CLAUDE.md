@@ -110,6 +110,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ro
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_cargo_flow.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_analog_input.tscn
+```
+
 Capture stills of the look, or of the loaded cargo racks. Both must run
 **windowed** - `--headless` is the dummy renderer and writes no image:
 
@@ -176,6 +180,15 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   through to `quit(1)` always exits 1 - it prints PASS and reports failure.
   `test_rover_controls.gd` did exactly this from the day it was written, which
   made the documented CI check useless. Always `return` after `quit()`.
+- **`Input.get_vector()` returns the stick's throw as the vector's length**, and
+  normalising the direction you build from it silently discards that - half a
+  stick then walks at full speed. Keep the magnitude separately. The keyboard
+  produces exactly 1, so the bug is invisible without a pad.
+- **`Input.get_action_strength()` rescales by the deadzone**, it does not just
+  gate on it. A raw axis at 0.5 through a 0.2 deadzone reads **0.375**, not 0.5.
+  Worth knowing before concluding an analog input is behaving as a switch -
+  synthesise events through the real `InputMap` with
+  `tests/probe_analog_input.gd` rather than guessing.
 - **`Area3D` overlap lists only refresh on a physics step.** Teleporting a body
   and asking `get_overlapping_bodies()` in the same frame returns the old list.
   Tests that move things and then probe interaction range have to step physics

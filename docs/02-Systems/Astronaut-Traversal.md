@@ -16,6 +16,12 @@ to face travel. Jump height is specified in metres and solved against actual
 gravity (`v = √(2gh)`), so retuning [[The-Planet]] does not silently break the
 jump.
 
+**Walking is analog.** `Input.get_vector()` returns a vector whose *length* is
+how far the stick was pushed, so the magnitude is kept separately and the
+normalised direction is only used for heading. Normalising the wish direction
+and discarding the throw - which is what the first version did - makes half a
+stick walk at full speed. The keyboard produces exactly 1, so it is unaffected.
+
 **The low-gravity feel is mostly one number.** Air acceleration is 1.2 against
 9.0 on the ground - roughly a seventh. A jump is a commitment, not a steering
 input, and that single ratio does more for the feel than the hang time does.

@@ -15,8 +15,9 @@ everything else that makes it a *cargo* vehicle is not.
 `VehicleBody3D`, six wheels, front pair steering, all six driven. Built today:
 
 - Throttle, reverse, brake, engine braking
-- **Speed-sensitive steering** - authority falls to 35% by 14 m/s. At a third of
-  Earth's grip, full lock at speed puts you on your roof
+- **Speed-sensitive steering with a dead band** - full lock below 5 m/s, falling
+  to 35% by 14 m/s. At a third of Earth's grip, full lock at speed puts you on
+  your roof; but the ramp has to *start* above manoeuvring speed. See below
 - Slow hydraulic steering rate (1.6 rad/s), so it never darts
 - Centre of mass dropped to −0.35 to resist rolling on side slopes
 - Enter/exit with `E` / gamepad `A`, camera and input handover to and from the
@@ -44,6 +45,22 @@ both true at once, and `test_rover_controls.tscn` asserts that holding
 The decelerate pedal is a brake above `reverse_threshold` (0.6 m/s forward) and
 reverse below it. Applying reverse torque to wheels that are still rolling
 forward at a third of Earth's grip does not stop you - it just spins them.
+
+## The steering dead band
+
+The falloff originally ramped from a standstill, so the first metre per second
+already ate your lock: 32° at rest, 26.9° at walking pace, 14.9° by 11.6 m/s.
+Because the only way to gain speed is the throttle, this read as **the throttle
+stealing the steering** - hold `RT` and the wheels straighten themselves.
+
+`steer_falloff_start` (5 m/s) fixes it. Below that you get the full lock, and the
+ramp to `steer_falloff_floor` runs from there to `steer_falloff_speed`. Parking,
+turning around and picking a line through rocks all happen under 5 m/s and now
+keep every degree.
+
+Measured, not reasoned: `res://tests/probe_steer_under_throttle.gd` prints the
+angle actually reached against speed, and `test_analog_input.tscn` asserts that
+holding the throttle at manoeuvring speed still gives full lock.
 
 ## The load
 

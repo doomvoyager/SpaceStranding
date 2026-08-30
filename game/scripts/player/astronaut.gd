@@ -115,6 +115,12 @@ func _physics_process(delta: float) -> void:
 func _apply_horizontal_movement(delta: float, grounded: bool) -> void:
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 
+	# get_vector already clamps to length 1, so its magnitude *is* how far the
+	# stick was pushed. Keep it separately: normalising the direction throws it
+	# away, which made half a stick walk at full speed. The keyboard produces
+	# exactly 1, so nothing changes there.
+	var throw := minf(input.length(), 1.0)
+
 	# Movement is relative to where the camera is looking, not where the body faces.
 	var basis := _cam_pivot.global_transform.basis
 	var wish_dir := (basis.x * input.x + basis.z * input.y)
@@ -123,7 +129,7 @@ func _apply_horizontal_movement(delta: float, grounded: bool) -> void:
 
 	var speed := sprint_speed if Input.is_action_pressed("sprint") else walk_speed
 	var accel := ground_acceleration if grounded else air_acceleration
-	var target := wish_dir * speed
+	var target := wish_dir * speed * throw
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
 
 	if wish_dir.is_zero_approx() and grounded:
