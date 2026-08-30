@@ -26,10 +26,16 @@ Also built: coyote time (0.15 s), sprint, head lamp, `Esc` to release the mouse,
 a two-slot back rack, and the interaction verbs for [[Cargo]].
 
 **Full gamepad parity.** Left stick moves, right stick looks, `A` interacts, `X`
-moves cargo, `B` jumps (and brakes in the [[Rover]], exactly as `Space` already
-did for both), `L3` sprints. Mouse look is an event; stick look is a held
-position, so it is polled in `_process` via the shared `StickLook` helper that
-both camera rigs use.
+moves cargo, `B` jumps (and full-brakes in the [[Rover]], exactly as `Space`
+already did for both), `L3` sprints. Mouse look is an event; stick look is a
+held position, so it is polled in `_process` via the shared `StickLook` helper
+that both camera rigs use.
+
+The left stick's `move_forward` / `move_back` are **on-foot only**. The
+[[Rover]] drives on its own `drive_forward` / `drive_back` (`W`/`S`, `RT`/`LT`)
+so that the stick steers and nothing else once you are behind the wheel. Two
+actions rather than one is what lets the same stick mean different things in the
+two contexts without either script inspecting the input's source.
 
 ## Interaction
 

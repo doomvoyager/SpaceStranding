@@ -21,6 +21,10 @@ const ENGINE_FORCE_SIGN := -1.0
 @export var max_brake_force := 26.0
 ## Passive drag when the throttle is released, in brake units.
 @export var engine_braking := 2.5
+## Below this forward speed (m/s), the decelerate input stops braking and starts
+## reversing. Above it, holding LT or S slows you down instead of fighting the
+## wheels with reverse torque - which at a third of Earth's grip just spins them.
+@export var reverse_threshold := 0.6
 
 @export_group("Steering")
 @export_range(0.0, 60.0) var max_steer_angle := 32.0
@@ -94,7 +98,10 @@ func _physics_process(delta: float) -> void:
 	if driver == null:
 		return
 
-	var throttle := Input.get_axis("move_back", "move_forward")
+	# Throttle is deliberately NOT move_forward/move_back: those carry the left
+	# stick for the astronaut on foot, and in the rover the stick steers only.
+	# RT and LT are analog, so get_axis returns a real pedal position.
+	var throttle := Input.get_axis("drive_back", "drive_forward")
 	var steer_input := Input.get_axis("move_right", "move_left")
 	var braking := Input.is_action_pressed("brake")
 
@@ -126,9 +133,18 @@ func _apply_drivetrain(throttle: float, braking: bool) -> void:
 	elif throttle > 0.0:
 		engine_force = ENGINE_FORCE_SIGN * throttle * max_engine_force
 		brake = 0.0
+	elif forward_speed() > reverse_threshold:
+		# Still rolling forward: the decelerate pedal is a brake, not reverse.
+		engine_force = 0.0
+		brake = -throttle * max_brake_force
 	else:
 		engine_force = ENGINE_FORCE_SIGN * throttle * max_reverse_force
 		brake = 0.0
+
+
+## Speed along the rover's own forward axis. Negative while reversing.
+func forward_speed() -> float:
+	return linear_velocity.dot(-global_transform.basis.z)
 
 
 # --- Load ---------------------------------------------------------------

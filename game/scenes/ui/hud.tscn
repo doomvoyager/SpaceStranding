@@ -31,7 +31,7 @@ script = ExtResource("1_hud")
 offset_left = 26.0
 offset_top = 26.0
 offset_right = 372.0
-offset_bottom = 246.0
+offset_bottom = 272.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_card")
 
 [node name="List" type="VBoxContainer" parent="Controls"]
@@ -48,30 +48,30 @@ theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 5
 
 [node name="R0C0" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
+custom_minimum_size = Vector2(68, 0)
 text = "WASD"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
 
 [node name="R0C1" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
+custom_minimum_size = Vector2(68, 0)
 text = "L stick"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
 
 [node name="R0C2" type="Label" parent="Controls/List/Grid"]
-text = "Move"
+text = "Move  ·  steer the rover"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
 
 [node name="R1C0" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
+custom_minimum_size = Vector2(68, 0)
 text = "Mouse"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
 
 [node name="R1C1" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
+custom_minimum_size = Vector2(68, 0)
 text = "R stick"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
@@ -82,13 +82,13 @@ theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
 
 [node name="R2C0" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
+custom_minimum_size = Vector2(68, 0)
 text = "Shift"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
 
 [node name="R2C1" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
+custom_minimum_size = Vector2(68, 0)
 text = "L3"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
@@ -99,69 +99,86 @@ theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
 
 [node name="R3C0" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
+custom_minimum_size = Vector2(68, 0)
 text = "Space"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
 
 [node name="R3C1" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
+custom_minimum_size = Vector2(68, 0)
 text = "B"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
 
 [node name="R3C2" type="Label" parent="Controls/List/Grid"]
-text = "Jump  ·  brake in the rover"
+text = "Jump  ·  full brake in the rover"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
 
 [node name="R4C0" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
-text = "E"
+custom_minimum_size = Vector2(68, 0)
+text = "W / S"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
 
 [node name="R4C1" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
-text = "A"
+custom_minimum_size = Vector2(68, 0)
+text = "RT / LT"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
 
 [node name="R4C2" type="Label" parent="Controls/List/Grid"]
-text = "Pick up  ·  board the rover"
+text = "Throttle  ·  brake, then reverse"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
 
 [node name="R5C0" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
-text = "F"
+custom_minimum_size = Vector2(68, 0)
+text = "E"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
 
 [node name="R5C1" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
-text = "X"
+custom_minimum_size = Vector2(68, 0)
+text = "A"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
 
 [node name="R5C2" type="Label" parent="Controls/List/Grid"]
-text = "Stow  ·  drop  ·  unload"
+text = "Pick up  ·  board the rover"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
 
 [node name="R6C0" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
-text = "Esc"
+custom_minimum_size = Vector2(68, 0)
+text = "F"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
 
 [node name="R6C1" type="Label" parent="Controls/List/Grid"]
-custom_minimum_size = Vector2(62, 0)
-text = "—"
+custom_minimum_size = Vector2(68, 0)
+text = "X"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
 
 [node name="R6C2" type="Label" parent="Controls/List/Grid"]
+text = "Stow  ·  drop  ·  unload"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
+
+[node name="R7C0" type="Label" parent="Controls/List/Grid"]
+custom_minimum_size = Vector2(68, 0)
+text = "Esc"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
+
+[node name="R7C1" type="Label" parent="Controls/List/Grid"]
+custom_minimum_size = Vector2(68, 0)
+text = "—"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
+
+[node name="R7C2" type="Label" parent="Controls/List/Grid"]
 text = "Release the mouse"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)

@@ -26,6 +26,25 @@ everything else that makes it a *cargo* vehicle is not.
 
 Not built: flare shield, power, damage, [[Progression]] upgrades.
 
+## Pedals
+
+| | Keyboard | Gamepad | |
+|---|---|---|---|
+| Throttle | `W` | `RT` | Analog on the trigger |
+| Decelerate | `S` | `LT` | Brakes while rolling forward, reverses once stopped |
+| Full brake | `Space` | `B` | Shares its binding with jump, as it always has |
+| Steer | `A` `D` | Left stick | |
+
+**Throttle is `drive_forward` / `drive_back`, not `move_forward` / `move_back`.**
+Those carry the left stick, which the astronaut needs to walk with on foot; in
+the rover the stick steers and nothing else. Two separate actions is what keeps
+both true at once, and `test_rover_controls.tscn` asserts that holding
+`move_forward` leaves the rover coasting down rather than accelerating.
+
+The decelerate pedal is a brake above `reverse_threshold` (0.6 m/s forward) and
+reverse below it. Applying reverse torque to wheels that are still rolling
+forward at a third of Earth's grip does not stop you - it just spins them.
+
 ## The load
 
 `mass` in the inspector is the **empty** rover. `refresh_load()` adds whatever

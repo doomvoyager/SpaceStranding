@@ -71,10 +71,10 @@ func _physics_process(_delta: float) -> void:
 			_empty_com = _rover.center_of_mass
 			_run_transfers()
 			_rover.enter(_astronaut)
-			Input.action_press("move_forward")
+			Input.action_press("drive_forward")
 
 		F_PARK:
-			Input.action_release("move_forward")
+			Input.action_release("drive_forward")
 			_check_still_attached()
 			_rover.exit()
 			_stand_at(_rover.global_position + _rover.global_transform.basis.x * 2.6)

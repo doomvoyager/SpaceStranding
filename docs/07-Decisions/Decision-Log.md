@@ -9,6 +9,27 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-30 - Triggers drive the rover; the stick only steers
+
+Mac's call, immediately after the first gamepad pass bound throttle to the left
+stick's Y axis like the keyboard's `W`/`S`. **`RT` accelerates, `LT`
+decelerates, and the stick steers only.**
+
+The implementation constraint worth remembering: `move_forward` /
+`move_back` are shared between the astronaut on foot and the rover, so the stick
+could not simply be unbound - that would have killed on-foot walking. The rover
+got its own `drive_forward` / `drive_back` actions instead (`W`/`S`, `RT`/`LT`,
+no stick binding). Two actions rather than one is what lets the same stick mean
+different things in the two contexts without either script inspecting where the
+input came from.
+
+**`LT` brakes before it reverses**, above 0.6 m/s forward. Read literally,
+"decelerate" could have been brake-only - but with throttle off the stick that
+would leave a gamepad with no reverse at all. Brake-then-reverse is the
+universal driving convention and satisfies both readings. `S` behaves the same
+way, which is a change to the keyboard, and a deliberate one: the two should not
+diverge. `Space` / `B` remain the separate full brake.
+
 ## 2026-08-30 - Cargo is a slot grid, not a physics placement puzzle
 
 Answers the `#blocking` question that had been sitting in [[Cargo]] since the
