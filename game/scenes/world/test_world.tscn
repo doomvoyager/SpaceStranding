@@ -76,7 +76,7 @@ directional_shadow_max_distance = 320.0
 directional_shadow_pancake_size = 40.0
 
 [node name="Terrain" type="Node3D" parent="." unique_id=1919902232]
-transform = Transform3D(1, 0, 0, 0, 0.2, 0, 0, 0, 1, 0, 0, 0)
+transform = Transform3D(1, 0, 0, 0, 0.5, 0, 0, 0, 1, 0, 0, 0)
 script = ExtResource("2_terrain")
 
 [node name="Beacon" type="Node3D" parent="." unique_id=95117728]
@@ -96,38 +96,32 @@ omni_range = 60.0
 
 [node name="Rover" parent="." unique_id=1609840956 instance=ExtResource("4_rover")]
 
-[node name="Crates" type="Node3D" parent="."]
+[node name="Crates" type="Node3D" parent="." unique_id=134943891]
 
-[node name="Crate1" parent="Crates" instance=ExtResource("5_crate")]
+[node name="Crate1" parent="Crates" unique_id=1012537758 instance=ExtResource("5_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.2, 0, 2.2)
-mass = 35.0
-cargo_name = "Supply crate"
 
-[node name="Crate2" parent="Crates" instance=ExtResource("5_crate")]
+[node name="Crate2" parent="Crates" unique_id=1889753566 instance=ExtResource("5_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, 0, 2.9)
 mass = 55.0
 cargo_name = "Water canister"
 
-[node name="Crate3" parent="Crates" instance=ExtResource("5_crate")]
+[node name="Crate3" parent="Crates" unique_id=1028324466 instance=ExtResource("5_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0, 3.7)
-mass = 35.0
-cargo_name = "Supply crate"
 
-[node name="Crate4" parent="Crates" instance=ExtResource("5_crate")]
+[node name="Crate4" parent="Crates" unique_id=623864605 instance=ExtResource("5_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.3, 0, 1.7)
 mass = 22.0
 cargo_name = "Core samples"
 
-[node name="Crate5" parent="Crates" instance=ExtResource("5_crate")]
+[node name="Crate5" parent="Crates" unique_id=762425525 instance=ExtResource("5_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.9, 0, 4.5)
 mass = 48.0
 cargo_name = "Spare cell"
 
-[node name="Crate6" parent="Crates" instance=ExtResource("5_crate")]
+[node name="Crate6" parent="Crates" unique_id=1516569004 instance=ExtResource("5_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.9, 0, 3.5)
-mass = 35.0
-cargo_name = "Supply crate"
 
-[node name="HUD" parent="." instance=ExtResource("6_hud")]
+[node name="HUD" parent="." unique_id=826782983 instance=ExtResource("6_hud")]
 astronaut_path = NodePath("../Astronaut")
 rover_path = NodePath("../Rover")
