@@ -1,0 +1,95 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/test_world.gd" id="1_world"]
+[ext_resource type="Script" path="res://scripts/world/terrain.gd" id="2_terrain"]
+[ext_resource type="PackedScene" path="res://scenes/player/astronaut.tscn" id="3_astronaut"]
+[ext_resource type="PackedScene" path="res://scenes/vehicle/rover.tscn" id="4_rover"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_vesper"]
+sky_top_color = Color(0.07, 0.05, 0.07, 1)
+sky_horizon_color = Color(0.44, 0.19, 0.13, 1)
+sky_curve = 0.11
+sky_energy_multiplier = 0.8
+ground_bottom_color = Color(0.09, 0.06, 0.05, 1)
+ground_horizon_color = Color(0.33, 0.16, 0.12, 1)
+ground_curve = 0.04
+sun_angle_max = 14.0
+sun_curve = 0.03
+
+[sub_resource type="Sky" id="Sky_vesper"]
+sky_material = SubResource("ProceduralSkyMaterial_vesper")
+
+[sub_resource type="Environment" id="Environment_vesper"]
+background_mode = 2
+sky = SubResource("Sky_vesper")
+ambient_light_source = 3
+ambient_light_energy = 0.55
+tonemap_mode = 3
+tonemap_white = 4.0
+ssao_enabled = true
+ssao_radius = 1.4
+ssao_intensity = 1.6
+glow_enabled = true
+glow_intensity = 0.5
+glow_bloom = 0.05
+fog_enabled = true
+fog_light_color = Color(0.42, 0.22, 0.16, 1)
+fog_light_energy = 0.7
+fog_density = 0.0016
+fog_sky_affect = 0.35
+fog_aerial_perspective = 0.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_beacon"]
+top_radius = 0.18
+bottom_radius = 0.32
+height = 18.0
+radial_segments = 10
+
+[sub_resource type="StandardMaterial3D" id="Material_beacon"]
+albedo_color = Color(0.62, 0.6, 0.55, 1)
+metallic = 0.7
+roughness = 0.45
+
+[node name="TestWorld" type="Node3D"]
+script = ExtResource("1_world")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_vesper")
+
+[node name="Star" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 400, 0)
+light_color = Color(1, 0.42, 0.22, 1)
+light_energy = 0.85
+light_angular_distance = 1.2
+shadow_enabled = true
+directional_shadow_mode = 2
+directional_shadow_split_1 = 0.06
+directional_shadow_split_2 = 0.16
+directional_shadow_split_3 = 0.42
+directional_shadow_blend_splits = true
+directional_shadow_max_distance = 320.0
+directional_shadow_pancake_size = 40.0
+
+[node name="Terrain" type="Node3D" parent="."]
+script = ExtResource("2_terrain")
+size = 512.0
+resolution = 2.0
+height_scale = 48.0
+ridge_weight = 0.55
+
+[node name="Beacon" type="Node3D" parent="."]
+
+[node name="Mast" type="MeshInstance3D" parent="Beacon"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9, 0)
+mesh = SubResource("CylinderMesh_beacon")
+surface_material_override/0 = SubResource("Material_beacon")
+
+[node name="Light" type="OmniLight3D" parent="Beacon"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 18.4, 0)
+light_color = Color(1, 0.32, 0.24, 1)
+light_energy = 8.0
+omni_range = 60.0
+
+[node name="Astronaut" parent="." instance=ExtResource("3_astronaut")]
+
+[node name="Rover" parent="." instance=ExtResource("4_rover")]

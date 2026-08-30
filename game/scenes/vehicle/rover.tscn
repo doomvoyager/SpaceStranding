@@ -1,0 +1,187 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/vehicle/rover.gd" id="1_rover"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_chassis"]
+size = Vector3(2.0, 1.0, 4.4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hull"]
+size = Vector3(2.0, 1.0, 4.4)
+
+[sub_resource type="StandardMaterial3D" id="Material_hull"]
+albedo_color = Color(0.76, 0.74, 0.68, 1)
+metallic = 0.45
+roughness = 0.48
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_wheel"]
+top_radius = 0.5
+bottom_radius = 0.5
+height = 0.34
+radial_segments = 20
+
+[sub_resource type="StandardMaterial3D" id="Material_tyre"]
+albedo_color = Color(0.13, 0.13, 0.14, 1)
+metallic = 0.1
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="BoxMesh_rack"]
+size = Vector3(1.8, 0.12, 1.7)
+
+[sub_resource type="StandardMaterial3D" id="Material_rack"]
+albedo_color = Color(0.38, 0.4, 0.42, 1)
+metallic = 0.6
+roughness = 0.42
+
+[node name="Rover" type="VehicleBody3D"]
+mass = 950.0
+script = ExtResource("1_rover")
+
+[node name="Chassis" type="CollisionShape3D" parent="."]
+shape = SubResource("BoxShape3D_chassis")
+
+[node name="Hull" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_hull")
+surface_material_override/0 = SubResource("Material_hull")
+
+[node name="CargoRack" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.56, 1.15)
+mesh = SubResource("BoxMesh_rack")
+surface_material_override/0 = SubResource("Material_rack")
+
+[node name="HeadlightL" type="SpotLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.7, 0.15, -2.25)
+light_color = Color(0.9, 0.94, 1, 1)
+light_energy = 4.0
+spot_range = 70.0
+spot_angle = 32.0
+
+[node name="HeadlightR" type="SpotLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.7, 0.15, -2.25)
+light_color = Color(0.9, 0.94, 1, 1)
+light_energy = 4.0
+spot_range = 70.0
+spot_angle = 32.0
+
+[node name="WheelFL" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.12, -0.4, -1.65)
+use_as_traction = true
+use_as_steering = true
+wheel_roll_influence = 0.15
+wheel_radius = 0.5
+wheel_rest_length = 0.25
+wheel_friction_slip = 6.0
+suspension_travel = 0.32
+suspension_stiffness = 22.0
+suspension_max_force = 12000.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="WheelMesh" type="MeshInstance3D" parent="WheelFL"]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+surface_material_override/0 = SubResource("Material_tyre")
+
+[node name="WheelFR" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.12, -0.4, -1.65)
+use_as_traction = true
+use_as_steering = true
+wheel_roll_influence = 0.15
+wheel_radius = 0.5
+wheel_rest_length = 0.25
+wheel_friction_slip = 6.0
+suspension_travel = 0.32
+suspension_stiffness = 22.0
+suspension_max_force = 12000.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="WheelMesh" type="MeshInstance3D" parent="WheelFR"]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+surface_material_override/0 = SubResource("Material_tyre")
+
+[node name="WheelML" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.12, -0.4, 0.0)
+use_as_traction = true
+wheel_roll_influence = 0.15
+wheel_radius = 0.5
+wheel_rest_length = 0.25
+wheel_friction_slip = 6.0
+suspension_travel = 0.32
+suspension_stiffness = 22.0
+suspension_max_force = 12000.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="WheelMesh" type="MeshInstance3D" parent="WheelML"]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+surface_material_override/0 = SubResource("Material_tyre")
+
+[node name="WheelMR" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.12, -0.4, 0.0)
+use_as_traction = true
+wheel_roll_influence = 0.15
+wheel_radius = 0.5
+wheel_rest_length = 0.25
+wheel_friction_slip = 6.0
+suspension_travel = 0.32
+suspension_stiffness = 22.0
+suspension_max_force = 12000.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="WheelMesh" type="MeshInstance3D" parent="WheelMR"]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+surface_material_override/0 = SubResource("Material_tyre")
+
+[node name="WheelRL" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.12, -0.4, 1.65)
+use_as_traction = true
+wheel_roll_influence = 0.15
+wheel_radius = 0.5
+wheel_rest_length = 0.25
+wheel_friction_slip = 6.0
+suspension_travel = 0.32
+suspension_stiffness = 22.0
+suspension_max_force = 12000.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="WheelMesh" type="MeshInstance3D" parent="WheelRL"]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+surface_material_override/0 = SubResource("Material_tyre")
+
+[node name="WheelRR" type="VehicleWheel3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.12, -0.4, 1.65)
+use_as_traction = true
+wheel_roll_influence = 0.15
+wheel_radius = 0.5
+wheel_rest_length = 0.25
+wheel_friction_slip = 6.0
+suspension_travel = 0.32
+suspension_stiffness = 22.0
+suspension_max_force = 12000.0
+damping_compression = 1.6
+damping_relaxation = 2.2
+
+[node name="WheelMesh" type="MeshInstance3D" parent="WheelRR"]
+transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("CylinderMesh_wheel")
+surface_material_override/0 = SubResource("Material_tyre")
+
+[node name="CamPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CamPivot"]
+spring_length = 9.0
+margin = 0.4
+
+[node name="Camera3D" type="Camera3D" parent="CamPivot/SpringArm3D"]
+fov = 72.0
+far = 6000.0
+
+[node name="ExitPoint" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, -0.5, 0)

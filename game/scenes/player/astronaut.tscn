@@ -1,0 +1,89 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/astronaut.gd" id="1_astronaut"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_torso"]
+radius = 0.36
+height = 1.15
+
+[sub_resource type="StandardMaterial3D" id="Material_suit"]
+albedo_color = Color(0.82, 0.8, 0.75, 1)
+metallic = 0.05
+roughness = 0.72
+
+[sub_resource type="SphereMesh" id="SphereMesh_helmet"]
+radius = 0.28
+height = 0.56
+
+[sub_resource type="StandardMaterial3D" id="Material_visor"]
+albedo_color = Color(0.06, 0.07, 0.09, 1)
+metallic = 0.9
+roughness = 0.12
+
+[sub_resource type="BoxMesh" id="BoxMesh_pack"]
+size = Vector3(0.52, 0.7, 0.28)
+
+[sub_resource type="StandardMaterial3D" id="Material_pack"]
+albedo_color = Color(0.42, 0.44, 0.46, 1)
+metallic = 0.35
+roughness = 0.55
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
+radius = 3.5
+
+[node name="Astronaut" type="CharacterBody3D"]
+collision_layer = 1
+collision_mask = 1
+script = ExtResource("1_astronaut")
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="Body" type="Node3D" parent="."]
+
+[node name="Torso" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+mesh = SubResource("CapsuleMesh_torso")
+surface_material_override/0 = SubResource("Material_suit")
+
+[node name="Helmet" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.66, 0)
+mesh = SubResource("SphereMesh_helmet")
+surface_material_override/0 = SubResource("Material_visor")
+
+[node name="Pack" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0.32)
+mesh = SubResource("BoxMesh_pack")
+surface_material_override/0 = SubResource("Material_pack")
+
+[node name="HeadLamp" type="SpotLight3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.66, -0.24)
+light_color = Color(0.86, 0.92, 1, 1)
+light_energy = 2.5
+spot_range = 30.0
+spot_angle = 38.0
+
+[node name="CamPivot" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CamPivot"]
+spring_length = 4.5
+margin = 0.3
+
+[node name="Camera3D" type="Camera3D" parent="CamPivot/SpringArm3D"]
+current = true
+fov = 70.0
+far = 6000.0
+
+[node name="InteractZone" type="Area3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+collision_layer = 0
+collision_mask = 1
+
+[node name="Shape" type="CollisionShape3D" parent="InteractZone"]
+shape = SubResource("SphereShape3D_interact")

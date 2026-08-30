@@ -1,0 +1,29 @@
+# Normalise line endings. Windows and macOS agree on LF inside the repo.
+* text=auto eol=lf
+
+# Godot source files are text - let Git diff and merge them.
+*.gd       text
+*.tscn     text
+*.tres     text
+*.godot    text
+*.cfg      text
+*.md       text
+
+# Binaries: never touch. No LFS - .blend source files live outside the repo,
+# only the smaller exported files are committed here.
+*.glb      binary
+*.gltf     binary
+*.obj      binary
+*.fbx      binary
+*.blend    binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.webp     binary
+*.exr      binary
+*.hdr      binary
+*.wav      binary
+*.ogg      binary
+*.mp3      binary
+*.ttf      binary
+*.otf      binary

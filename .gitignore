@@ -1,0 +1,38 @@
+# --- Godot ---
+# Regenerable import cache. Never commit: huge, machine-specific, causes conflicts.
+game/.godot/
+game/android/
+# Can contain signing keys and absolute paths. Keep a copy outside the repo.
+game/export_presets.cfg
+game/*.translation
+
+# --- Godot engine ---
+# Portable Godot 4.7.1 install. Present on both machines, but per-platform
+# (Godot.app on macOS, Godot_v4.7.1-stable_win64_console.exe on Windows),
+# so it stays local. See CLAUDE.md "The engine".
+engine/
+
+# --- Build output ---
+builds/
+
+# --- Asset download archives ---
+# The extracted folder beside it is what Godot imports; the zip is the same
+# bytes again. The repo holds what the game uses, not what it was delivered in.
+game/assets/**/*.zip
+
+# --- Obsidian ---
+# Per-machine window layout. The rest of .obsidian/ IS committed so plugins
+# and settings sync between the PC and the MacBook.
+docs/.obsidian/workspace.json
+docs/.obsidian/workspace-mobile.json
+docs/.obsidian/workspace.json.bak
+
+# --- OS junk ---
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+
+# --- Editors ---
+.vscode/
+.idea/
