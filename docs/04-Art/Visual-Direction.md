@@ -85,7 +85,8 @@ stronger rim). Fork a `.tres`, never the shader.
 
 - [ ] The design intent is a 4° star elevation; it is set to 5.5° because a
       grazing directional light makes shadow maps fall apart. Revisit if we move
-      to baked lighting. `World.STAR_ELEVATION_DEG`.
+      to baked lighting. `World.star_elevation_deg`, and now live on a
+      slider in the F1 panel - see [[Debug-Panel]].
 - [ ] **The environment still uses ACES tonemapping** (`tonemap_mode = 3` in
       `test_world.tscn`), which clamps exactly the saturated reds the palette
       now calls for. Needs a pass with Filmic or Linear plus manual grading.

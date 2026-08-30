@@ -100,11 +100,11 @@ func _physics_process(delta: float) -> void:
 	_time_since_grounded = 0.0 if grounded else _time_since_grounded + delta
 
 	if not grounded:
-		velocity.y -= World.SURFACE_GRAVITY * delta
+		velocity.y -= World.surface_gravity * delta
 
 	if Input.is_action_just_pressed("jump") and _time_since_grounded <= coyote_time:
 		# v = sqrt(2 * g * h)
-		velocity.y = sqrt(2.0 * World.SURFACE_GRAVITY * jump_height)
+		velocity.y = sqrt(2.0 * World.surface_gravity * jump_height)
 		_time_since_grounded = coyote_time + 1.0  # consume the coyote window
 
 	_apply_horizontal_movement(delta, grounded)

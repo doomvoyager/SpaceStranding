@@ -1,6 +1,6 @@
 ---
 status: reference
-verified: 2026-08-30
+verified: 2026-08-31
 godot: res://scripts/core/world_constants.gd
 tags: [system, setting, reference]
 ---
@@ -10,6 +10,14 @@ tags: [system, setting, reference]
 Everything numeric about the world lives in `world_constants.gd`, autoloaded as
 `World`. **Never hardcode gravity, pressure or star direction anywhere else** -
 retuning the planet has to stay a one-file change.
+
+As of 2026-08-31 it is a **no-file** change: these are `@export var` rather than
+`const`, and the F1 panel ([[Debug-Panel]]) drives them live. Two consequences
+worth knowing. Anything *derived* from a tunable is a function rather than a
+stored value - `gravity_ratio()`, `horizon_distance()`, `star_direction()` -
+so it cannot go stale. And gravity has to be pushed to the physics server as
+well as stored here, because `project.godot`'s `default_gravity` is only read
+when the space is created; `World` does that itself on every change.
 
 ## The star: Vesper
 

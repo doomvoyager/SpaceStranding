@@ -67,8 +67,12 @@ func _ready() -> void:
 	add_to_group("cargo")
 	_loose_layer = collision_layer
 	_loose_mask = collision_mask
-	_meter.gravity = Vector3(0.0, -World.SURFACE_GRAVITY, 0.0)
+	_meter.gravity = World.gravity_vector()
 	_meter.reset(linear_velocity)
+	# Gravity is tunable at runtime from the debug panel, and the meter holds a
+	# cached copy. Without this, retuning the planet leaves every crate
+	# measuring jolt against the old gravity.
+	World.changed.connect(_on_world_changed)
 
 
 func _physics_process(delta: float) -> void:
@@ -117,6 +121,10 @@ func take_damage(amount: float) -> void:
 		return
 	condition -= loss
 	damaged.emit(loss)
+
+
+func _on_world_changed() -> void:
+	_meter.gravity = World.gravity_vector()
 
 
 ## Smoothed proper acceleration this crate is riding through, m/s^2. Only

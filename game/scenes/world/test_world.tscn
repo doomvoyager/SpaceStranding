@@ -2,10 +2,11 @@
 
 [ext_resource type="Script" uid="uid://brecirucyovjd" path="res://scripts/world/test_world.gd" id="1_world"]
 [ext_resource type="Script" uid="uid://v6n8lwttprn0" path="res://scripts/world/terrain.gd" id="2_terrain"]
-[ext_resource type="PackedScene" path="res://scenes/player/astronaut.tscn" id="3_astronaut"]
-[ext_resource type="PackedScene" path="res://scenes/vehicle/rover.tscn" id="4_rover"]
+[ext_resource type="PackedScene" uid="uid://b7p7lge6nwgn8" path="res://scenes/player/astronaut.tscn" id="3_astronaut"]
+[ext_resource type="PackedScene" uid="uid://r6qgw87guhki" path="res://scenes/vehicle/rover.tscn" id="4_rover"]
 [ext_resource type="PackedScene" path="res://scenes/cargo/crate.tscn" id="5_crate"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="6_hud"]
+[ext_resource type="PackedScene" path="res://scenes/cargo/delivery_pad.tscn" id="7_i3rsd"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_vesper"]
 sky_top_color = Color(0.07, 0.05, 0.07, 1)
@@ -125,3 +126,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.9, 0, 3.5)
 [node name="HUD" parent="." unique_id=826782983 instance=ExtResource("6_hud")]
 astronaut_path = NodePath("../Astronaut")
 rover_path = NodePath("../Rover")
+
+[node name="DeliveryPad" parent="." unique_id=117514931 instance=ExtResource("7_i3rsd")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.7398624, 3.9051394, -38.53001)

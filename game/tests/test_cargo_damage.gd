@@ -75,7 +75,7 @@ func _ready() -> void:
 ## at `rate` Hz, and report the condition lost. `crate` supplies the curve.
 func _impulse_damage(crate: Crate, rate: float, speed := 6.0) -> float:
 	var meter := JoltMeter.new()
-	meter.gravity = Vector3(0.0, -World.SURFACE_GRAVITY, 0.0)
+	meter.gravity = World.gravity_vector()
 	var delta := 1.0 / rate
 	var before := crate.condition
 

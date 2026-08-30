@@ -30,6 +30,12 @@ mechanics. Mac makes their own scene edits between sessions.
    to stay a one-file change. Project gravity is 3.34 m/s² in `project.godot`,
    so every rigid body is low-g by default rather than by per-script correction.
 
+   They are **`@export var`, not `const`**, and named in snake_case, because the
+   F1 panel retunes them while the game runs. Anything derived from one is a
+   *function* (`gravity_ratio()`, `horizon_distance()`, `star_direction()`),
+   never a stored copy, so nothing can go stale. Anything that caches a derived
+   value listens to `World.changed`.
+
 5. **Measure engine behaviour, don't reason about it.** See "Verified engine
    facts" below. Every entry there cost a bug first.
 
@@ -117,6 +123,14 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_an
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_cargo_damage.tscn
 ```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_debug_panel.tscn
+```
+
+**Never add `--quit-after` to a test run.** It forces exit 0 when the frame
+budget runs out, so it converts both a hang and a genuine failure into a pass.
+It is a debugging aid for a scene that will not exit, nothing more.
 
 Capture stills of the look, or of the loaded cargo racks. Both must run
 **windowed** - `--headless` is the dummy renderer and writes no image:
@@ -212,6 +226,31 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   beneath, where they still counted as delivered. Every headless test passed;
   only a render showed it. Anything meant to be stood on needs its own
   `StaticBody3D`.
+- **A test scene whose script fails to compile runs forever.** Godot loads
+  the scene without the script, nothing calls `get_tree().quit()`, and the
+  headless process sits there until something kills it - so the documented
+  "non-zero exit on failure" check hangs instead of failing. The parse error is
+  printed at the top of the output and then buried. If a test stops exiting,
+  read the *first* lines of output, not the last. The fix is to fix the script;
+  `--quit-after` "fixes" it by reporting success, which is worse than the hang.
+- **Setting `physics/3d/default_gravity` at runtime does nothing.** The value is
+  read when the space is created, and `ProjectSettings.set_setting` afterwards
+  leaves a falling body at exactly its old rate. Gravity for a running world
+  lives on the space:
+  `PhysicsServer3D.area_set_param(get_viewport().find_world_3d().space,
+  PhysicsServer3D.AREA_PARAM_GRAVITY, v)` - measured tracking to within 3% at
+  1.0 and 20.0 m/s^2 by `tests/probe_runtime_gravity.tscn`. Note this does not
+  touch anything applying gravity by hand, like the astronaut.
+- **GDScript's `%` format has no `%g`.** It compiles and then raises "String
+  formatting error: unsupported format character" at runtime, once per call, so
+  a formatter in a per-frame UI path floods the log rather than failing loudly.
+  `String.num(v, 6)` is the short-and-exact equivalent.
+- **`PROPERTY_USAGE_SCRIPT_VARIABLE` is what separates a script's own `@export`
+  vars from the hundred built-ins** in `get_property_list()`. `@export_group`
+  survives into the list as a `PROPERTY_USAGE_GROUP` entry - but so do the
+  engine's own groups, and a heading has to be discarded the moment a
+  non-script property follows it, or the delivery pad inherits `Area3D`'s
+  "Reverb Bus" as a section title. Used by the F1 panel; see [[Debug-Panel]].
 - **`Area3D` overlap lists only refresh on a physics step.** Teleporting a body
   and asking `get_overlapping_bodies()` in the same frame returns the old list.
   Tests that move things and then probe interaction range have to step physics

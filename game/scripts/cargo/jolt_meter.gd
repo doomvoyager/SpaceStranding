@@ -13,7 +13,7 @@ class_name JoltMeter
 ##
 ## Gravity is passed in rather than read from `World`, so the meter stays a pure
 ## function of its inputs and can be exercised from a probe that has no
-## autoloads. Callers living in scenes read `World.SURFACE_GRAVITY` and hand it
+## autoloads. Callers living in scenes read `World.gravity_vector()` and hand it
 ## over; the constant still lives in exactly one place.
 
 ## Gravity vector, m/s^2, pointing down. Set by the owner from World.

@@ -14,6 +14,9 @@ const CRATE_RESTING_CLEARANCE := 0.31
 
 func _ready() -> void:
 	_align_star()
+	# The star is tunable at runtime from the debug panel, and its aim is baked
+	# into the light's transform rather than read every frame.
+	World.changed.connect(_align_star)
 	_place_on_ground(_astronaut, Vector3(6.0, 0.0, 0.0), 1.2)
 	_place_on_ground(_rover, Vector3(-6.0, 0.0, 0.0), 1.6)
 	_place_on_ground($Beacon, Vector3(0.0, 0.0, -140.0), 0.0)
@@ -42,8 +45,8 @@ func _align_star() -> void:
 		Vector3(0.0, 400.0, 0.0) + World.star_direction(),
 		Vector3.UP
 	)
-	_star.light_color = World.STAR_COLOR
-	_star.light_energy = World.STAR_ENERGY
+	_star.light_color = World.star_color
+	_star.light_energy = World.star_energy
 
 
 ## Drop `node` onto the terrain at `at`, `clearance` metres above the surface.

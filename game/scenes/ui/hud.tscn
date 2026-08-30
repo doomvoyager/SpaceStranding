@@ -31,7 +31,7 @@ script = ExtResource("1_hud")
 offset_left = 26.0
 offset_top = 26.0
 offset_right = 372.0
-offset_bottom = 272.0
+offset_bottom = 298.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_card")
 
 [node name="List" type="VBoxContainer" parent="Controls"]
@@ -180,6 +180,23 @@ theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
 
 [node name="R7C2" type="Label" parent="Controls/List/Grid"]
 text = "Release the mouse"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
+
+[node name="R8C0" type="Label" parent="Controls/List/Grid"]
+custom_minimum_size = Vector2(68, 0)
+text = "F1"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
+
+[node name="R8C1" type="Label" parent="Controls/List/Grid"]
+custom_minimum_size = Vector2(68, 0)
+text = "—"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
+
+[node name="R8C2" type="Label" parent="Controls/List/Grid"]
+text = "Tuning panel"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
 

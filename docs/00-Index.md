@@ -7,6 +7,7 @@ Entry point. Everything else hangs off this.
   re-proposing anything.**
 - [[The-Planet]] - the world spec every constant derives from
 - [[Visual-Direction]] - the look, and the one decision it all hangs off
+- [[Debug-Panel]] - F1 in game. Every tunable on a slider
 - `00-Inbox/` is the drop zone. Clear it at session start.
 
 ---

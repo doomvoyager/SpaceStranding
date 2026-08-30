@@ -34,11 +34,17 @@ var _last_position := Vector3.ZERO
 
 
 func _ready() -> void:
-	_meter.gravity = Vector3(0.0, -World.SURFACE_GRAVITY, 0.0)
+	_meter.gravity = World.gravity_vector()
 	_meter.smoothing = jolt_smoothing
+	World.changed.connect(_on_world_changed)
 	_carrier = _find_carrier()
 	_last_position = global_position
 	_meter.reset()
+
+
+## Gravity is tunable at runtime, and the meter holds a cached copy.
+func _on_world_changed() -> void:
+	_meter.gravity = World.gravity_vector()
 
 
 ## Walk up the tree for the nearest thing that actually moves under physics.

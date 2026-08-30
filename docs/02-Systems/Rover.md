@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-08-30
+verified: 2026-08-31
 godot: res://scripts/vehicle/rover.gd
 tags: [system, traversal, core-loop]
 ---
@@ -94,7 +94,10 @@ rover and asserts both axes. Re-run them rather than reasoning about it. See [[D
 ## Known issues
 
 - [ ] Suspension stiffness, friction slip and engine force were tuned by
-      reasoning, never against a human driving. All still provisional. #playtest
+      reasoning, never against a human driving. All still provisional - but
+      they are now all on sliders in the F1 panel ([[Debug-Panel]]), including
+      the six wheels' built-in suspension and grip, so this is an evening of
+      driving rather than a code change per guess. #playtest
 - [ ] Wheels do not visually spin or steer - the meshes are static children.
 - [ ] No rollover recovery. In 0.34 g a flipped rover is currently permanent -
       and a loaded roof rack makes flipping considerably easier. #next

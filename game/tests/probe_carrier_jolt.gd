@@ -64,7 +64,7 @@ func _ready() -> void:
 
 	print("--- carrier jolt probe ---")
 	print("free fall reads 0; a still, unsprung body reads one gravity, %.2f m/s^2"
-		% World.SURFACE_GRAVITY)
+		% World.surface_gravity)
 
 
 func _put(node: Node3D, at: Vector3, clearance: float) -> void:
