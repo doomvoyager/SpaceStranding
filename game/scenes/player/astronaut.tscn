@@ -1,7 +1,7 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene format=3 uid="uid://b7p7lge6nwgn8"]
 
-[ext_resource type="Script" path="res://scripts/player/astronaut.gd" id="1_astronaut"]
-[ext_resource type="Script" path="res://scripts/cargo/cargo_rack.gd" id="2_rack"]
+[ext_resource type="Script" uid="uid://deboldmeqejbe" path="res://scripts/player/astronaut.gd" id="1_astronaut"]
+[ext_resource type="Script" uid="uid://dfpjydpesqij0" path="res://scripts/cargo/cargo_rack.gd" id="2_rack"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -36,69 +36,66 @@ roughness = 0.55
 [sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
 radius = 3.5
 
-[node name="Astronaut" type="CharacterBody3D"]
-collision_layer = 1
-collision_mask = 1
+[node name="Astronaut" type="CharacterBody3D" unique_id=2064256264]
 script = ExtResource("1_astronaut")
 
-[node name="Collision" type="CollisionShape3D" parent="."]
+[node name="Collision" type="CollisionShape3D" parent="." unique_id=956347150]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
 shape = SubResource("CapsuleShape3D_body")
 
-[node name="Body" type="Node3D" parent="."]
+[node name="Body" type="Node3D" parent="." unique_id=871382362]
 
-[node name="Torso" type="MeshInstance3D" parent="Body"]
+[node name="Torso" type="MeshInstance3D" parent="Body" unique_id=10013634]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
 mesh = SubResource("CapsuleMesh_torso")
 surface_material_override/0 = SubResource("Material_suit")
 
-[node name="Helmet" type="MeshInstance3D" parent="Body"]
+[node name="Helmet" type="MeshInstance3D" parent="Body" unique_id=1662358487]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.66, 0)
 mesh = SubResource("SphereMesh_helmet")
 surface_material_override/0 = SubResource("Material_visor")
 
-[node name="Pack" type="MeshInstance3D" parent="Body"]
+[node name="Pack" type="MeshInstance3D" parent="Body" unique_id=332121873]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0.32)
 mesh = SubResource("BoxMesh_pack")
 surface_material_override/0 = SubResource("Material_pack")
 
-[node name="HeadLamp" type="SpotLight3D" parent="Body"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.66, -0.24)
+[node name="HeadLamp" type="SpotLight3D" parent="Body" unique_id=188112210]
+transform = Transform3D(1, 0, 0, 0, 0.98176897, 0.19007845, 0, -0.19007845, 0.98176897, 0, 1.66, -0.26175392)
 light_color = Color(0.86, 0.92, 1, 1)
-light_energy = 2.5
+light_energy = 8.0
 spot_range = 30.0
 spot_angle = 38.0
 
-[node name="CargoRack" type="Node3D" parent="Body"]
+[node name="CargoRack" type="Node3D" parent="Body" unique_id=1157151026]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0.78)
 script = ExtResource("2_rack")
 rack_name = "Back"
 
-[node name="SlotLower" type="Marker3D" parent="Body/CargoRack"]
+[node name="SlotLower" type="Marker3D" parent="Body/CargoRack" unique_id=2072372660]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.32, 0)
 
-[node name="SlotUpper" type="Marker3D" parent="Body/CargoRack"]
+[node name="SlotUpper" type="Marker3D" parent="Body/CargoRack" unique_id=755784453]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.32, 0)
 
-[node name="DropPoint" type="Marker3D" parent="Body"]
+[node name="DropPoint" type="Marker3D" parent="Body" unique_id=177215219]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, -1.15)
 
-[node name="CamPivot" type="Node3D" parent="."]
+[node name="CamPivot" type="Node3D" parent="." unique_id=1523963951]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
 
-[node name="SpringArm3D" type="SpringArm3D" parent="CamPivot"]
+[node name="SpringArm3D" type="SpringArm3D" parent="CamPivot" unique_id=203985568]
 spring_length = 4.5
 margin = 0.3
 
-[node name="Camera3D" type="Camera3D" parent="CamPivot/SpringArm3D"]
+[node name="Camera3D" type="Camera3D" parent="CamPivot/SpringArm3D" unique_id=704281901]
 current = true
 fov = 70.0
 far = 6000.0
 
-[node name="InteractZone" type="Area3D" parent="."]
+[node name="InteractZone" type="Area3D" parent="." unique_id=1213944727]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 collision_layer = 0
-collision_mask = 1
 
-[node name="Shape" type="CollisionShape3D" parent="InteractZone"]
+[node name="Shape" type="CollisionShape3D" parent="InteractZone" unique_id=383179426]
 shape = SubResource("SphereShape3D_interact")
