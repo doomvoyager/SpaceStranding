@@ -54,6 +54,21 @@ Three smaller calls made at the same time:
   `tools/tsv-editor.html` ports from StarChef unchanged, because it is generic
   by design; only its bash launcher needs replacing on Windows.
 
+**An abandoned order resets its row and not its boxes.** Mac's call that an
+accepted order can be handed back, and returns to the board as if never taken.
+The crates are the exception: they go back to the origin's Storage in whatever
+condition they are in, still owned by the order. A clean reset would be a damage
+launderer - accept, wreck, abandon, re-accept, collect a pristine crate - which
+would quietly undo `condition^1.5` and break the rule that a crate is the same
+node its whole life.
+
+Abandonment is done at a terminal, so **the drive back is the penalty** and no
+fee or standing hit has to be invented. Two cases then need no rules of their
+own: putting a crate down is not abandoning the order, so a box left in the
+field is the player's own lost cargo on the same terms as an orbital drop; and a
+ruined crate is still deliverable at `base_value * 0^1.5`, so hauling a wreck
+home for nothing clears the board entry without any dead-order detection.
+
 Kept deliberately: **the three-digit code is diegetic.** Stencilled on the
 crate, printed on the receipt, spoken over comms, so one number refers to one
 object across the HUD, the pad and the script. It stays **opaque** - encoding

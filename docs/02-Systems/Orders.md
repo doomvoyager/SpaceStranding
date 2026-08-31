@@ -67,6 +67,40 @@ The second panel Mac's note asks for - player inventory and order management -
 is a **reader**, not a mover. It answers *what am I carrying, whose is it, where
 does it go*. Nothing moves cargo except the two verbs in [[Cargo]].
 
+## Abandoning: the row resets, the boxes do not
+
+An accepted order can always be handed back. It returns to the Facility's board
+exactly as it was offered - Mac's call, 2026-08-31, and the board has to work
+that way or it becomes a trap that fills up with things you cannot finish.
+
+**Its crates keep their condition.** They go back into the origin's Storage in
+whatever state you left them, still owned by `ORDER:<code>`, and re-accepting
+hands the same battered boxes back.
+
+That one exception to "reset" is load-bearing. A clean reset would be a **damage
+launderer**: accept, batter the cargo, drive back, abandon, re-accept, and
+collect a pristine crate for free. It would undo `payout = base_value *
+condition^1.5`, which is the only reason careful driving pays. It would also
+break [[Cargo]]'s founding rule - a crate is the same node its whole life
+precisely so it cannot lose its history by being carried.
+
+**Abandonment happens at a terminal, so the return trip is the penalty.** No
+fee, no standing hit, nothing invented: the geography already charges for it.
+Being six kilometres out and deciding the run has gone badly is then a real
+decision rather than a menu click.
+
+**Putting a crate down is not abandoning the order.** `F` drops a box anywhere,
+any time; it stays owned by its order and the order stays accepted. So a crate
+you walked away from in the field is *your own lost cargo* - mechanically the
+same object as an orbital drop, and recoverable on the same terms. Abandonment
+needs no rule about crates left in the world, because that case is already the
+loose-cargo case.
+
+A ruined order needs no special handling either. A wrecked crate is still
+deliverable and pays `base_value * 0^1.5`, which is nothing - so hauling the
+wreck home for zero closes the board entry. Nothing has to detect a dead order
+or respawn its cargo.
+
 ## No deadlines, for now
 
 Timed orders are **parked, not rejected**. `payout = base_value * condition^1.5`
@@ -193,9 +227,6 @@ already what the campaign is supposed to be.
 - [ ] TODO: is the terminal panel a fullscreen overlay or a screen rendered in
       the world? The second is the genre and costs readability; the first is
       readable and costs the fiction. #question
-- [ ] TODO: can an accepted order be handed back, and does its cargo persist on
-      the dock if you walk away? Abandoning has to be possible or the board
-      becomes a trap. #question
 - [ ] TODO: `crates` above 1 means one order can outgrow the rover's six slots,
       making it a two-trip order. That is either the best content in the game or
       simply tedious, and only driving it will say which. #playtest
