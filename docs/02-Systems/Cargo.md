@@ -15,6 +15,11 @@ crate different from another: thermal needs, radiation sensitivity, size.
 
 ## Behaviour
 
+Since 2026-08-31 a crate also carries an **owner** and a **value**, both set
+from `data/orders.tsv` when a facility issues it. Ownership is what decides
+whether cargo is yours to use, and it is deliberately a different axis from what
+is *in* the box - see [[Orders]].
+
 Every item carries:
 
 - **Mass** - affects [[Rover]] handling, braking, climb ability, and on-foot
@@ -131,6 +136,7 @@ grade the same crate differently.
 | Condition, fragility, the damage curve | `res://scripts/cargo/crate.gd` |
 | Proper-acceleration measurement | `res://scripts/cargo/jolt_meter.gd` |
 | Acceptance and payout | `res://scripts/cargo/delivery_pad.gd` |
+| Who a crate belongs to | `Crate.cargo_owner` - see [[Orders]] |
 
 ## Racks and slots
 
@@ -216,10 +222,12 @@ underneath. Nothing headless noticed, because delivery still worked.
       crate itself: dents, a cracked lid, a spilled load. Mac's call on how far
       that goes. **Parked 2026-08-31** to make room for [[Orders]] - the
       mechanic works, it is only unreadable.
-- [ ] TODO: there is one pad, found by group. Per-settlement pads need the HUD
-      to show *the pad you are standing at*, not the first one in the tree.
-      [[Orders]] answers this - the pad becomes a child of a Facility and
-      inherits its `id`. #next
+- [x] There is one pad, found by group, and the HUD shows the first one in the
+      tree rather than the one you are standing at. Closed 2026-08-31 by
+      [[Orders]]: a pad is a child of a Facility and answers to its `id`, it
+      refuses cargo addressed elsewhere, and the HUD shows the receipt from
+      whichever pad last took something - a receipt goes stale in seconds, so
+      at most one is ever live.
 - [x] Crates are one size and share one `base_value`. Contracts, cargo types
       and per-item value are the next layer. Answered by [[Orders]]
       2026-08-31: `orders.tsv` sets mass, fragility and value per crate, and

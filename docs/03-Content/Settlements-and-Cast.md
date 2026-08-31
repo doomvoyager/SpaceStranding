@@ -21,7 +21,7 @@ what stays here is the reason to drive six kilometres to a particular one.
 
 ## What a settlement has to do
 
-- Issue contracts ([[Orders]]) - *Facility work, specified*
+- Issue contracts ([[Orders]]) - *Facility work, **built** 2026-08-31*
 - Act as shelter from [[Flares]]
 - Sell or install [[Progression]] upgrades
 - Anchor a stretch of [[The-Lattice]]
@@ -30,7 +30,10 @@ what stays here is the reason to drive six kilometres to a particular one.
 ## Open
 
 - [ ] TODO: how many settlements at launch, and how far apart in driving
-      minutes? Sets the whole pacing. #question #blocking
+      minutes? Sets the whole pacing - **and now the cargo economy too**, since
+      the cost of handing an order back to have it reconditioned is exactly the
+      drive back to its origin. Two facilities exist in `test_world` at 66 m,
+      which is far too close for that price to be real. #question #blocking
 - [ ] TODO: does standing work per-settlement, like Death Stranding's likes, or
       colony-wide? #question
 - [ ] TODO: are characters present in person, or over comms with the Lattice as

@@ -1,7 +1,7 @@
 ---
-status: design
+status: partial
 verified: 2026-08-31
-godot:
+godot: res://scripts/orders/order_book.gd
 tags: [system, core-loop, cargo]
 ---
 
@@ -13,6 +13,12 @@ to where, and what it is worth. [[Cargo]] built the *verb*; this is the
 
 Written from Mac's inbox note of 2026-08-31. The three forks in it are settled -
 see the [[Decision-Log]] entry of the same date.
+
+**Built the same day, as far as the slice goes.** Two facilities, a board you
+press `E` at, cargo with an address, and the existing `DeliveryPad` closing the
+job. What is *not* built is storage as a real place, the inventory reader, the
+[[The-Lattice]] ladder, and construction - so the status is `partial`, not
+`built`. "Where the code is" at the bottom says which is which.
 
 ## Facility, and what it is not
 
@@ -222,6 +228,74 @@ That is the chiral network's convenience with none of its magic, and it means
 stranded stock is a problem you solve by *building the network* - which is
 already what the campaign is supposed to be.
 
+## What the build found
+
+Three things the design above did not anticipate, all of them the same shape:
+the system was correct and unusable.
+
+**A docked crate is stowed, so `E` cannot see it.** `nearest_loose_crate()`
+skips anything in a rack, and `F` only knew about the rover - so the board
+issued cargo that nothing could then pick up. Every headless assertion passed,
+because the crates existed and were sitting exactly on their slots. `F` now
+treats a dock the way it treats the rover's rack, in both directions, so cargo
+can be staged on a pallet as well as lifted off one.
+
+**Loose cargo could never be delivered.** The pad only takes crates whose order
+is accepted, and found cargo is never on a board to be accepted from. Picking it
+up now accepts it - which turned out to be the right fiction as well as the fix:
+`Orders.notice_found()` is the moment a thing lying in the dirt becomes a thing
+with a destination.
+
+**Recall would have deleted an authored crate.** Order 105's box is placed in the
+scene, not spawned, so freeing it would have destroyed something of Mac's with
+nothing to put it back. `recall()` refuses loose orders outright.
+
+The through-line is that none of the three would have shown up in a headless
+test written from the design. They needed the question *can a player actually
+do this*, which is why `facility_capture.tscn` exists.
+
+## Where the code is
+
+| | |
+|---|---|
+| The catalogue, the state, the board's rules | `res://scripts/orders/order_book.gd` |
+| One parsed row | `res://scripts/orders/order.gd` |
+| Identity, issuing, recall | `res://scripts/world/facility.gd` |
+| The thing you press `E` at | `res://scripts/world/facility_terminal.gd` |
+| Two panes, accept and hand back | `res://scripts/ui/order_panel.gd` |
+| The table | `game/data/orders.tsv` |
+| Editing the table | `tools/tsv-editor.ps1` |
+
+`OrderBook` is autoloaded as **`Orders`**, alongside `World` and `Debug`. It has
+to be global for the same reason `World` does: there is one catalogue and one
+set of accepted orders, and both outlive any scene. Nothing else about the
+system is global - a Facility is an ordinary node authored in the editor, and
+the panel is found by group.
+
+## Verification
+
+`res://tests/test_orders.tscn` runs the whole loop: parse, issue, deliver to the
+wrong facility, deliver to the right one, part-deliver, close, unlock a
+prerequisite, hand back, re-take, and lift a crate off a dock.
+
+Four of those would not be caught by anything else:
+
+- **A crate delivered to the wrong facility must pay nothing.** Without the
+  address check every order is "drive to the nearest pad" and the `destination`
+  column means nothing. Nothing would look broken.
+- **Handing an order back must take the cargo with it**, or the order can be
+  taken again while the first lot is still on the dock. A crate duplicator, and
+  a quiet one.
+- **Re-taking must issue pristine cargo.** That is the whole of the 2026-08-31
+  call, and it would rot silently.
+- **Cargo on a dock must be liftable off it** - the bug above, now asserted.
+
+`res://tests/facility_capture.tscn` writes stills. It earned its keep
+immediately: the first facility was three props scattered on open sand, and the
+parts only read as one place once they shared an apron. `probe_facility_sites.gd`
+is how the two sites were chosen - it scans the terrain for the flattest 10 x 4 m
+footprint, because the first pair were placed by eye at `y = 0` and were buried.
+
 ## Interactions
 
 [[Cargo]] · [[Settlements-and-Cast]] · [[The-Lattice]] · [[Progression]] ·
@@ -229,13 +303,18 @@ already what the campaign is supposed to be.
 
 ## Open
 
-- [ ] TODO: the vertical slice - two Facilities, one `orders.tsv`, one order.
-      Terminal to accept, crates on the origin dock, drive, existing
-      `DeliveryPad` grades and closes it. Reuses the whole cargo stack and only
-      adds Facility identity, the terminal, the panel and the loader. #now
-- [ ] TODO: port `tools/tsv-editor.html` from StarChef and write a `.ps1`
-      launcher - the `.sh` will not run here. The tool itself needs no changes.
-      #next
+- [x] The vertical slice - two Facilities, `orders.tsv`, a terminal, a panel,
+      and the existing `DeliveryPad` closing the job. Built 2026-08-31.
+- [x] Port `tools/tsv-editor.html` from StarChef with a `.ps1` launcher. Done
+      2026-08-31, and the tool needed no changes at all - byte-identical round
+      trip on `orders.tsv` through its own parser, first try.
+- [ ] TODO: **Storage is not a place yet.** Cargo is abstract until an order is
+      taken and gone once it is handed back, so "the part you need is at the
+      other facility" cannot happen - which is the whole premise of the
+      [[The-Lattice]] ladder below. This is the next real piece. #now
+- [ ] TODO: the inventory-and-orders reader Mac's note asks for - what am I
+      carrying, whose is it, where does it go. The HUD manifest line covers the
+      driving case; a full panel is for when the manifest gets long. #next
 - [ ] TODO: is the terminal panel a fullscreen overlay or a screen rendered in
       the world? The second is the genre and costs readability; the first is
       readable and costs the fiction. #question

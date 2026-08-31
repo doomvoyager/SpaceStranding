@@ -61,6 +61,7 @@ mechanics. Mac makes their own scene edits between sessions.
 | HTML reports and audits | `docs/09-Reports/` |
 | Godot engine binary | `engine/` - gitignored, see below |
 | Standalone authoring tools | `tools/` at the repo root, **not** `game/tools/` |
+| Authored game tables (TSV) | `game/data/` - edit with `tools/tsv-editor.ps1` |
 
 `res://scripts/Foo.gd` on disk is `game/scripts/Foo.gd`.
 
@@ -136,6 +137,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ro
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_camera_levelling.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_orders.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -153,6 +158,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/scatter_capture.ts
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/camera_levelling_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/facility_capture.tscn
 ```
 
 Run a standalone engine-behaviour probe. These build what they need from
@@ -333,6 +342,21 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   parts, and keep anything the player accumulated - a look yaw - somewhere that
   is not the basis being overwritten. `tests/test_camera_levelling.tscn` asserts
   no drift over 120 frames at a fixed attitude.
+
+- **An `Area3D` only reports overlapping *bodies*, so anything the player must
+  interact with has to be a body.** A facility terminal built as an `Area3D`
+  is invisible to the astronaut's interact zone - not an error, just silence.
+  `StaticBody3D` is both the working shape and the honest one, since a terminal
+  you can walk through would be strange. The same trap catches the reverse
+  case: a crate riding in a `CargoRack` is *stowed*, and every "find the nearest
+  loose crate" helper skips it by design - so cargo issued onto a dock is
+  invisible to the pick-up verb and can be looked at but never carried. Both
+  cost a bug, and both passed every headless assertion, because the nodes
+  existed and were exactly where they were supposed to be.
+- **`owner` is a `Node` property**, so a script that wants to record who
+  something belongs to must not call its field `owner`. Shadowing it breaks
+  scene serialisation in ways that do not announce themselves. `Crate` uses
+  `cargo_owner`.
 
 ---
 
