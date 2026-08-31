@@ -63,9 +63,10 @@ text = "0 on the board"
 
 [node name="Tabs" type="TabBar" parent="Root/Frame/Margin/Rows"]
 layout_mode = 2
-tab_count = 2
+tab_count = 3
 tab_0/title = "Orders"
 tab_1/title = "Storage"
+tab_2/title = "Network"
 
 [node name="Rule" type="HSeparator" parent="Root/Frame/Margin/Rows"]
 layout_mode = 2

@@ -1,0 +1,74 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/world/relay.gd" id="1_relay"]
+[ext_resource type="Material" path="res://materials/hull_painterly.tres" id="2_hull"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_mast"]
+top_radius = 0.12
+bottom_radius = 0.26
+height = 11.0
+radial_segments = 8
+
+[sub_resource type="BoxMesh" id="BoxMesh_base"]
+size = Vector3(1.8, 0.4, 1.8)
+
+[sub_resource type="CylinderShape3D" id="CylinderShape3D_mast"]
+height = 11.0
+radius = 0.3
+
+[sub_resource type="BoxMesh" id="BoxMesh_dish"]
+size = Vector3(1.4, 1.4, 0.12)
+
+[sub_resource type="StandardMaterial3D" id="Material_dish"]
+albedo_color = Color(0.3, 0.62, 0.68, 1)
+metallic = 0.35
+roughness = 0.5
+emission_enabled = true
+emission = Color(0.36, 0.78, 0.84, 1)
+emission_energy_multiplier = 1.1
+
+[node name="Relay" type="Node3D" groups=["relay"]]
+script = ExtResource("1_relay")
+relay_id = "relay"
+
+[node name="Body" type="StaticBody3D" parent="."]
+
+[node name="Shape" type="CollisionShape3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.5, 0)
+shape = SubResource("CylinderShape3D_mast")
+
+[node name="Base" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 0)
+mesh = SubResource("BoxMesh_base")
+surface_material_override/0 = ExtResource("2_hull")
+
+[node name="Mast" type="MeshInstance3D" parent="Body"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.5, 0)
+mesh = SubResource("CylinderMesh_mast")
+surface_material_override/0 = ExtResource("2_hull")
+
+[node name="Antenna" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11, 0)
+
+[node name="Dish" type="MeshInstance3D" parent="Antenna"]
+transform = Transform3D(1, 0, 0, 0, 0.87, 0.5, 0, -0.5, 0.87, 0, 0, 0)
+mesh = SubResource("BoxMesh_dish")
+surface_material_override/0 = SubResource("Material_dish")
+
+[node name="Beacon" type="OmniLight3D" parent="Antenna"]
+light_color = Color(0.42, 0.86, 0.94, 1)
+light_energy = 2.6
+omni_range = 22.0
+
+[node name="Sign" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.4, 0)
+billboard = 1
+no_depth_test = true
+fixed_size = true
+pixel_size = 0.00028
+text = "Relay"
+font_size = 128
+outline_size = 24
+modulate = Color(0.62, 0.88, 0.94, 0.8)
+outline_modulate = Color(0.04, 0.06, 0.08, 0.8)
+uppercase = true

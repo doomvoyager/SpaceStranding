@@ -39,6 +39,9 @@ signal completed(order: Order)
 ## A facility's storage gained or lost something.
 signal stock_changed(facility_id: String)
 
+## A transfer was requested, or arrived. `arrived` says which.
+signal transfer_changed(arrived: bool)
+
 enum State {
 	## On the board at its origin, waiting to be taken.
 	OFFERED,
@@ -65,8 +68,42 @@ var _facilities: Dictionary = {}
 ## facility id -> Array[StoredItem]. Runtime state, like everything else below
 ## the catalogue - and unlike the catalogue, this is what the save is for.
 var _stock: Dictionary = {}
+## Stock in flight between facilities. Array[Transfer].
+var _transfers: Array = []
+
+
+## Stock the network is moving from one shelf to another.
+##
+## The item is **off both shelves while it travels**, which is the honest
+## reading: it is neither where it was nor where it is going. It also means
+## nothing can be requested twice or withdrawn out from under a transfer.
+class Transfer:
+	var item: StoredItem
+	var from_id := ""
+	var to_id := ""
+	## Seconds remaining, and how many it started with — the second is only so
+	## a progress readout has a denominator.
+	var remaining := 0.0
+	var total := 0.0
+
+	func fraction_done() -> float:
+		if total <= 0.0:
+			return 1.0
+		return clampf(1.0 - remaining / total, 0.0, 1.0)
 ## Rows the parser refused, kept so a test can assert the table is clean.
 var problems: Array[String] = []
+
+
+@export_group("Transfers")
+## Seconds before a requested transfer starts moving at all. The network has to
+## find somebody to put it on a vehicle.
+@export_range(0.0, 300.0, 1.0) var transfer_dispatch_s := 20.0
+
+## Metres per second the network moves stock at. Deliberately slower than the
+## rover: asking the Lattice to bring something is the patient option, and if it
+## ever beat driving there yourself the rover would be a worse vehicle than the
+## menu.
+@export_range(0.1, 40.0, 0.1) var transfer_speed := 2.5
 
 
 func _ready() -> void:
@@ -83,6 +120,7 @@ func load_catalogue(path := CATALOGUE_PATH) -> void:
 	_delivered_crates.clear()
 	_paid.clear()
 	_stock.clear()
+	_transfers.clear()
 	problems.clear()
 
 	var text := _read(path)
@@ -338,6 +376,80 @@ func withdraw(facility_id: String, index: int) -> StoredItem:
 	shelf.remove_at(index)
 	stock_changed.emit(facility_id)
 	return item
+
+
+# --- Transfers ----------------------------------------------------------
+##
+## The Lattice's second rung. Coverage lets you *see* a linked facility's stock;
+## this is asking for a piece of it, and waiting.
+##
+## It costs time and nothing else - Mac's call, 2026-08-31. Time is enough,
+## because the duration scales with distance and is deliberately slower than
+## driving: a transfer is the patient option, never the efficient one. If the
+## network ever beat the rover, the rover would be a worse vehicle than a menu.
+
+func _process(delta: float) -> void:
+	if _transfers.is_empty():
+		return
+	var landed := false
+	for i in range(_transfers.size() - 1, -1, -1):
+		var transfer: Transfer = _transfers[i]
+		transfer.remaining -= delta
+		if transfer.remaining > 0.0:
+			continue
+		_transfers.remove_at(i)
+		deposit(transfer.to_id, transfer.item)
+		landed = true
+		print("LATTICE: %s arrived at %s from %s"
+			% [transfer.item.cargo_name, transfer.to_id, transfer.from_id])
+	if landed:
+		transfer_changed.emit(true)
+
+
+## How long the network would take to move something `from_id` to `to_id`, or
+## -1 if it could not.
+func transfer_seconds(from_id: String, to_id: String) -> float:
+	if from_id == to_id or not Lattice.are_linked(from_id, to_id):
+		return -1.0
+	var distance := Lattice.distance_between(from_id, to_id)
+	if distance < 0.0:
+		return -1.0
+	return transfer_dispatch_s + distance / maxf(transfer_speed, 0.01)
+
+
+## Ask the network to bring stock item `index` from `from_id` to `to_id`.
+func request_transfer(from_id: String, to_id: String, index: int) -> bool:
+	var seconds := transfer_seconds(from_id, to_id)
+	if seconds < 0.0:
+		return false
+	var item := withdraw(from_id, index)
+	if item == null:
+		return false
+	var transfer := Transfer.new()
+	transfer.item = item
+	transfer.from_id = from_id
+	transfer.to_id = to_id
+	transfer.remaining = seconds
+	transfer.total = seconds
+	_transfers.append(transfer)
+	transfer_changed.emit(false)
+	print("LATTICE: %s requested from %s to %s, %.0f s out"
+		% [item.cargo_name, from_id, to_id, seconds])
+	return true
+
+
+## Everything in flight to `facility_id`, soonest first.
+func inbound_to(facility_id: String) -> Array:
+	var out: Array = []
+	for transfer in _transfers:
+		if transfer.to_id == facility_id:
+			out.append(transfer)
+	out.sort_custom(func(a, b) -> bool: return a.remaining < b.remaining)
+	return out
+
+
+func transfers_in_flight() -> int:
+	return _transfers.size()
 
 
 # --- Facilities ---------------------------------------------------------

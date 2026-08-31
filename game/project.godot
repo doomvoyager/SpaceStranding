@@ -23,6 +23,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 World="*res://scripts/core/world_constants.gd"
+Lattice="*res://scripts/world/lattice.gd"
 Orders="*res://scripts/orders/order_book.gd"
 Debug="*res://scripts/ui/debug_panel.gd"
 

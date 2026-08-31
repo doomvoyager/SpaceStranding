@@ -36,6 +36,12 @@ signal dock_changed
 ## sign and the two cannot disagree.
 @onready var _sign: Label3D = get_node_or_null("Sign") as Label3D
 
+@export_group("Lattice")
+## Metres this facility's own aerial reaches. Zero takes the network default.
+## A facility is a lattice site in its own right, so two close together are
+## linked with no relay at all — see [[The-Lattice]].
+@export var range_override := 0.0
+
 var _dock: CargoRack
 var _pad: DeliveryPad
 var _terminal: Node3D
@@ -53,10 +59,32 @@ func _ready() -> void:
 	if _sign != null:
 		_sign.text = display_name
 	Orders.register_facility(self)
+	Lattice.register_site(self)
 
 
 func _exit_tree() -> void:
 	Orders.unregister_facility(self)
+	Lattice.unregister_site(self)
+
+
+# --- The lattice site interface -----------------------------------------
+##
+## Duck-typed rather than inherited: Facility and Relay both extend Node3D, and
+## GDScript has single inheritance.
+
+func lattice_id() -> String:
+	return facility_id
+
+
+func link_range() -> float:
+	return range_override if range_override > 0.0 else Lattice.default_range
+
+
+## The aerial, not the ground. Taken from the Sign, which is already the highest
+## authored point on the facility and moves with it — so there is no second
+## height to keep in step.
+func mast_point() -> Vector3:
+	return _sign.global_position if _sign != null else global_position + Vector3.UP * 6.0
 
 
 ## Depth-first walk for the first descendant whose class matches. Deliberately

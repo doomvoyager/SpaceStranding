@@ -100,6 +100,32 @@ func _ready() -> void:
 		await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("%s/05_storage.png" % OUT_DIR)
 
+	# The Network tab, with something already on its way, so the countdown and
+	# the remote shelf are both in frame.
+	var far := StoredItem.new()
+	far.cargo_name = "Ice cores"
+	far.mass = 22.0
+	far.condition = 0.88
+	Orders.deposit("longshadow", far)
+	var spare := StoredItem.new()
+	spare.cargo_name = "Spare cell"
+	spare.mass = 48.0
+	Orders.deposit("longshadow", spare)
+	Orders.request_transfer("longshadow", "hearth", 1)
+
+	panel.get_node("Root/Frame/Margin/Rows/Tabs").current_tab = 2
+	for i in 8:
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("%s/06_network.png" % OUT_DIR)
+
+	# And the relay itself, which is the reason any of that is readable.
+	var relay := world.find_child("RidgeRelay", true, false) as Relay
+	panel.close()
+	var r := relay.global_position
+	await _shot("07_relay", r + Vector3(9.0, 7.0, 11.0), r + Vector3(0.0, 6.0, 0.0))
+
+	print("network: %d link(s), Hearth reaches %s"
+		% [Lattice.link_count(), str(Lattice.facilities_reachable_from("hearth"))])
 	print("captured to: ", ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()
 

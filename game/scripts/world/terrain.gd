@@ -156,6 +156,23 @@ func height_at(local_x: float, local_z: float) -> float:
 	)
 
 
+## Ground height in **world** space at a world x/z.
+##
+## `height_at()` above returns a height in this node's own space, and the Terrain
+## in test_world.tscn carries a 0.5 scale on Y because Mac flattens the world by
+## scaling it in the editor. Using that number as a world Y puts things at twice
+## the ground height, which is a bug this project has already shipped once — see
+## docs/02-Systems/Terrain.md. Anything asking "where is the ground" from world
+## coordinates should call this and not think about it.
+##
+## Assumes the terrain is translated and scaled but not rotated, which is what
+## `to_local` on a point directly above the query handles; a rotated terrain
+## would need a real ray against the mesh.
+func world_height_at(world_x: float, world_z: float) -> float:
+	var local := to_local(Vector3(world_x, 0.0, world_z))
+	return to_global(Vector3(local.x, height_at(local.x, local.z), local.z)).y
+
+
 # --- Mesh ---------------------------------------------------------------
 
 func _build_mesh() -> void:

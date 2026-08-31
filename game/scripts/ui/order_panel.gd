@@ -21,6 +21,11 @@ class_name OrderPanel
 ## Storage is withdraw-only here. Putting something *in* is a physical act at
 ## the intake outside, because handing a crate over needs no choosing; taking
 ## one out is choosing one of forty, which is what a list is for.
+##
+## The Network tab is [[The-Lattice]] cashing out. A linked facility's shelves
+## and board can be read from here; a dark one shows as no signal and nothing
+## else, because dark zones are supposed to be genuinely dark. Requesting stock
+## from a linked facility starts it moving, slowly.
 
 signal closed
 
@@ -37,12 +42,19 @@ signal closed
 
 const TAB_ORDERS := 0
 const TAB_STORAGE := 1
+const TAB_NETWORK := 2
+
+## What a row in the Network list stands for. Rows are heterogeneous there —
+## headers, stock, and things already on their way — so each one carries a tag.
+enum Row { FACILITY, REMOTE_ITEM, INBOUND }
 
 var _facility: Facility
 ## Order codes behind the list rows, while the Orders tab is showing.
 var _codes: Array[int] = []
 ## One selection per tab, so switching back does not lose your place.
-var _selected := {TAB_ORDERS: 0, TAB_STORAGE: 0}
+var _selected := {TAB_ORDERS: 0, TAB_STORAGE: 0, TAB_NETWORK: 0}
+## Network rows: {kind, facility_id, index}. Parallel to the ItemList.
+var _network_rows: Array = []
 var _open := false
 
 
@@ -55,6 +67,8 @@ func _ready() -> void:
 	_tabs.tab_changed.connect(_on_tab_changed)
 	Orders.changed.connect(_on_orders_changed)
 	Orders.stock_changed.connect(_on_stock_changed)
+	Orders.transfer_changed.connect(_on_transfer_changed)
+	Lattice.coverage_changed.connect(_on_coverage_changed)
 
 
 func is_open() -> bool:
@@ -104,8 +118,25 @@ func _on_stock_changed(_facility_id: String) -> void:
 		_refresh()
 
 
+func _on_transfer_changed(_arrived: bool) -> void:
+	if _open:
+		_refresh()
+
+
+func _on_coverage_changed() -> void:
+	if _open:
+		_refresh()
+
+
 func _on_tab_changed(_index: int) -> void:
 	_refresh()
+
+
+## The Network tab counts down, so it has to redraw on its own rather than
+## waiting for something to change.
+func _process(_delta: float) -> void:
+	if _open and _tab() == TAB_NETWORK and Orders.transfers_in_flight() > 0:
+		_refresh()
 
 
 func _tab() -> int:
@@ -131,6 +162,9 @@ func _refresh() -> void:
 			_list.add_item(_row_text(order))
 		rows = _codes.size()
 		_empty_note.text = "Nothing on the board here."
+	elif _tab() == TAB_NETWORK:
+		rows = _fill_network()
+		_empty_note.text = "No other facility is on the network."
 	else:
 		var shelf := _facility.stock()
 		for item in shelf:
@@ -141,6 +175,7 @@ func _refresh() -> void:
 			_list.add_item(mark + item.summary())
 		rows = shelf.size()
 		_empty_note.text = "The shelves are empty."
+
 
 	_empty_note.visible = rows == 0
 	_list.visible = rows > 0
@@ -158,8 +193,60 @@ func _row_text(order: Order) -> String:
 	return "%d%s%s" % [order.code, mark, order.title]
 
 
+## Build the Network list: what is on its way here, then every other facility
+## with its stock underneath it.
+func _fill_network() -> int:
+	_network_rows.clear()
+	var here := _facility.facility_id
+
+	for transfer in Orders.inbound_to(here):
+		_list.add_item("→  %s · from %s · %s"
+			% [transfer.item.cargo_name, Orders.facility_name(transfer.from_id),
+				_countdown(transfer.remaining)])
+		_network_rows.append({"kind": Row.INBOUND, "id": transfer.from_id, "index": 0})
+
+	var linked := Lattice.facilities_reachable_from(here)
+	for id in Orders.facility_ids():
+		var other := String(id)
+		if other == here:
+			continue
+		var online := linked.has(other)
+		_list.add_item("%s   %s" % [Orders.facility_name(other),
+			"" if online else "· no signal"])
+		_network_rows.append({"kind": Row.FACILITY, "id": other, "index": 0})
+		if not online:
+			continue
+		var shelf := Orders.stock_of(other)
+		for i in shelf.size():
+			var item: StoredItem = shelf[i]
+			var mark := "    ▪ " if not item.is_withdrawable() else "      "
+			_list.add_item(mark + item.summary())
+			_network_rows.append({"kind": Row.REMOTE_ITEM, "id": other, "index": i})
+	return _network_rows.size()
+
+
+func _countdown(seconds: float) -> String:
+	if seconds >= 60.0:
+		return "%d min %02d s" % [int(seconds) / 60, int(seconds) % 60]
+	return "%.0f s" % maxf(seconds, 0.0)
+
+
+func _network_row() -> Dictionary:
+	var index := _selection()
+	if index < 0 or index >= _network_rows.size():
+		return {}
+	return _network_rows[index]
+
+
 func _subtitle_text() -> String:
 	var id := _facility.facility_id
+	if _tab() == TAB_NETWORK:
+		var linked := Lattice.facilities_reachable_from(id)
+		var inbound := Orders.inbound_to(id).size()
+		return "%d facilit%s linked · %d relay link%s in the network · %d inbound" % [
+			linked.size(), "y" if linked.size() == 1 else "ies",
+			Lattice.link_count(), "" if Lattice.link_count() == 1 else "s", inbound,
+		]
 	if _tab() == TAB_STORAGE:
 		return "%d in storage · %.0f kg · dock %d/%d" % [
 			Orders.stock_count(id), Orders.stock_mass(id),
@@ -173,6 +260,9 @@ func _subtitle_text() -> String:
 
 
 func _draw_detail() -> void:
+	if _tab() == TAB_NETWORK:
+		_draw_network_detail()
+		return
 	if _tab() == TAB_STORAGE:
 		_draw_storage_detail()
 		return
@@ -221,6 +311,87 @@ func _status_text(order: Order, accepted: bool) -> String:
 	if order.crates > 6:
 		return "Larger than the rover's six slots. This is a two-trip order."
 	return "Cargo is put on the dock outside. Load it yourself."
+
+
+func _draw_network_detail() -> void:
+	var row := _network_row()
+	_action.text = "Request"
+	if row.is_empty():
+		_detail.text = ""
+		_action.disabled = true
+		_status.text = ""
+		return
+
+	var here := _facility.facility_id
+	var other := String(row["id"])
+	var lines := PackedStringArray()
+
+	match int(row["kind"]):
+		Row.INBOUND:
+			var transfer = Orders.inbound_to(here)[0]
+			lines.append("[b]%s[/b]" % transfer.item.cargo_name)
+			lines.append("[i]On its way from %s[/i]" % Orders.facility_name(transfer.from_id))
+			lines.append("")
+			lines.append("Arrives in    %s" % _countdown(transfer.remaining))
+			lines.append("Condition     %s" % transfer.item.condition_label())
+			lines.append("Mass          %.0f kg" % transfer.item.mass)
+			_action.disabled = true
+			_status.text = "It lands on this facility's shelf. Nothing to do but wait."
+
+		Row.FACILITY:
+			var online := Lattice.facilities_reachable_from(here).has(other)
+			lines.append("[b]%s[/b]" % Orders.facility_name(other))
+			lines.append("")
+			if not online:
+				lines.append("[i]No signal.[/i]")
+				lines.append("")
+				lines.append("Nothing here can see it. Its shelves, its board and")
+				lines.append("its weather are all unknown until the network reaches")
+				lines.append("that far.")
+				_action.disabled = true
+				_status.text = "A relay with line of sight to both ends would close this."
+			else:
+				var seconds := Orders.transfer_seconds(here, other)
+				lines.append("Distance      %.0f m" % Lattice.distance_between(here, other))
+				lines.append("Transfer      %s" % _countdown(seconds))
+				lines.append("On the shelf  %d items · %.0f kg"
+					% [Orders.stock_count(other), Orders.stock_mass(other)])
+				lines.append("")
+				var board := Orders.board_for(other)
+				if board.is_empty():
+					lines.append("[i]Nothing on their board.[/i]")
+				else:
+					lines.append("[b]Their board[/b]")
+					for order in board:
+						lines.append("  %d  %s → %s" % [order.code, order.title,
+							Orders.facility_name(order.destination)])
+				_action.disabled = true
+				_status.text = "Pick something off their shelf to have it sent."
+
+		Row.REMOTE_ITEM:
+			var shelf := Orders.stock_of(other)
+			var index := int(row["index"])
+			if index >= shelf.size():
+				_detail.text = ""
+				_action.disabled = true
+				return
+			var item: StoredItem = shelf[index]
+			var seconds := Orders.transfer_seconds(here, other)
+			lines.append("[b]%s[/b]" % item.cargo_name)
+			lines.append("[i]At %s[/i]" % Orders.facility_name(other))
+			lines.append("")
+			lines.append("Condition     %s" % item.condition_label())
+			lines.append("Mass          %.0f kg" % item.mass)
+			lines.append("Handling      %s" % _fragility_word(item.fragility))
+			lines.append("Would take    %s to arrive" % _countdown(seconds))
+			_action.disabled = not item.is_withdrawable()
+			if not item.is_withdrawable():
+				_status.text = "%s's own stock. Not yours to send for." % Orders.facility_name(other)
+			else:
+				_status.text = ("The network is slower than you are. "
+					+ "Driving there and back would beat waiting for it.")
+
+	_detail.text = "\n".join(lines)
 
 
 func _draw_storage_detail() -> void:
@@ -298,6 +469,9 @@ func _on_item_selected(index: int) -> void:
 func _on_action_pressed() -> void:
 	if _facility == null:
 		return
+	if _tab() == TAB_NETWORK:
+		_request()
+		return
 	if _tab() == TAB_STORAGE:
 		_withdraw()
 		return
@@ -308,6 +482,13 @@ func _on_action_pressed() -> void:
 		_hand_back(order)
 	else:
 		_take(order)
+
+
+func _request() -> void:
+	var row := _network_row()
+	if row.is_empty() or int(row["kind"]) != Row.REMOTE_ITEM:
+		return
+	Orders.request_transfer(String(row["id"]), _facility.facility_id, int(row["index"]))
 
 
 func _withdraw() -> void:
