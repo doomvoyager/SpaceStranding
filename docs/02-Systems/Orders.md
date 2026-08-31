@@ -67,39 +67,51 @@ The second panel Mac's note asks for - player inventory and order management -
 is a **reader**, not a mover. It answers *what am I carrying, whose is it, where
 does it go*. Nothing moves cargo except the two verbs in [[Cargo]].
 
-## Abandoning: the row resets, the boxes do not
+## Abandoning is a clean restart
 
-An accepted order can always be handed back. It returns to the Facility's board
-exactly as it was offered - Mac's call, 2026-08-31, and the board has to work
-that way or it becomes a trap that fills up with things you cannot finish.
+An accepted order can be handed back at any terminal. It returns to the
+Facility's board exactly as it was offered, and **its crates are recalled to the
+origin's Storage and reconditioned to pristine**. Mac's call, 2026-08-31: a run
+that went badly should be restartable with a fair shot at it, not survivable
+only by hauling a wreck home.
 
-**Its crates keep their condition.** They go back into the origin's Storage in
-whatever state you left them, still owned by `ORDER:<code>`, and re-accepting
-hands the same battered boxes back.
+The board has to allow it or it becomes a trap that fills with things that
+cannot be finished. The reconditioning is the part that was argued and settled -
+see the [[Decision-Log]] for the case against.
 
-That one exception to "reset" is load-bearing. A clean reset would be a **damage
-launderer**: accept, batter the cargo, drive back, abandon, re-accept, and
-collect a pristine crate for free. It would undo `payout = base_value *
-condition^1.5`, which is the only reason careful driving pays. It would also
-break [[Cargo]]'s founding rule - a crate is the same node its whole life
-precisely so it cannot lose its history by being carried.
+**The recall is what keeps it from being free.** Crates come back to the
+*origin*, so re-running the order costs the whole outbound leg again.
+Abandon-and-reaccept is therefore a repair priced at a round trip, not a reset
+button, and a player unwilling to backtrack still eats the payout loss. That
+leaves `payout = base_value * condition^1.5` with its teeth while stopping it
+being a one-way ratchet.
 
-**Abandonment happens at a terminal, so the return trip is the penalty.** No
-fee, no standing hit, nothing invented: the geography already charges for it.
-Being six kilometres out and deciding the run has gone badly is then a real
-decision rather than a menu click.
+The price is set entirely by **how far apart Facilities are**, which
+[[Settlements-and-Cast]] already carries as its `#blocking` question. Close them
+up and reconditioning is nearly free and damage stops mattering on short routes;
+spread them out and abandoning is a real decision. It is the same number, and
+this is now a second thing riding on it.
+
+**Recall takes every crate the order owns, wherever it is** - on the rack, on
+the astronaut's back, or at the bottom of a ravine nothing can drive back into.
+That removes a whole category of bad outcome: in a game with no combat and no
+fail state, an order made unfinishable because a box is somewhere unreachable is
+worse than any exploit it might permit. Nothing can be permanently stranded.
+
+The fiction carries it. The Facility takes the shipment back and reconditions
+it, which is a thing warehouses actually do.
 
 **Putting a crate down is not abandoning the order.** `F` drops a box anywhere,
 any time; it stays owned by its order and the order stays accepted. So a crate
 you walked away from in the field is *your own lost cargo* - mechanically the
 same object as an orbital drop, and recoverable on the same terms. Abandonment
 needs no rule about crates left in the world, because that case is already the
-loose-cargo case.
+loose-cargo case, and recall sweeps them up if you would rather start over.
 
 A ruined order needs no special handling either. A wrecked crate is still
 deliverable and pays `base_value * 0^1.5`, which is nothing - so hauling the
-wreck home for zero closes the board entry. Nothing has to detect a dead order
-or respawn its cargo.
+wreck home closes the board entry for a player who would rather not backtrack.
+Abandoning is the other door out of the same room.
 
 ## No deadlines, for now
 
@@ -233,5 +245,10 @@ already what the campaign is supposed to be.
 - [ ] TODO: does Storage have a capacity? Infinite is kinder and removes every
       reason to consolidate, which is the thing the Lattice ladder feeds on.
       #question
+- [ ] TODO: abandoning reconditions the cargo, and the only thing charging for
+      that is the drive back to the origin. On a short route the repair is
+      nearly free and damage stops mattering. Watch for it once two Facilities
+      exist at a real spacing - it may want a small fee after all, or it may be
+      that Facilities are simply never that close. #playtest
 - [ ] TODO: timed orders, if they ever come back, need the flare interaction
       solved first - sheltering must not cost the window. See [[Flares]].

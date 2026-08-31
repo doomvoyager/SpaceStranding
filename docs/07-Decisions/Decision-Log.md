@@ -54,20 +54,39 @@ Three smaller calls made at the same time:
   `tools/tsv-editor.html` ports from StarChef unchanged, because it is generic
   by design; only its bash launcher needs replacing on Windows.
 
-**An abandoned order resets its row and not its boxes.** Mac's call that an
-accepted order can be handed back, and returns to the board as if never taken.
-The crates are the exception: they go back to the origin's Storage in whatever
-condition they are in, still owned by the order. A clean reset would be a damage
-launderer - accept, wreck, abandon, re-accept, collect a pristine crate - which
-would quietly undo `condition^1.5` and break the rule that a crate is the same
-node its whole life.
+**Abandoning an order is a clean restart, cargo condition included.** Mac's
+call. An accepted order can be handed back at any terminal; it returns to the
+board as if never taken, and its crates are recalled to the origin's Storage and
+reconditioned to pristine. The reasoning is that a run which went badly should
+be restartable with a fair shot at it, in a game that has no combat and no fail
+state.
 
-Abandonment is done at a terminal, so **the drive back is the penalty** and no
-fee or standing hit has to be invented. Two cases then need no rules of their
-own: putting a crate down is not abandoning the order, so a box left in the
-field is the player's own lost cargo on the same terms as an orbital drop; and a
-ruined crate is still deliverable at `base_value * 0^1.5`, so hauling a wreck
-home for nothing clears the board entry without any dead-order detection.
+Claude argued against the reconditioning first, on the grounds that it is a
+damage launderer - accept, wreck the cargo, drive back, abandon, re-accept,
+collect a pristine crate - and that it reads against `condition^1.5` and against
+[[Cargo]]'s rule that a crate is the same node its whole life. Mac reaffirmed,
+and on a second look the objection is weaker than it appeared:
+
+- **The recall prices it.** Crates return to the *origin*, so re-running the
+  order costs the whole outbound leg again. It is a repair costing a round trip,
+  not a free reset, and a player unwilling to backtrack still takes the payout
+  loss. The pressure survives; it stops being a one-way ratchet.
+- **It closes a worse hole.** Recall takes every crate the order owns wherever
+  it is, including one at the bottom of a ravine nothing can drive back into. An
+  order made permanently unfinishable by an unreachable box is a worse outcome
+  than any exploit this permits.
+- The fiction is free: the Facility takes the shipment back and reconditions it.
+
+**The price is set by Facility spacing**, which [[Settlements-and-Cast]] already
+carries as `#blocking`. Close Facilities make reconditioning nearly free and
+damage stop mattering on short routes. That is now a second thing riding on that
+number, and a `#playtest` in [[Orders]].
+
+Two cases need no rules of their own either way. Putting a crate down is not
+abandoning the order, so a box left in the field is the player's own lost cargo
+on the same terms as an orbital drop. And a ruined crate is still deliverable at
+`base_value * 0^1.5`, so hauling a wreck home clears the entry for a player who
+would rather not backtrack - abandoning is the other door out of the same room.
 
 Kept deliberately: **the three-digit code is diegetic.** Stencilled on the
 crate, printed on the receipt, spoken over comms, so one number refers to one
