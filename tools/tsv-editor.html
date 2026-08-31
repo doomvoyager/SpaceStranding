@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StarChef TSV Editor</title>
+<style>
+  :root {
+    --bg: #14171c;
+    --panel: #1b1f26;
+    --panel-2: #222833;
+    --line: #2e3643;
+    --line-soft: #262d38;
+    --text: #dbe1ea;
+    --muted: #7f8b9d;
+    --accent: #6fb1ff;
+    --accent-dim: #2a4a75;
+    --warn: #ffb454;
+    --bad: #ff7b72;
+    --good: #7ee2a8;
+    --row-h: 26px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---- top bar ---------------------------------------------------- */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    flex: none;
+    flex-wrap: wrap;
+  }
+  button {
+    font: inherit;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 5px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover:not(:disabled) { background: #2b3340; border-color: #3c4757; }
+  button:disabled { opacity: .4; cursor: default; }
+  button.primary { background: var(--accent-dim); border-color: #3d6ea8; }
+  button.primary:hover:not(:disabled) { background: #35608f; }
+  .sep { width: 1px; height: 22px; background: var(--line); margin: 0 2px; }
+  .spacer { flex: 1 1 auto; }
+
+  #filename { font-weight: 600; }
+  #filename .dot {
+    color: var(--warn);
+    margin-left: 5px;
+    display: none;
+  }
+  body.dirty #filename .dot { display: inline; }
+  #where { color: var(--muted); font-size: 11px; }
+
+  input[type=search] {
+    font: inherit;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 5px 8px;
+    width: 190px;
+  }
+  input[type=search]:focus { outline: none; border-color: var(--accent); }
+
+  /* ---- preamble --------------------------------------------------- */
+  details#preamble {
+    flex: none;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  details#preamble summary {
+    padding: 5px 12px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 12px;
+    user-select: none;
+  }
+  details#preamble summary:hover { color: var(--text); }
+  #preambleText {
+    display: block;
+    width: calc(100% - 24px);
+    margin: 0 12px 10px;
+    min-height: 120px;
+    max-height: 40vh;
+    background: var(--bg);
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 8px;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    resize: vertical;
+  }
+  #preambleText:focus { outline: none; border-color: var(--accent); color: var(--text); }
+
+  /* ---- grid ------------------------------------------------------- */
+  #grid {
+    flex: 1 1 auto;
+    overflow: auto;
+    position: relative;
+  }
+  #empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    color: var(--muted);
+    text-align: center;
+    padding: 20px;
+    pointer-events: none;
+  }
+  #empty b { color: var(--text); font-size: 15px; }
+  body.loaded #empty { display: none; }
+  body.dragging #grid { outline: 2px dashed var(--accent); outline-offset: -6px; }
+
+  table { border-collapse: separate; border-spacing: 0; }
+  th, td { padding: 0; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--panel-2);
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    padding: 5px 7px;
+  }
+  thead th:hover { color: var(--text); }
+  thead th .arrow { color: var(--accent); margin-left: 3px; }
+  thead th.num { text-align: right; }
+  th.gutter, td.gutter {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--panel);
+    color: var(--muted);
+    font-size: 10px;
+    text-align: right;
+    padding: 0 6px;
+    width: 44px;
+    min-width: 44px;
+    cursor: default;
+    user-select: none;
+  }
+  thead th.gutter { z-index: 4; }
+  tbody tr:hover td.gutter { color: var(--text); background: var(--panel-2); }
+  tbody tr.sel td.gutter { color: var(--accent); background: var(--accent-dim); }
+
+  td input.cell {
+    font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    padding: 0 6px;
+    height: var(--row-h);
+    width: 100%;
+    min-width: 100%;
+  }
+  td input.cell:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+    background: #101922;
+  }
+  td.num input.cell { text-align: right; }
+  td.dup input.cell { color: var(--bad); }
+  tbody tr:nth-child(even of .data) td { background: rgba(255,255,255,.014); }
+
+  td.color { position: relative; }
+  td.color input.cell { padding-left: 22px; }
+  td.color .swatch {
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,.25);
+    cursor: pointer;
+    padding: 0;
+    background: #000;
+  }
+  td.color input[type=color] {
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    opacity: 0;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  tr.note td { background: var(--panel); border-bottom: 0; }
+  tr.note textarea {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    border-left: 2px solid var(--accent-dim);
+    color: var(--muted);
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 3px 8px;
+    resize: none;
+    overflow: hidden;
+  }
+  tr.note textarea:focus { outline: none; color: var(--text); background: #101922; }
+
+  /* ---- status ----------------------------------------------------- */
+  footer {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 5px 12px;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 11px;
+    min-height: 26px;
+  }
+  footer .bad { color: var(--bad); }
+  footer .good { color: var(--good); }
+  footer .warn { color: var(--warn); }
+  kbd {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: 0 4px;
+    font: 10px/1.6 ui-monospace, Menlo, monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <button id="btnOpen" class="primary">Open TSV…</button>
+  <button id="btnReload" disabled title="Discard changes and re-read the file">Revert</button>
+  <div class="sep"></div>
+  <span id="filename">no file<span class="dot">●</span></span>
+  <span id="where"></span>
+  <div class="spacer"></div>
+  <input type="search" id="filter" placeholder="Filter rows…" disabled>
+  <button id="btnApplyOrder" disabled title="Write the current sort order into the file">Apply sort order</button>
+  <div class="sep"></div>
+  <button id="btnAdd" disabled>+ Row</button>
+  <button id="btnDup" disabled title="Duplicate the selected row">Duplicate</button>
+  <button id="btnDel" disabled>Delete row</button>
+  <div class="sep"></div>
+  <button id="btnSave" class="primary" disabled>Save</button>
+  <button id="btnDownload" disabled title="Download a copy instead of writing in place">Download</button>
+</header>
+
+<details id="preamble" hidden>
+  <summary>File comments <span id="preambleCount"></span></summary>
+  <textarea id="preambleText" spellcheck="false"></textarea>
+</details>
+
+<div id="grid">
+  <div id="empty">
+    <b>Drop a .tsv file here</b>
+    <span>or press <kbd>Open TSV…</kbd> — Chrome lets you save straight back over the file.</span>
+    <span>Comment lines and blank lines are preserved exactly.</span>
+  </div>
+  <table id="table" hidden>
+    <thead><tr id="head"></tr></thead>
+    <tbody id="body"></tbody>
+  </table>
+</div>
+
+<footer>
+  <span id="stats"></span>
+  <span id="problems"></span>
+  <div class="spacer"></div>
+  <span><kbd>⌘S</kbd> save · <kbd>⌘Z</kbd> undo · <kbd>⌥↑↓</kbd> nudge number · <kbd>↵</kbd> next row</span>
+</footer>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ *
+ * Model
+ *
+ * A TSV here is not just a grid: both game tables carry a preamble of
+ * `#` comments and, in verb_deltas.tsv, section headings sitting between
+ * data rows. Those are documentation the game's parsers skip but Mac
+ * reads, so every comment and blank line is kept and re-emitted.
+ *
+ * Each comment/blank line is ATTACHED ABOVE the next data row, so it
+ * travels with that row through sorting and deletion. Comments after the
+ * last row live in `trailing`.
+ * ------------------------------------------------------------------ */
+
+const state = {
+  doc: null,          // {preamble:[], header:[], rows:[{cells,before}], trailing:[]}
+  name: "",
+  handle: null,       // FileSystemFileHandle when we can write in place
+  text: "",           // last text read from / written to disk
+  dirty: false,
+  eol: "\n",
+  finalNewline: true,
+  sortCol: null,
+  sortDir: 1,
+  selected: 0,
+  undo: [],
+  redo: [],
+};
+
+const $ = (id) => document.getElementById(id);
+
+function parseTSV(text) {
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const finalNewline = /\n$/.test(text);
+  const lines = text.split(/\r?\n/);
+  if (finalNewline) lines.pop();
+
+  const doc = { preamble: [], header: null, rows: [], trailing: [] };
+  let pending = [];
+  for (const line of lines) {
+    const skip = line.trim() === "" || line.trimStart().startsWith("#");
+    if (skip) { pending.push(line); continue; }
+    const cells = line.split("\t");
+    if (doc.header === null) {
+      doc.header = cells.map((c) => c.trim());
+      doc.preamble = pending;
+    } else {
+      doc.rows.push({ cells, before: pending });
+    }
+    pending = [];
+  }
+  doc.trailing = pending;
+  if (doc.header === null) doc.header = [];
+
+  // Ragged rows are a data bug worth seeing, not worth crashing on: pad
+  // short rows, and widen the header for any row that runs long.
+  let width = doc.header.length;
+  for (const r of doc.rows) width = Math.max(width, r.cells.length);
+  while (doc.header.length < width) doc.header.push("column_" + (doc.header.length + 1));
+  for (const r of doc.rows) while (r.cells.length < width) r.cells.push("");
+
+  return { doc, eol, finalNewline };
+}
+
+function serialize() {
+  const d = state.doc;
+  const out = [];
+  for (const l of d.preamble) out.push(l);
+  out.push(d.header.join("\t"));
+  for (const r of d.rows) {
+    for (const l of r.before) out.push(l);
+    out.push(r.cells.join("\t"));
+  }
+  for (const l of d.trailing) out.push(l);
+  return out.join(state.eol) + (state.finalNewline ? state.eol : "");
+}
+
+/* ------------------------------------------------------------------ *
+ * Column typing — drives alignment, numeric sorting and ⌥↑↓ nudging.
+ * ------------------------------------------------------------------ */
+
+let colKind = [];   // "num" | "color" | "text"
+
+function classifyColumns() {
+  const d = state.doc;
+  colKind = d.header.map((name, i) => {
+    let seen = 0, nums = 0, colors = 0;
+    for (const r of d.rows) {
+      const v = (r.cells[i] || "").trim();
+      if (v === "") continue;
+      seen++;
+      if (/^-?\d+(\.\d+)?$/.test(v)) nums++;
+      if (/^#[0-9a-fA-F]{6}$/.test(v)) colors++;
+    }
+    if (seen === 0) return "text";
+    if (colors === seen) return "color";
+    if (nums === seen) return "num";
+    return "text";
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Undo — whole-document snapshots. The tables are ~100 rows; the naive
+ * approach is both correct and instant here.
+ * ------------------------------------------------------------------ */
+
+function snapshot() {
+  state.undo.push(JSON.stringify(state.doc));
+  if (state.undo.length > 200) state.undo.shift();
+  state.redo.length = 0;
+}
+
+function undo() {
+  if (!state.undo.length) return;
+  state.redo.push(JSON.stringify(state.doc));
+  state.doc = JSON.parse(state.undo.pop());
+  markDirty();
+  render();
+}
+
+function redo() {
+  if (!state.redo.length) return;
+  state.undo.push(JSON.stringify(state.doc));
+  state.doc = JSON.parse(state.redo.pop());
+  markDirty();
+  render();
+}
+
+function markDirty() {
+  state.dirty = true;
+  document.body.classList.add("dirty");
+  $("btnSave").disabled = false;
+}
+
+function markClean() {
+  state.dirty = false;
+  document.body.classList.remove("dirty");
+}
+
+/* ------------------------------------------------------------------ *
+ * View — filtering and sorting are VIEW-only. The file keeps its own
+ * order until "Apply sort order" is pressed, so opening, sorting to
+ * eyeball an axis, and closing never rewrites the file.
+ * ------------------------------------------------------------------ */
+
+function viewRows() {
+  const d = state.doc;
+  let rows = d.rows.map((r, i) => ({ r, i }));
+
+  const q = $("filter").value.trim().toLowerCase();
+  if (q) rows = rows.filter(({ r }) => r.cells.some((c) => c.toLowerCase().includes(q)));
+
+  if (state.sortCol !== null) {
+    const c = state.sortCol, dir = state.sortDir, num = colKind[c] === "num";
+    rows.sort((a, b) => {
+      const x = a.r.cells[c] ?? "", y = b.r.cells[c] ?? "";
+      let cmp;
+      if (num) cmp = (parseFloat(x) || 0) - (parseFloat(y) || 0);
+      else cmp = x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" });
+      return cmp !== 0 ? cmp * dir : a.i - b.i;
+    });
+  }
+  return rows;
+}
+
+function applySortOrder() {
+  if (state.sortCol === null) return;
+  snapshot();
+  const wasFiltered = $("filter").value.trim() !== "";
+  if (wasFiltered) $("filter").value = "";   // never reorder a partial view
+  state.doc.rows = viewRows().map(({ r }) => r);
+  state.sortCol = null;
+  markDirty();
+  render();
+}
+
+/* ------------------------------------------------------------------ *
+ * Render
+ * ------------------------------------------------------------------ */
+
+function render() {
+  const d = state.doc;
+  if (!d) return;
+  classifyColumns();
+
+  const head = $("head");
+  head.textContent = "";
+  const gut = document.createElement("th");
+  gut.className = "gutter";
+  gut.textContent = "#";
+  head.appendChild(gut);
+  d.header.forEach((name, i) => {
+    const th = document.createElement("th");
+    if (colKind[i] === "num") th.className = "num";
+    th.textContent = name;
+    if (state.sortCol === i) {
+      const a = document.createElement("span");
+      a.className = "arrow";
+      a.textContent = state.sortDir > 0 ? "▲" : "▼";
+      th.appendChild(a);
+    }
+    th.title = "Sort by " + name;
+    th.onclick = () => {
+      if (state.sortCol !== i) { state.sortCol = i; state.sortDir = 1; }
+      else if (state.sortDir === 1) state.sortDir = -1;
+      else state.sortCol = null;
+      $("btnApplyOrder").disabled = state.sortCol === null;
+      render();
+    };
+    head.appendChild(th);
+  });
+
+  const key = findKey();
+
+  const body = $("body");
+  body.textContent = "";
+  const rows = viewRows();
+
+  for (const { r, i } of rows) {
+    if (r.before.length) body.appendChild(noteRow(r, d.header.length + 1));
+
+    const tr = document.createElement("tr");
+    tr.className = "data";
+    if (i === state.selected) tr.classList.add("sel");
+
+    const g = document.createElement("td");
+    g.className = "gutter";
+    g.textContent = String(i + 1);
+    g.title = "Click to select this row";
+    g.onclick = () => { state.selected = i; render(); };
+    tr.appendChild(g);
+
+    r.cells.forEach((val, c) => {
+      const td = document.createElement("td");
+      const kind = colKind[c];
+      if (kind === "num") td.className = "num";
+      if (kind === "color") td.className = "color";
+      if (c < key.width && key.dupes.has(keyOf(r, key.width))) td.classList.add("dup");
+
+      const inp = document.createElement("input");
+      inp.className = "cell";
+      inp.type = "text";
+      inp.spellcheck = false;
+      inp.value = val;
+      inp.dataset.row = i;
+      inp.dataset.col = c;
+      inp.style.width = widthFor(c) + "ch";
+      inp.addEventListener("focus", () => {
+        state.selected = i;
+        for (const el of body.querySelectorAll("tr.sel")) el.classList.remove("sel");
+        tr.classList.add("sel");
+        inp.dataset.was = inp.value;
+      });
+      inp.addEventListener("blur", () => {
+        if (inp.dataset.was !== undefined && inp.dataset.was !== inp.value) {
+          // One undo step per edited cell, not per keystroke.
+          state.undo.push(cellSnapshot(i, c, inp.dataset.was));
+          state.redo.length = 0;
+        }
+      });
+      inp.addEventListener("input", () => {
+        // A literal tab would split the cell in two on save.
+        if (inp.value.includes("\t")) inp.value = inp.value.replace(/\t/g, " ");
+        state.doc.rows[i].cells[c] = inp.value;
+        if (kind === "color") paintSwatch(td, inp.value);
+        markDirty();
+        updateStats();
+      });
+      td.appendChild(inp);
+
+      if (kind === "color") {
+        const picker = document.createElement("input");
+        picker.type = "color";
+        picker.value = /^#[0-9a-fA-F]{6}$/.test(val) ? val : "#000000";
+        picker.addEventListener("input", () => {
+          snapshot();
+          inp.value = picker.value;
+          state.doc.rows[i].cells[c] = picker.value;
+          paintSwatch(td, picker.value);
+          markDirty();
+        });
+        const sw = document.createElement("button");
+        sw.className = "swatch";
+        sw.tabIndex = -1;
+        sw.title = "Pick a colour";
+        sw.onclick = () => picker.click();
+        td.appendChild(sw);
+        td.appendChild(picker);
+        paintSwatch(td, val);
+      }
+
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  }
+
+  $("table").hidden = false;
+  document.body.classList.add("loaded");
+  state.shown = rows.length;
+  updateStats();
+  autosizeNotes();
+}
+
+/// Which leading columns identify a row, and which of those keys repeat.
+///
+/// A duplicate key is the one error worth flagging inline, because the
+/// game's parsers let the last row win in silence. But the key is not
+/// always column one: ingredients.tsv is keyed by `id`, while
+/// verb_deltas.tsv is keyed by `verb` + `applies_to` and repeats `boil`
+/// on purpose. So take the narrowest leading prefix that comes out
+/// unique, and only complain if even the widest one does not.
+function findKey() {
+  const d = state.doc;
+  const widest = Math.min(2, d.header.length);
+  let last = { width: 1, dupes: new Set() };
+  for (let width = 1; width <= widest; width++) {
+    const seen = new Set(), dupes = new Set();
+    for (const r of d.rows) {
+      const parts = r.cells.slice(0, width).map((s) => s.trim());
+      if (parts.every((p) => p === "")) continue;
+      const k = parts.join("\t");
+      if (seen.has(k)) dupes.add(k);
+      seen.add(k);
+    }
+    last = { width, dupes };
+    if (dupes.size === 0) break;
+  }
+  return last;
+}
+
+function keyOf(row, width) {
+  return row.cells.slice(0, width).map((s) => s.trim()).join("\t");
+}
+
+function cellSnapshot(row, col, oldValue) {
+  const copy = JSON.parse(JSON.stringify(state.doc));
+  copy.rows[row].cells[col] = oldValue;
+  return JSON.stringify(copy);
+}
+
+function paintSwatch(td, value) {
+  const sw = td.querySelector(".swatch");
+  if (sw) sw.style.background = /^#[0-9a-fA-F]{6}$/.test(value.trim()) ? value.trim() : "transparent";
+}
+
+function noteRow(r, span) {
+  const tr = document.createElement("tr");
+  tr.className = "note";
+  const td = document.createElement("td");
+  td.colSpan = span;
+  const ta = document.createElement("textarea");
+  ta.spellcheck = false;
+  ta.value = r.before.join("\n");
+  ta.title = "Comment lines kept above this row";
+  ta.addEventListener("focus", () => { ta.dataset.was = ta.value; });
+  ta.addEventListener("blur", () => {
+    if (ta.dataset.was !== undefined && ta.dataset.was !== ta.value) snapshot();
+  });
+  ta.addEventListener("input", () => {
+    r.before = ta.value === "" ? [] : ta.value.split("\n");
+    autosize(ta);
+    markDirty();
+  });
+  td.appendChild(ta);
+  tr.appendChild(td);
+  return tr;
+}
+
+function autosize(ta) {
+  ta.style.height = "auto";
+  ta.style.height = ta.scrollHeight + "px";
+}
+function autosizeNotes() {
+  for (const ta of document.querySelectorAll("tr.note textarea")) autosize(ta);
+}
+
+const widthCache = new Map();
+function widthFor(c) {
+  if (widthCache.has(c)) return widthCache.get(c);
+  let w = state.doc.header[c].length;
+  for (const r of state.doc.rows) w = Math.max(w, (r.cells[c] || "").length);
+  // The swatch sits inside the input's box, so a colour column needs room
+  // for it or the last hex digits get clipped.
+  w = Math.min(Math.max(w + (colKind[c] === "color" ? 5 : 2), 5), 70);
+  widthCache.set(c, w);
+  return w;
+}
+
+function updateStats() {
+  const d = state.doc;
+  const total = d.rows.length;
+  const parts = [`${total} rows · ${d.header.length} columns`];
+  if (state.shown !== undefined && state.shown !== total) parts.push(`${state.shown} shown`);
+  $("stats").textContent = parts.join(" · ");
+
+  const msgs = [];
+  const key = findKey();
+  if (key.dupes.size) {
+    const named = d.header.slice(0, key.width).join(" + ");
+    const shownDupes = [...key.dupes].slice(0, 6).map((k) => k.split("\t").join(" "));
+    if (key.dupes.size > shownDupes.length) shownDupes.push(`+${key.dupes.size - shownDupes.length} more`);
+    msgs.push(`<span class="bad">duplicate ${escapeHTML(named)}: ${escapeHTML(shownDupes.join(", "))}</span>`);
+  }
+  if (state.sortCol !== null) {
+    msgs.push(`<span class="warn">sorted by ${escapeHTML(d.header[state.sortCol])} (view only — the file keeps its order)</span>`);
+  }
+  if (!state.handle && state.name) {
+    msgs.push(`<span class="warn">read-only handle — use Download, then replace the file</span>`);
+  }
+  $("problems").innerHTML = msgs.join(" · ");
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+}
+
+/* ------------------------------------------------------------------ *
+ * Row operations
+ * ------------------------------------------------------------------ */
+
+function addRow() {
+  snapshot();
+  const at = Math.min(state.selected + 1, state.doc.rows.length);
+  state.doc.rows.splice(at, 0, { cells: state.doc.header.map(() => ""), before: [] });
+  state.selected = at;
+  markDirty();
+  render();
+  focusCell(at, 0);
+}
+
+function duplicateRow() {
+  const src = state.doc.rows[state.selected];
+  if (!src) return;
+  snapshot();
+  const at = state.selected + 1;
+  state.doc.rows.splice(at, 0, { cells: src.cells.slice(), before: [] });
+  state.selected = at;
+  markDirty();
+  render();
+  focusCell(at, 0);
+}
+
+function deleteRow() {
+  const r = state.doc.rows[state.selected];
+  if (!r) return;
+  snapshot();
+  // A deleted row's comments would otherwise vanish with it; hand them
+  // down to the next row instead.
+  const next = state.doc.rows[state.selected + 1];
+  if (r.before.length && next) next.before = r.before.concat(next.before);
+  else if (r.before.length) state.doc.trailing = r.before.concat(state.doc.trailing);
+  state.doc.rows.splice(state.selected, 1);
+  state.selected = Math.max(0, state.selected - 1);
+  markDirty();
+  render();
+}
+
+function focusCell(row, col) {
+  const el = document.querySelector(`input.cell[data-row="${row}"][data-col="${col}"]`);
+  if (el) { el.focus(); el.select(); el.scrollIntoView({ block: "nearest", inline: "nearest" }); }
+}
+
+/* ------------------------------------------------------------------ *
+ * Keyboard
+ * ------------------------------------------------------------------ */
+
+document.addEventListener("keydown", (e) => {
+  const mod = e.metaKey || e.ctrlKey;
+
+  if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
+  if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
+  if (mod && (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey))) { e.preventDefault(); redo(); return; }
+  if (mod && e.key.toLowerCase() === "f") { e.preventDefault(); $("filter").focus(); $("filter").select(); return; }
+  if (mod && e.key === "Enter") { e.preventDefault(); addRow(); return; }
+
+  const el = document.activeElement;
+  if (!el || !el.classList.contains("cell")) return;
+  const row = +el.dataset.row, col = +el.dataset.col;
+
+  // ⌥↑ / ⌥↓ nudges a number without retyping it — the whole point of a
+  // tuning pass over sweet/sour/salty.
+  if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown") && colKind[col] === "num") {
+    e.preventDefault();
+    const step = e.shiftKey ? 10 : 1;
+    const cur = parseFloat(el.value) || 0;
+    const decimals = (el.value.split(".")[1] || "").length;
+    const next = cur + (e.key === "ArrowUp" ? step : -step);
+    el.value = decimals ? next.toFixed(decimals) : String(next);
+    el.dispatchEvent(new Event("input"));
+    return;
+  }
+
+  const visible = [...document.querySelectorAll(`input.cell[data-col="${col}"]`)].map((n) => +n.dataset.row);
+  const pos = visible.indexOf(row);
+
+  if (e.key === "ArrowDown" || (e.key === "Enter" && !e.shiftKey)) {
+    e.preventDefault();
+    if (pos < visible.length - 1) focusCell(visible[pos + 1], col);
+  } else if (e.key === "ArrowUp" || (e.key === "Enter" && e.shiftKey)) {
+    e.preventDefault();
+    if (pos > 0) focusCell(visible[pos - 1], col);
+  } else if (e.key === "ArrowLeft" && el.selectionStart === 0 && el.selectionEnd === 0) {
+    if (col > 0) { e.preventDefault(); focusCell(row, col - 1); }
+  } else if (e.key === "ArrowRight" && el.selectionStart === el.value.length && el.selectionEnd === el.value.length) {
+    if (col < state.doc.header.length - 1) { e.preventDefault(); focusCell(row, col + 1); }
+  } else if (e.key === "Escape") {
+    el.value = state.doc.rows[row].cells[col];
+    el.blur();
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * File in / out
+ * ------------------------------------------------------------------ */
+
+const canPick = typeof window.showOpenFilePicker === "function";
+
+async function open() {
+  if (!(await confirmDiscard())) return;
+  if (canPick) {
+    let handle;
+    try {
+      [handle] = await window.showOpenFilePicker({
+        types: [{ description: "Tab-separated data", accept: { "text/plain": [".tsv", ".tab", ".txt"] } }],
+        multiple: false,
+      });
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+      // file:// and a few contexts refuse the picker; fall back quietly.
+      return pickViaInput();
+    }
+    const file = await handle.getFile();
+    load(await file.text(), file.name, handle);
+  } else {
+    pickViaInput();
+  }
+}
+
+function pickViaInput() {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".tsv,.tab,.txt,text/plain";
+  input.onchange = async () => {
+    const f = input.files[0];
+    if (f) load(await f.text(), f.name, null);
+  };
+  input.click();
+}
+
+function load(text, name, handle) {
+  const { doc, eol, finalNewline } = parseTSV(text);
+  state.doc = doc;
+  state.name = name;
+  state.handle = handle || null;
+  state.text = text;
+  state.eol = eol;
+  state.finalNewline = finalNewline;
+  state.sortCol = null;
+  state.selected = 0;
+  state.undo.length = 0;
+  state.redo.length = 0;
+  widthCache.clear();
+  markClean();
+
+  $("filename").firstChild.textContent = name;
+  $("where").textContent = handle ? "saves in place" : "download only";
+  document.title = name + " — TSV Editor";
+
+  const pre = $("preamble");
+  pre.hidden = false;
+  $("preambleCount").textContent = `(${doc.preamble.length} lines above the header)`;
+  $("preambleText").value = doc.preamble.join("\n");
+
+  for (const id of ["btnAdd", "btnDup", "btnDel", "btnDownload", "filter", "btnReload"]) $(id).disabled = false;
+  $("btnSave").disabled = true;
+  $("btnApplyOrder").disabled = true;
+  render();
+}
+
+async function save() {
+  if (!state.doc) return;
+  const text = serialize();
+  if (!state.handle) return download(text);
+  try {
+    const perm = await state.handle.queryPermission({ mode: "readwrite" });
+    if (perm !== "granted") {
+      const asked = await state.handle.requestPermission({ mode: "readwrite" });
+      if (asked !== "granted") { flash("write permission refused", "bad"); return; }
+    }
+    const w = await state.handle.createWritable();
+    await w.write(text);
+    await w.close();
+    state.text = text;
+    markClean();
+    $("btnSave").disabled = true;
+    flash("saved " + state.name, "good");
+  } catch (err) {
+    flash("save failed: " + err.message, "bad");
+  }
+}
+
+function download(text) {
+  const blob = new Blob([text], { type: "text/tab-separated-values" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = state.name || "table.tsv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  flash("downloaded — copy it over game/data/" + (state.name || ""), "warn");
+}
+
+async function reload() {
+  if (!(await confirmDiscard())) return;
+  if (state.handle) {
+    const f = await state.handle.getFile();
+    load(await f.text(), state.name, state.handle);
+  } else {
+    load(state.text, state.name, null);
+  }
+}
+
+async function confirmDiscard() {
+  if (!state.dirty) return true;
+  return confirm("Unsaved changes to " + state.name + ". Discard them?");
+}
+
+let flashTimer = null;
+function flash(msg, cls) {
+  const el = $("problems");
+  el.innerHTML = `<span class="${cls}">${escapeHTML(msg)}</span>`;
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => render(), 3000);
+}
+
+/* ---- drag and drop ------------------------------------------------ */
+
+document.addEventListener("dragover", (e) => { e.preventDefault(); document.body.classList.add("dragging"); });
+document.addEventListener("dragleave", (e) => { if (e.relatedTarget === null) document.body.classList.remove("dragging"); });
+document.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  document.body.classList.remove("dragging");
+  if (!(await confirmDiscard())) return;
+  const item = e.dataTransfer.items && e.dataTransfer.items[0];
+  // A dropped file can carry a writable handle in Chrome, which is the
+  // difference between "download a copy" and "save over the real file".
+  if (item && item.getAsFileSystemHandle) {
+    try {
+      const handle = await item.getAsFileSystemHandle();
+      if (handle && handle.kind === "file") {
+        const f = await handle.getFile();
+        return load(await f.text(), f.name, handle);
+      }
+    } catch (_) { /* fall through to the plain file */ }
+  }
+  const f = e.dataTransfer.files[0];
+  if (f) load(await f.text(), f.name, null);
+});
+
+/* ---- wiring ------------------------------------------------------- */
+
+$("btnOpen").onclick = open;
+$("btnReload").onclick = reload;
+$("btnSave").onclick = save;
+$("btnDownload").onclick = () => download(serialize());
+$("btnAdd").onclick = addRow;
+$("btnDup").onclick = duplicateRow;
+$("btnDel").onclick = deleteRow;
+$("btnApplyOrder").onclick = applySortOrder;
+$("filter").oninput = () => render();
+$("preambleText").addEventListener("focus", () => { $("preambleText").dataset.was = $("preambleText").value; });
+$("preambleText").addEventListener("blur", () => {
+  const t = $("preambleText");
+  if (t.dataset.was !== undefined && t.dataset.was !== t.value) snapshot();
+});
+$("preambleText").addEventListener("input", () => {
+  const v = $("preambleText").value;
+  state.doc.preamble = v === "" ? [] : v.split("\n");
+  markDirty();
+});
+
+window.addEventListener("beforeunload", (e) => {
+  if (state.dirty) { e.preventDefault(); e.returnValue = ""; }
+});
+</script>
+</body>
+</html>

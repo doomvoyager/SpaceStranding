@@ -1,0 +1,70 @@
+# Space Stranding order board.
+#
+# Tab-separated, one row per order. THIS FILE IS THE SOURCE OF TRUTH for what
+# the facilities want moved. Parsed once at load by scripts/orders/order_book.gd
+# and never written to at runtime - accepted, delivered and abandoned live in
+# the save, keyed by code. The moment this file is written by the running game
+# it stops being something you can edit.
+#
+#   tools/tsv-editor.ps1
+#
+# THE CODE
+#
+# code      100-999, opaque, sequential, NEVER REUSED. It is diegetic - it goes
+#           on the crate, on the receipt, and in anything a character says - so
+#           one number refers to one object everywhere. Do NOT encode the origin
+#           in the first digit: moving a facility would renumber the world.
+#
+# ROUTING
+#
+# origin    facility id the order is offered at, or the literal `world` for
+#           cargo that is already lying out there. A `world` row is authored in
+#           the scene - drag a crate in, set its code - and this row supplies
+#           everything else about it.
+# destination
+#           facility id the cargo is wanted at. The pad there is the only one
+#           that will accept it.
+# requires  a code that must be delivered before this one is offered. Blank for
+#           none. One step only; there is no dependency graph.
+#
+# THE CARGO
+#
+# type      materials  raw stock. Buildable with, once construction exists.
+#           upgrade    a package that installs on the rover or the suit.
+#           sample     science payload. Usually the fragile ones.
+#           personal   somebody's belongings. Worth little, means a lot.
+#
+#           Contents only. Whether the player may USE a crate is `owner`, which
+#           is runtime state and not in this file - order cargo is owned by its
+#           order until it is delivered. See docs/02-Systems/Orders.md.
+#
+# crates    how many boxes spawn on the origin's dock. The rover holds six, so
+#           anything above six is deliberately a two-trip order.
+# mass_kg   per crate. SETS the crate's mass - it is not a second copy of a
+#           number that also lives in the inspector.
+# fragility per crate, 0-4. Multiplies every bit of damage taken. 0.2 is pipe
+#           stock, 2.4 is instruments. Sets crate.fragility.
+# value     per crate, pristine. Sets crate.value, and the pad pays
+#           value * condition^1.5 - so a half-condition crate pays 35%, not 50.
+#
+# deadline_s
+#           PARKED. Always 0. Timed orders were designed and deliberately not
+#           built: a clock says the opposite of what payout = condition^1.5
+#           says, and the flare interaction has to be solved before one can
+#           exist. The column is here because the TSV editor cannot add
+#           columns, and hand-surgery on this file later is worse than a column
+#           of zeroes now. See docs/07-Decisions/Decision-Log.md, 2026-08-31.
+#
+# FLAVOUR
+#
+# title     what the board calls it.
+# issuer    whose voice the terminal speaks in. Blank for an unattended board.
+# blurb     one line. The terminal shows it under the title.
+#
+code	title	origin	destination	type	crates	mass_kg	fragility	value	deadline_s	requires	issuer	blurb
+101	Reclaimer parts	hearth	longshadow	materials	2	38	0.6	140	0		Quartermaster	Their water plant has been running on one loop for eleven days.
+102	Core samples	longshadow	hearth	sample	1	22	2.4	260	0		Dr Aleyn	Ice cores from the deep shadow. They have never been above freezing and would rather stay that way.
+103	Suspension package	hearth	longshadow	upgrade	1	64	1.0	320	0	101	Quartermaster	Heavy, awkward, and worth every kilo once it is bolted on.
+104	Pipe stock	hearth	longshadow	materials	3	55	0.2	90	0		Quartermaster	Bulk steel. Drop it down a ravine and it will still be pipe.
+105	Recovered mast	world	longshadow	materials	1	48	0.8	200	0		Longshadow	A relay mast came down somewhere out on the flat. Bring it in and we will stand it back up.
+106	Personal effects	hearth	longshadow	personal	1	14	1.6	60	0		Quartermaster	A crate somebody has been waiting a long time for. Try not to drop it.

@@ -46,6 +46,10 @@ var _time_since_grounded := 0.0
 var _mouse_captured := false
 ## True while we are sitting in a vehicle; suppresses our own look and interact.
 var _driving := false
+## True while a full-screen panel has the player's attention. Suppresses look,
+## movement and both cargo verbs — but not gravity, because standing at a
+## terminal on a slope should not make you hover.
+var _menu_open := false
 
 
 func _ready() -> void:
@@ -69,6 +73,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _driving:
 		return
 
+	# A panel owns the whole screen. Deliberately does *not* consume the event:
+	# the panel closes itself on the next `interact`, and it can only see the
+	# press if we let it past.
+	if _menu_open:
+		return
+
 	if event is InputEventMouseMotion and _mouse_captured:
 		_cam_pivot.rotate_y(-event.relative.x * mouse_sensitivity)
 		_spring_arm.rotate_x(-event.relative.y * mouse_sensitivity)
@@ -88,7 +98,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if _driving:
+	if _driving or _menu_open:
 		return
 	StickLook.apply(
 		_cam_pivot, _spring_arm, stick_sensitivity, pitch_min, pitch_max, delta
@@ -101,6 +111,15 @@ func _physics_process(delta: float) -> void:
 
 	if not grounded:
 		velocity.y -= World.surface_gravity * delta
+
+	if _menu_open:
+		# Still fall, still collide, but take no input. Coming out of a panel
+		# mid-stride and finding yourself somewhere else would be worse than
+		# standing still.
+		velocity.x = move_toward(velocity.x, 0.0, ground_friction * delta)
+		velocity.z = move_toward(velocity.z, 0.0, ground_friction * delta)
+		move_and_slide()
+		return
 
 	if Input.is_action_just_pressed("jump") and _time_since_grounded <= coyote_time:
 		# v = sqrt(2 * g * h)
@@ -167,23 +186,37 @@ func _interact() -> void:
 	var crate := nearest_loose_crate()
 	if crate != null and not _back_rack.is_full():
 		_back_rack.load_crate(crate)
+		# Cargo lying in the world carries a code but no obligation until it is
+		# in someone's hands. Picking it up is what makes its destination
+		# readable and lets the pad there take it in.
+		Orders.notice_found(crate.order_code())
+		return
+	var terminal := nearby_terminal()
+	if terminal != null:
+		_open_board(terminal)
 		return
 	_try_enter_rover()
 
 
 func _move_cargo() -> void:
+	if _menu_open:
+		return
 	var rover := nearby_rover()
+	var dock := nearby_dock()
 
 	if _back_rack.is_empty():
-		# Empty-handed: pull the last crate off the rover.
-		if rover == null:
+		# Empty-handed: take one off whatever is holding cargo. The rover wins
+		# when both are in reach, because standing between the two you are far
+		# more often unloading a haul than restocking a pallet.
+		var source := _unload_source(rover, dock)
+		if source == null:
 			return
-		var rack := rover.cargo_rack()
-		var stowed := rack.last_loaded_crate()
+		var stowed := source.last_loaded_crate()
 		if stowed == null:
 			return
 		_back_rack.load_crate(stowed)
-		rover.refresh_load()
+		if rover != null and source == rover.cargo_rack():
+			rover.refresh_load()
 		return
 
 	var carried := _back_rack.last_loaded_crate()
@@ -191,8 +224,20 @@ func _move_cargo() -> void:
 		rover.cargo_rack().load_crate(carried)
 		rover.refresh_load()
 		return
+	if dock != null and not dock.is_full():
+		dock.load_crate(carried)
+		return
 
 	carried.release(get_parent(), _drop_point.global_transform)
+
+
+## Which rack `F` would take a crate off, or null if neither has one.
+func _unload_source(rover: Rover, dock: CargoRack) -> CargoRack:
+	if rover != null and not rover.cargo_rack().is_empty():
+		return rover.cargo_rack()
+	if dock != null and not dock.is_empty():
+		return dock
+	return null
 
 
 ## Nearest crate lying loose within the interact zone, or null.
@@ -210,6 +255,34 @@ func nearest_loose_crate() -> Crate:
 	return best
 
 
+## The facility terminal within reach, or null. A terminal is a StaticBody3D
+## precisely so it shows up here — an Area3D one would be invisible to the
+## interact zone, which reads bodies.
+func nearby_terminal() -> FacilityTerminal:
+	for body in _interact_zone.get_overlapping_bodies():
+		var terminal := body as FacilityTerminal
+		if terminal != null and terminal.facility() != null:
+			return terminal
+	return null
+
+
+## The facility dock within reach, or null.
+##
+## Matched off the deck's own body rather than off anything in the facility, so
+## standing at the pad does not let you reach a pallet eight metres away.
+func nearby_dock() -> CargoRack:
+	for body in _interact_zone.get_overlapping_bodies():
+		if not body.is_in_group("dock_deck"):
+			continue
+		var node: Node = body
+		while node != null:
+			var facility := node as Facility
+			if facility != null:
+				return facility.dock()
+			node = node.get_parent()
+	return null
+
+
 ## The rover within reach, or null.
 func nearby_rover() -> Rover:
 	for body in _interact_zone.get_overlapping_bodies():
@@ -225,11 +298,16 @@ func back_rack() -> CargoRack:
 
 ## What `interact` would do right now, for the HUD. Empty when there is nothing.
 func interact_prompt() -> String:
+	if _menu_open:
+		return "Close the board"
 	if _driving:
 		return "Leave the rover"
 	var crate := nearest_loose_crate()
 	if crate != null and not _back_rack.is_full():
 		return "Pick up %s" % crate.cargo_name
+	var terminal := nearby_terminal()
+	if terminal != null:
+		return terminal.interact_prompt()
 	if nearby_rover() != null:
 		return "Board the rover"
 	return ""
@@ -237,16 +315,47 @@ func interact_prompt() -> String:
 
 ## What `drop_cargo` would do right now, for the HUD.
 func cargo_prompt() -> String:
-	if _driving:
+	if _driving or _menu_open:
 		return ""
 	var rover := nearby_rover()
+	var dock := nearby_dock()
 	if _back_rack.is_empty():
-		if rover != null and not rover.cargo_rack().is_empty():
-			return "Take a crate off the rack"
-		return ""
+		var source := _unload_source(rover, dock)
+		if source == null:
+			return ""
+		return "Take a crate off the %s" % source.rack_name.to_lower()
 	if rover != null and not rover.cargo_rack().is_full():
 		return "Stow on the rover"
+	if dock != null and not dock.is_full():
+		return "Set it on the dock"
 	return "Put the crate down"
+
+
+# --- The order board ----------------------------------------------------
+##
+## The panel is found by group rather than held as an export, the same way the
+## HUD finds the pad: boards are world content and a scene that streams one in
+## later should still work.
+
+func _open_board(terminal: FacilityTerminal) -> void:
+	var panel := get_tree().get_first_node_in_group("order_panel") as OrderPanel
+	if panel == null:
+		return
+	_menu_open = true
+	_capture_mouse(false)
+	if not panel.closed.is_connected(_on_board_closed):
+		panel.closed.connect(_on_board_closed)
+	panel.open(terminal.facility())
+
+
+func _on_board_closed() -> void:
+	_menu_open = false
+	_capture_mouse(true)
+
+
+## True while a panel has the screen. The HUD dims itself on this.
+func is_menu_open() -> bool:
+	return _menu_open
 
 
 # --- Vehicles -----------------------------------------------------------

@@ -1,0 +1,125 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/order_panel.gd" id="1_panel"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_scrim"]
+bg_color = Color(0.03, 0.02, 0.02, 0.72)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
+bg_color = Color(0.09, 0.06, 0.06, 0.97)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.94, 0.72, 0.22, 0.85)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="OrderPanel" type="CanvasLayer" groups=["order_panel"]]
+layer = 2
+script = ExtResource("1_panel")
+
+[node name="Root" type="PanelContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_scrim")
+
+[node name="Frame" type="PanelContainer" parent="Root"]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+custom_minimum_size = Vector2(940, 540)
+theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
+
+[node name="Margin" type="MarginContainer" parent="Root/Frame"]
+layout_mode = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 22
+
+[node name="Rows" type="VBoxContainer" parent="Root/Frame/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Header" type="VBoxContainer" parent="Root/Frame/Margin/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Title" type="Label" parent="Root/Frame/Margin/Rows/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.72, 0.22, 1)
+theme_override_font_sizes/font_size = 26
+text = "FACILITY"
+
+[node name="Subtitle" type="Label" parent="Root/Frame/Margin/Rows/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.66, 0.62, 1)
+theme_override_font_sizes/font_size = 14
+text = "0 on the board"
+
+[node name="Rule" type="HSeparator" parent="Root/Frame/Margin/Rows"]
+layout_mode = 2
+
+[node name="Panes" type="HBoxContainer" parent="Root/Frame/Margin/Rows"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 22
+
+[node name="Left" type="VBoxContainer" parent="Root/Frame/Margin/Rows/Panes"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.85
+
+[node name="List" type="ItemList" parent="Root/Frame/Margin/Rows/Panes/Left"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.88, 0.85, 0.82, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="Empty" type="Label" parent="Root/Frame/Margin/Rows/Panes/Left"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.6, 0.55, 0.52, 1)
+text = "Nothing on the board here."
+vertical_alignment = 1
+
+[node name="Right" type="VBoxContainer" parent="Root/Frame/Margin/Rows/Panes"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="Detail" type="RichTextLabel" parent="Root/Frame/Margin/Rows/Panes/Right"]
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = false
+scroll_active = true
+theme_override_colors/default_color = Color(0.88, 0.85, 0.82, 1)
+theme_override_font_sizes/normal_font_size = 15
+theme_override_font_sizes/bold_font_size = 18
+
+[node name="Actions" type="HBoxContainer" parent="Root/Frame/Margin/Rows/Panes/Right"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Action" type="Button" parent="Root/Frame/Margin/Rows/Panes/Right/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 40)
+text = "Accept"
+
+[node name="Close" type="Button" parent="Root/Frame/Margin/Rows/Panes/Right/Actions"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 40)
+text = "Close  (E)"
+
+[node name="Status" type="Label" parent="Root/Frame/Margin/Rows"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.66, 0.62, 1)
+theme_override_font_sizes/font_size = 13
+autowrap_mode = 3

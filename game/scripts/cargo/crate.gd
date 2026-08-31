@@ -19,6 +19,35 @@ signal damaged(amount: float)
 ## the inspector like any other body; the rover reads it straight off.
 @export var cargo_name := "Supply crate"
 
+@export_group("Ownership")
+## Who this crate belongs to. **Not** what is in it — contents are the order's
+## `type`, and conflating the two makes "why can I not use this one" a rule to
+## memorise instead of a label to read. Can the player build with it? Only if
+## it is PLAYER. See docs/02-Systems/Orders.md.
+##
+## Note the name: `owner` is taken by Node, and shadowing it would break scene
+## serialisation in ways that do not announce themselves.
+@export var cargo_owner: Owner = Owner.PLAYER
+
+## Facility id when FACILITY-owned; the order code as text when ORDER-owned.
+## Blank otherwise. One field rather than two, so the two can never disagree.
+@export var owner_id := ""
+
+## What a pristine one of these is worth. Zero means "the pad decides", which
+## is what unowned world crates do — order cargo is priced by data/orders.tsv.
+@export var value := 0.0
+
+enum Owner {
+	## Lying in the world, belonging to nobody yet.
+	NONE,
+	## The player's, and usable for construction once that exists.
+	PLAYER,
+	## Stock sitting in a facility.
+	FACILITY,
+	## Cargo attached to an order, until it is delivered.
+	ORDER,
+}
+
 @export_group("Fragility")
 ## Per-crate multiplier on every bit of damage taken. 0 is indestructible; 2 is
 ## twice as delicate as the baseline. This is the knob that makes a crate of
@@ -152,6 +181,12 @@ static func label_for(value: float) -> String:
 
 func condition_label() -> String:
 	return label_for(condition)
+
+
+## The order this crate belongs to, or 0 if it belongs to nobody.
+func order_code() -> int:
+	return int(owner_id) if cargo_owner == Owner.ORDER else 0
+
 
 
 # --- Carrying -----------------------------------------------------------

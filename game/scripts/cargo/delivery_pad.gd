@@ -17,8 +17,10 @@ class_name DeliveryPad
 ## Emitted once per crate, the moment it is accepted.
 signal delivered(crate: Crate, payout: float)
 
-## What a pristine crate of this kind is worth. Placeholder units — the economy
-## has no name yet, so the HUD just says "cr".
+## What a pristine crate is worth when it carries no price of its own. Order
+## cargo is priced by data/orders.tsv and ignores this; a crate found lying in
+## the world falls back to it. Placeholder units — the economy has no name yet,
+## so the HUD just says "cr".
 @export var base_value := 120.0
 
 ## How hard damage bites the payout. 1.0 is linear; above that, a scuffed crate
@@ -32,6 +34,10 @@ signal delivered(crate: Crate, payout: float)
 
 var total_paid := 0.0
 var delivered_count := 0
+## The Facility this pad belongs to, or null for a standalone pad. Resolved on
+## ready by walking up, so a pad dropped into a scene on its own still works —
+## it just accepts anything, having no address to check against.
+var _facility: Node = null
 ## Crates already accepted, so a delivered crate lying on the pad is not paid
 ## for every physics frame for the rest of the session.
 var _accepted: Dictionary = {}
@@ -43,6 +49,21 @@ var _last_at := 0.0
 func _ready() -> void:
 	add_to_group("delivery")
 	monitoring = true
+	_facility = _find_facility()
+
+
+func _find_facility() -> Node:
+	var node := get_parent()
+	while node != null:
+		if node is Facility:
+			return node
+		node = node.get_parent()
+	return null
+
+
+## The id this pad delivers to, or "" if it is not part of a facility.
+func facility_id() -> String:
+	return String(_facility.get("facility_id")) if _facility != null else ""
 
 
 func _physics_process(_delta: float) -> void:
@@ -58,7 +79,28 @@ func _physics_process(_delta: float) -> void:
 			continue
 		if crate.linear_velocity.length() > settle_speed:
 			continue
+		if not accepts(crate):
+			continue
 		_accept(crate)
+
+
+## Whether this pad will take `crate`.
+##
+## Order cargo is only cargo *here* if this is where it was addressed. Setting a
+## crate down at the wrong facility has to do nothing at all, or the destination
+## column in data/orders.tsv means nothing and every order is a delivery to the
+## nearest pad.
+func accepts(crate: Crate) -> bool:
+	var code := crate.order_code()
+	if code == 0:
+		return true
+	var order := Orders.get_order(code)
+	if order == null:
+		return true
+	if not Orders.is_accepted(code):
+		return false
+	var here := facility_id()
+	return here == "" or order.destination == here
 
 
 func _accept(crate: Crate) -> void:
@@ -66,19 +108,32 @@ func _accept(crate: Crate) -> void:
 	_accepted[crate.get_instance_id()] = true
 	total_paid += payout
 	delivered_count += 1
+	var code := crate.order_code()
+	var closed := Orders.deliver_crate(code, payout) if code != 0 else false
 	_last_line = "%s delivered — %s — %.0f cr" % [
 		crate.cargo_name, crate.condition_label(), payout
 	]
+	if code != 0:
+		var progress := Orders.progress(code)
+		_last_line = "Order %d · %s" % [code, _last_line]
+		if not closed:
+			_last_line += "   (%d of %d)" % [progress.x, progress.y]
 	_last_at = Time.get_ticks_msec() / 1000.0
 	print("DELIVERY: %s (condition %.2f) pays %.0f cr; %d delivered, %.0f cr total"
 		% [crate.cargo_name, crate.condition, payout, delivered_count, total_paid])
+	if closed:
+		print("ORDER %d complete." % code)
 	delivered.emit(crate, payout)
 
 
 ## What this crate would pay right now. Public so the HUD can warn the player
 ## what a damaged crate is about to cost them *before* they set it down.
+##
+## The crate's own value wins when it has one — order cargo is priced by the
+## row that created it, so the same pad pays differently for different jobs.
 func payout_for(crate: Crate) -> float:
-	return base_value * pow(clampf(crate.condition, 0.0, 1.0), payout_exponent)
+	var full := crate.value if crate.value > 0.0 else base_value
+	return full * pow(clampf(crate.condition, 0.0, 1.0), payout_exponent)
 
 
 ## The last delivery line, for `seconds` after it happened. Empty once stale.
