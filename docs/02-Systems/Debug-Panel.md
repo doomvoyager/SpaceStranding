@@ -59,10 +59,16 @@ are still iterating. "Reset all" restores what the scenes were authored with.
 | Rover wheels | wheel 1 | all six |
 | Cargo | the first crate | every crate, re-queried at write time |
 | Cargo racks | the first rack | both |
-| Delivery pad | the pad | the pad |
+| Delivery pads | the first pad | every pad, by group |
 | Post | the film material | the film material |
 | Terrain | the terrain | the terrain, on drag release only |
 | Rock scatter | the scatter | the scatter, on drag release only |
+| Scanner | the scanner | the scanner |
+| Lattice | `Lattice` | `Lattice`, then `rebuild()` on drag release |
+| Orders | `Orders` | `Orders` |
+| Facilities | the first facility | every facility, by group |
+| Relays | the first relay | every relay, on drag release |
+| HUD | the HUD | the HUD |
 
 Reading from one and writing to many is what makes "all crates" a single set of
 sliders rather than six identical copies. Terrain regenerates a six-figure mesh
@@ -72,6 +78,36 @@ they are the two targets that commit when a drag *ends*.
 The scatter's four distance knobs are the exception within the exception: they
 are properties on instances that already exist, so they retune live while
 driving and never trigger a rebuild at all. See [[Scatter]].
+
+## Reflection covers the properties, not the targets
+
+This is the seam, and it is worth knowing about because it has already caught us
+out. Which *properties* a target exposes is reflected and cannot drift — add an
+`@export`, get a slider. Which *objects* are targets at all is `_discover()`,
+and that is hand-written.
+
+So a new system can ship with a dozen good tunables and reach nobody. Three did
+on 2026-08-31 — [[Scanner]], [[The-Lattice]] and the [[Orders]] ledger — and the
+only reason it was noticed is that Mac went looking for a slider that was not
+there.
+
+`_collect()` made it worse: a per-class `elif` chain meant teaching the panel a
+system took two edits in two places, and making only the obvious one produced a
+target that silently matched nothing. It now walks the script's own inheritance
+chain, so adding a system is one `_collect` call and one `Target`. An
+**autoload** still has to be named directly, because nothing that walks the
+scene will ever find it.
+
+Two smaller lessons in the same shape:
+
+- **Prefer a group to `get_first_node_in_group`.** "Delivery pad" tuned the
+  first pad in the tree and quietly left the others alone once there was a pad
+  per facility — the same bug the HUD's receipt had.
+- `test_debug_panel.tscn` now **prints every node with its own exports that no
+  target covers**. That list found Facility, Relay and the second pad within a
+  minute of existing. It prints rather than fails, because not every tunable
+  belongs on a slider — but the next missing system is visible without anyone
+  hunting for a control that is not there.
 
 ## Subgroups
 

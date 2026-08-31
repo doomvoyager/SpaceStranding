@@ -40,6 +40,11 @@ their setters. A `ShaderMaterial`'s uniforms carry `PROPERTY_USAGE_EDITOR` but
 *not* `PROPERTY_USAGE_SCRIPT_VARIABLE`, so the [[Debug-Panel]] cannot see them -
 and a number nobody can move while driving is a number nobody will tune.
 
+That was only half the story on the day it was built. Script exports *are*
+reflected, but which objects the panel looks at is a hand-written list — so the
+scanner shipped with every slider it needed and none of them on screen. Fixed
+2026-08-31; see [[Debug-Panel]] for the seam.
+
 **The origin is the active camera, not the astronaut.** Boarding hides the
 astronaut and leaves its node where it stood, so scanning from the driver's seat
 off the astronaut's position would ping a spot in the sand behind you.

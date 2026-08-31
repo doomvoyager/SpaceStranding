@@ -290,6 +290,14 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   formatting error: unsupported format character" at runtime, once per call, so
   a formatter in a per-frame UI path floods the log rather than failing loudly.
   `String.num(v, 6)` is the short-and-exact equivalent.
+- **A reflected UI still needs telling what to reflect.** The F1 panel builds
+  its controls from `get_property_list()` and cannot drift from a script's
+  exports - but the list of *objects* it inspects is hand-written, so a whole
+  new system reaches nobody until it is added there. Three did exactly that in
+  one day, and none of them errored. When adding a tunable system, add it to
+  `debug_panel.gd`'s `_discover()`; an autoload has to be named directly,
+  because nothing walking the scene will find it. `test_debug_panel.tscn` prints
+  what it cannot reach.
 - **`PROPERTY_USAGE_SCRIPT_VARIABLE` is what separates a script's own `@export`
   vars from the hundred built-ins** in `get_property_list()`. `@export_group`
   survives into the list as a `PROPERTY_USAGE_GROUP` entry - but so do the
