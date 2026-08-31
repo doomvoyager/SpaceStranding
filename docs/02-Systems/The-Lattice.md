@@ -1,6 +1,6 @@
 ---
 status: design
-verified: 2026-08-30
+verified: 2026-08-31
 godot:
 tags: [system, progression, core-loop]
 ---
@@ -22,6 +22,10 @@ Coverage grants:
 - Navigation and terrain data - uncovered ground is dead reckoning only
 - **Hopper jump targets** - [[The-Lander]] cannot jump somewhere unlinked
 - Contract visibility from distant settlements
+- **Remote Facility storage** - see a linked Facility's stock, then later
+  request a transfer from it. This is the ladder [[Orders]] hangs its
+  per-Facility storage on, and the chiral network's convenience without any of
+  its magic
 - Longer [[Flares]] warning windows
 - *(Later)* visibility of other players' persistent structures
 
@@ -34,7 +38,7 @@ async multiplayer hooks all at once. Extending the Lattice **is** the campaign.
 
 ## Interactions
 
-[[Flares]] · [[The-Lander]] · [[Science]] · [[Progression]]
+[[Flares]] · [[The-Lander]] · [[Science]] · [[Progression]] · [[Orders]]
 
 ## Open
 

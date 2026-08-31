@@ -151,12 +151,14 @@ climbs again, something has put the chain back.
 - [ ] Brush stamps are a procedural hash, not a painted texture. Replacing
       `stamp_plane()` with a tiling stamp sheet Mac paints is what will make it
       read as Mac's hand rather than as a filter. No uniform for it yet - the
-      shader only carries `albedo_texture`, which is a different job. #now
+      shader only carries `albedo_texture`, which is a different job.
+      **Parked 2026-08-31** - the procedural stamps read well enough in motion
+      that this stopped being urgent.
 
 ## Open
 
-- [ ] **Judge it in motion.** Stills hold up; the whole direction lives or dies
-      on whether the stamps swim while driving. The distance ladder should
-      prevent it, but nobody has driven it yet. Run
-      `res://tests/look_dev_capture.tscn` for stills, then actually drive.
-      #now #playtest
+- [x] **Judge it in motion.** Driven 2026-08-31. The stamps do not swim - the
+      distance ladder holds - and Mac's call is that the camera and the look
+      are good as they stand. The one failure mode that could have sunk the
+      direction did not happen, so the direction is settled rather than
+      provisional.

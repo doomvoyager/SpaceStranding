@@ -9,6 +9,57 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-31 - Orders: a named crate, authored in a TSV, with no clock on it
+
+Mac's inbox note specified order management. Three forks in it were real, and
+all three are now called. See [[Orders]].
+
+**An order is a named crate, not a requirement.** Accepting 217 spawns 217's
+boxes; the alternative - *deliver 120 kg of ore, fill it from anything
+qualifying* - needs Facility Storage to be deep before the first order is
+interesting, and makes the crate anonymous exactly when [[Cargo]]'s damage model
+wants a specific object with a history. Not rejected, deferred: it is what
+Storage grows into if hauling ever feels thin.
+
+**The terminal panel moves cargo Storage to Dock, and no further.** A menu that
+assigned crates straight to the rover would delete the physical stow verb and
+the derived centre of mass from 2026-08-30, which is one of the better things
+built. The menu does the warehouse half; the world keeps the loading half. The
+inventory panel Mac asked for is a **reader** - nothing moves cargo except `F`.
+
+**Deadlines are parked, not rejected.** `payout = base_value * condition^1.5`
+was built so arriving slowly is a strategy, and a clock says the opposite. The
+conditions under which the two coexist are known and strict - timed orders a
+minority, the window quoted against the estimated drive rather than in raw
+minutes, and a missed window decaying the bonus rather than failing the order -
+but they cost more than they are worth before there is a single route to drive.
+The [[Flares]] interaction is the blocker if it comes back: sheltering from a
+flare must not cost you the window, or the game punishes obedience to its own
+safety rule. `deadline_s` stays in the schema at 0, because the TSV editor
+deliberately cannot add columns.
+
+Three smaller calls made at the same time:
+
+- **Facility is the generic; a Settlement is a Facility with people.** Two words
+  were already in use for one thing - [[Settlements-and-Cast]] listed exactly
+  the jobs Mac's note gave Facility. The split buys unmanned depots, relays and
+  drop sites for free.
+- **Ownership is a separate axis from type.** "Materials" and "materials you
+  cannot use" are the same contents with different owners. `owner` is
+  `PLAYER` / `FACILITY:<id>` / `ORDER:<code>`, and "can I build with this?" is
+  just "is it mine?".
+- **The TSV is a catalogue, never a save.** Parsed once at load; runtime state
+  is savegame data keyed by `code`. Mac's call, and the right one - the moment
+  the table is written at runtime it stops being a file that can be edited.
+  `tools/tsv-editor.html` ports from StarChef unchanged, because it is generic
+  by design; only its bash launcher needs replacing on Windows.
+
+Kept deliberately: **the three-digit code is diegetic.** Stencilled on the
+crate, printed on the receipt, spoken over comms, so one number refers to one
+object across the HUD, the pad and the script. It stays **opaque** - encoding
+the origin Facility in the first digit is the obvious convenience and means
+moving a Facility renumbers the world.
+
 ## 2026-08-31 - Rocks are cells of MultiMesh, and only the big ones are solid
 
 Mac asked for rocks scattered on the terrain with distance culling. Two things

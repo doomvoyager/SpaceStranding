@@ -1,6 +1,6 @@
 ---
 status: design
-verified: 2026-08-30
+verified: 2026-08-31
 godot:
 tags: [content, narrative]
 ---
@@ -10,9 +10,18 @@ tags: [content, narrative]
 The people at the ends of the routes. Nothing is written yet - this note exists
 to hold the shape of the problem.
 
+## A Settlement is a Facility with people in it
+
+Settled 2026-08-31 with [[Orders]]. A **Facility** is the generic fixture -
+identity, terminal, storage, pad. A **Settlement** is one that has a cast.
+
+That leaves this note free to be about the people. Everything below the line
+about contracts, shelter and storage is Facility work and lives in [[Orders]];
+what stays here is the reason to drive six kilometres to a particular one.
+
 ## What a settlement has to do
 
-- Issue contracts ([[Cargo]])
+- Issue contracts ([[Orders]]) - *Facility work, specified*
 - Act as shelter from [[Flares]]
 - Sell or install [[Progression]] upgrades
 - Anchor a stretch of [[The-Lattice]]

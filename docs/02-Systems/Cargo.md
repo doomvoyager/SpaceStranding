@@ -180,7 +180,7 @@ to drive it always just drives it. The HUD asks the astronaut what each key
 ## Interactions
 
 [[Rover]] · [[Astronaut-Traversal]] · [[Flares]] · [[Progression]] ·
-[[Settlements-and-Cast]]
+[[Settlements-and-Cast]] · [[Orders]]
 
 ## Verification
 
@@ -214,13 +214,16 @@ underneath. Nothing headless noticed, because delivery still worked.
 - [ ] TODO: damage is invisible. A ruined crate looks exactly like a pristine
       one - only the HUD word and the receipt differ. It needs to read on the
       crate itself: dents, a cracked lid, a spilled load. Mac's call on how far
-      that goes. #now
+      that goes. **Parked 2026-08-31** to make room for [[Orders]] - the
+      mechanic works, it is only unreadable.
 - [ ] TODO: there is one pad, found by group. Per-settlement pads need the HUD
       to show *the pad you are standing at*, not the first one in the tree.
-      #next
-- [ ] TODO: crates are one size and share one `base_value`. Contracts, cargo
-      types and per-item value are the next layer, and [[Progression]] wants
-      them. #question
+      [[Orders]] answers this - the pad becomes a child of a Facility and
+      inherits its `id`. #next
+- [x] Crates are one size and share one `base_value`. Contracts, cargo types
+      and per-item value are the next layer. Answered by [[Orders]]
+      2026-08-31: `orders.tsv` sets mass, fragility and value per crate, and
+      ownership - not type - is what makes cargo yours or someone else's.
 - [ ] TODO: does carrying cargo on foot affect balance and stumble the way
       Death Stranding's does? Two slots exist; nothing reads them yet. #next
 - [ ] TODO: the back rack fills a lot of the third-person camera's lower frame
