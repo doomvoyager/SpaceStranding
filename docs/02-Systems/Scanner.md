@@ -53,9 +53,25 @@ reflected, but which objects the panel looks at is a hand-written list — so th
 scanner shipped with every slider it needed and none of them on screen. Fixed
 2026-08-31; see [[Debug-Panel]] for the seam.
 
-**The origin is the active camera, not the astronaut.** Boarding hides the
-astronaut and leaves its node where it stood, so scanning from the driver's seat
-off the astronaut's position would ping a spot in the sand behind you.
+## Two positions, not one
+
+**The pulse goes out from the player; the labels measure from the player *now*.**
+
+The origin cannot be the astronaut's node - boarding the rover hides it and
+leaves it where it stood, so scanning from the driver's seat would ping a spot
+in the sand behind you. It was the *camera* for a while, which fixed that and
+introduced a quieter problem: the chase arm sits six metres back, so every
+distance read long. `_viewer_position()` answers properly - the rover when
+someone is driving it, the astronaut otherwise.
+
+**A tag's distance is recomputed every frame against where you are**, so it
+counts down as you walk toward the thing. Only the *reveal* geometry stays
+anchored to the origin: what the wave has swept over is a fact about the ping,
+and letting it chase the player would mean walking forward kept uncovering
+things the pulse had already gone past.
+
+Those were one number until 2026-08-31, which is indistinguishable from correct
+for exactly as long as the player stands still.
 
 ## Green and red mean something
 

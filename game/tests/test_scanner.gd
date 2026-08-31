@@ -21,6 +21,11 @@ extends Node3D
 ##      Label3D per object per ping is a slow memory leak behind a key the
 ##      player will press constantly.
 ##
+##   5. **The distance on a tag has to count down as you approach.** It is
+##      measured from the viewer every frame, while the reveal stays anchored to
+##      the ping - two positions that were the same number for as long as the
+##      player stood still, which is exactly how long it takes to not notice.
+##
 ## **Driven by the scanner's own state, not by frame counts.** The pulse
 ## advances on `_process` and the checks run on `_physics_process`, and headless
 ## does not interleave those two clocks anything like realtime — the first
@@ -40,6 +45,7 @@ var _frames := 0
 var _stage := 0
 var _failures: Array[String] = []
 var _radius_early := 0.0
+var _distance_before := ""
 
 
 func _ready() -> void:
@@ -108,11 +114,18 @@ func _physics_process(_delta: float) -> void:
 			_check_swept()
 			_advance()
 		3:
+			_move_the_viewer()
+			_advance()
+		4:
+			# A whole physics frame later, so _process has redrawn the labels.
+			_check_distance_is_live()
+			_advance()
+		5:
 			if _scanner.is_running():
 				return
 			_check_finished()
 			_advance()
-		4:
+		6:
 			_finish()
 
 
@@ -166,6 +179,34 @@ func _check_swept() -> void:
 		% [_scanner.radius(), _scanner.tag_count(), _scanner.max_tags])
 
 
+## Walk the viewer toward a tagged crate and its label must count down.
+##
+## The reveal distance and the shown distance were one number until 2026-08-31,
+## so a tag read whatever it read at the moment the wave reached it and then sat
+## there. Standing still, that is indistinguishable from correct.
+func _move_the_viewer() -> void:
+	_distance_before = _label_for(_near)
+	_expect(_distance_before != "", "the near crate has no tag to read")
+	# The test scene has no astronaut and no driven rover, so the viewer falls
+	# back to the camera. Move it most of the way to the crate.
+	var camera := get_viewport().get_camera_3d()
+	camera.global_position = _near.global_position + Vector3(0.0, 2.0, 1.0)
+
+
+## Split across two stages rather than awaiting inside one. An `await` here
+## would hand control back mid-check, the driver would advance the stage, and
+## the assertion could land after _finish() had already reported a pass.
+func _check_distance_is_live() -> void:
+	if _distance_before == "":
+		return
+	var after := _label_for(_near)
+	_expect(after != _distance_before,
+		"the tag still reads '%s' with the viewer moved in beside the crate"
+		% _distance_before)
+	print("tag went from '%s' to '%s' as the viewer moved in"
+		% [_distance_before, after])
+
+
 ## A scanner that leaks a label per object per ping is a slow leak behind a key
 ## the player will press constantly.
 func _check_finished() -> void:
@@ -174,6 +215,16 @@ func _check_finished() -> void:
 	_expect(_scanner.tag_count() == 0,
 		"%d tags survived the pulse ending" % _scanner.tag_count())
 	_expect(_scanner.ping(), "a new ping was refused long after the cooldown")
+
+
+## The text of `crate`'s tag, or "" if it has none.
+func _label_for(crate: Crate) -> String:
+	for child in _scanner.get_children():
+		for label in child.get_children():
+			var text := label as Label3D
+			if text != null and text.text.begins_with(crate.cargo_name):
+				return text.text
+	return ""
 
 
 func _tagged(crate: Crate) -> bool:

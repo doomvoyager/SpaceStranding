@@ -9,10 +9,21 @@ class_name Scanner
 ##
 ## Two decisions worth stating, because they are not obvious from the code:
 ##
-## **The origin is the active camera, not the astronaut.** Boarding the rover
-## hides the astronaut and leaves its node where it stood, so scanning from the
-## driver's seat off the astronaut's position would ping a spot in the sand
-## behind you. The camera is where the player actually is in both cases.
+## **The pulse goes out from the player, and the labels measure from the player
+## *now*.** Two different positions, and both were wrong to begin with.
+##
+## The origin cannot be the astronaut's node, because boarding the rover hides
+## it and leaves it where it stood - scanning from the driver's seat would ping
+## a spot in the sand behind you. It was the camera for a while, which fixed
+## that but sat six metres back on the chase arm, so every distance read long.
+## `_viewer_position()` answers properly: the rover when someone is driving it,
+## the astronaut otherwise.
+##
+## And the distance on a tag is recomputed against where you are *this frame*,
+## not against where the ping went out. Only the reveal geometry stays anchored
+## to the origin - what the wave has swept over is a fact about the ping, and
+## letting it chase the player would mean walking forward kept uncovering things
+## the pulse had already passed.
 ##
 ## **The look lives here, not in the material.** Every tunable below is pushed
 ## into the shader's global uniforms on change. A ShaderMaterial's uniforms
@@ -176,14 +187,27 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## Send a pulse from wherever the player is looking from.
+## Where the player actually is: the rover when they are driving it, the
+## astronaut when they are not, and the camera as a last resort so a test scene
+## with neither still works.
+func _viewer_position() -> Vector3:
+	var rover := get_tree().get_first_node_in_group("rover") as Rover
+	if rover != null and rover.driver != null:
+		return rover.global_position
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player != null:
+		return player.global_position
+	var camera := get_viewport().get_camera_3d()
+	return camera.global_position if camera != null else global_position
+
+
+## Send a pulse from where the player is standing.
 func ping() -> bool:
 	if _since_ping < cooldown:
 		return false
-	var camera := get_viewport().get_camera_3d()
-	if camera == null:
+	if get_viewport().get_camera_3d() == null:
 		return false
-	_origin = camera.global_position
+	_origin = _viewer_position()
 	_elapsed = 0.0
 	_since_ping = 0.0
 	_clear_tags()
@@ -269,6 +293,8 @@ func taggable() -> Array[Node3D]:
 
 func _reveal_tags(travel: float, strength: float) -> void:
 	var camera := get_viewport().get_camera_3d()
+	# Where the player is *now*, which is what a tag's distance should read.
+	var viewer := _viewer_position()
 	# Nearest first, so when the budget runs out it is the far things that lose
 	# their tag rather than whatever the group order happened to put first.
 	var candidates := taggable()
@@ -286,8 +312,10 @@ func _reveal_tags(travel: float, strength: float) -> void:
 	for node in candidates:
 		if not is_instance_valid(node):
 			continue
-		var distance := _origin.distance_to(node.global_position)
-		if distance > reach or distance > travel:
+		# Anchored to the ping, not to the player: what the wave has swept over
+		# is a fact about where it was sent from.
+		var swept := _origin.distance_to(node.global_position)
+		if swept > reach or swept > travel:
 			continue
 
 		var label: Label3D = _tags.get(node, null)
@@ -305,7 +333,11 @@ func _reveal_tags(travel: float, strength: float) -> void:
 				taken.append(camera.unproject_position(anchor))
 
 		label.global_position = _anchor(node)
-		label.text = "%s   %d m" % [_describe(node), int(round(distance))]
+		# `distance` above is from the origin and gates the sweep; what the
+		# label says is measured from the viewer, every frame, so the number
+		# counts down as you walk toward the thing.
+		var away := viewer.distance_to(node.global_position)
+		label.text = "%s   %d m" % [_describe(node), int(round(away))]
 		label.modulate.a = strength
 
 
