@@ -36,6 +36,7 @@ var _rover: Rover
 
 
 func _ready() -> void:
+	add_to_group("hud")
 	_astronaut = get_node_or_null(astronaut_path) as Astronaut
 	if _astronaut == null:
 		_astronaut = get_tree().get_first_node_in_group("player") as Astronaut

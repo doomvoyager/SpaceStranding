@@ -37,49 +37,6 @@ window/stretch/mode="canvas_items"
 
 theme/custom_font="uid://vevnpe02133f"
 
-[shader_globals]
-
-scan_origin={
-"type": "vec3",
-"value": Vector3(0, 0, 0)
-}
-scan_radius={
-"type": "float",
-"value": -1.0
-}
-scan_strength={
-"type": "float",
-"value": 0.0
-}
-scan_ring_width={
-"type": "float",
-"value": 2.5
-}
-scan_dot_spacing={
-"type": "float",
-"value": 1.1
-}
-scan_dot_size={
-"type": "float",
-"value": 0.17
-}
-scan_easy_color={
-"type": "color",
-"value": Color(0.32, 1, 0.55, 1)
-}
-scan_hard_color={
-"type": "color",
-"value": Color(1, 0.29, 0.26, 1)
-}
-scan_max_slope={
-"type": "float",
-"value": 26.0
-}
-scan_glow={
-"type": "float",
-"value": 0.55
-}
-
 [input]
 
 move_forward={
@@ -201,3 +158,46 @@ toggle_mouse={
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
 anti_aliasing/quality/msaa_3d=2
 environment/defaults/default_clear_color=Color(0.09, 0.05, 0.05, 1)
+
+[shader_globals]
+
+scan_origin={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+scan_radius={
+"type": "float",
+"value": -1.0
+}
+scan_strength={
+"type": "float",
+"value": 0.0
+}
+scan_ring_width={
+"type": "float",
+"value": 2.5
+}
+scan_dot_spacing={
+"type": "float",
+"value": 1.1
+}
+scan_dot_size={
+"type": "float",
+"value": 0.17
+}
+scan_easy_color={
+"type": "color",
+"value": Color(0.32, 1, 0.55, 1)
+}
+scan_hard_color={
+"type": "color",
+"value": Color(1, 0.29, 0.26, 1)
+}
+scan_max_slope={
+"type": "float",
+"value": 26.0
+}
+scan_glow={
+"type": "float",
+"value": 0.55
+}

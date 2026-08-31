@@ -12,6 +12,13 @@ extends CanvasLayer
 ## either of us added an `@export`. This one cannot drift: add an export, get a
 ## slider. It also means the *editor* stays the place values are authored — the
 ## panel is a way to find numbers while playing, not a second source of truth.
+##
+## **Reflection covers the properties, not the targets.** Which objects appear is
+## `_discover()`, and that is hand-written — so a new system with a dozen
+## perfectly good `@export`s shows up nowhere until someone adds it here. Three
+## did exactly that on 2026-08-31 before anyone noticed. Adding a system is one
+## `_collect` call and one Target; if it is an autoload, it has to be named
+## directly, because nothing that walks the scene will ever find it.
 ## Nothing here writes to a scene or to `project.godot`. "Copy changes" puts a
 ## transcribable list on the clipboard; the inspector is still where a number
 ## goes to be kept.
@@ -171,12 +178,15 @@ func _discover() -> Array[Target]:
 		t.nodes = racks
 		out.append(t)
 
-	var pad := tree.get_first_node_in_group("delivery")
-	if pad != null:
+	# Every pad, not the first one in the tree. With a pad per facility, a
+	# single-node target silently tunes one of them and leaves the rest alone —
+	# the same shape of bug the HUD's delivery receipt had.
+	var pads := tree.get_nodes_in_group("delivery")
+	if not pads.is_empty():
 		var t := Target.new()
-		t.title = "Delivery pad"
-		t.sample = pad
-		t.nodes = [pad]
+		t.title = "Delivery pads — all %d" % pads.size()
+		t.sample = pads[0]
+		t.group = "delivery"
 		out.append(t)
 
 	# The post stack. Its tunables are shader uniforms on a material rather than
@@ -220,6 +230,57 @@ func _discover() -> Array[Target]:
 		t.deferred = true
 		out.append(t)
 
+	var scanners: Array = []
+	_collect(tree.current_scene if tree.current_scene != null else tree.root,
+		"Scanner", scanners)
+	if not scanners.is_empty():
+		var t := Target.new()
+		t.title = "Scanner — Q to ping while tuning"
+		t.sample = scanners[0]
+		t.nodes = scanners
+		out.append(t)
+
+	# The two ledger autoloads, like World above. Neither is a node in the
+	# scene, so nothing that walks the tree would ever find them.
+	var lattice := Target.new()
+	lattice.title = "Lattice — relinks on release"
+	lattice.sample = Lattice
+	lattice.nodes = [Lattice]
+	lattice.deferred = true
+	lattice.after_write = "rebuild"
+	out.append(lattice)
+
+	var orders := Target.new()
+	orders.title = "Orders — transfer timing"
+	orders.sample = Orders
+	orders.nodes = [Orders]
+	out.append(orders)
+
+	var facilities := tree.get_nodes_in_group("facility")
+	if not facilities.is_empty():
+		var t := Target.new()
+		t.title = "Facilities — all %d" % facilities.size()
+		t.sample = facilities[0]
+		t.group = "facility"
+		out.append(t)
+
+	var relays := tree.get_nodes_in_group("relay")
+	if not relays.is_empty():
+		var t := Target.new()
+		t.title = "Relays — all %d, relinks on release" % relays.size()
+		t.sample = relays[0]
+		t.group = "relay"
+		t.deferred = true
+		out.append(t)
+
+	var hud := tree.get_first_node_in_group("hud")
+	if hud != null:
+		var t := Target.new()
+		t.title = "HUD"
+		t.sample = hud
+		t.nodes = [hud]
+		out.append(t)
+
 	return out
 
 
@@ -234,18 +295,28 @@ func _uniform_names(mat: ShaderMaterial) -> Array[String]:
 
 
 func _collect(n: Node, klass: String, out: Array) -> void:
-	if n.is_class(klass) or (n.get_script() != null and n.get_class() == klass):
-		out.append(n)
-	elif klass == "CargoRack" and n is CargoRack:
-		out.append(n)
-	elif klass == "ProceduralTerrain" and n is ProceduralTerrain:
-		out.append(n)
-	elif klass == "RockScatter" and n is RockScatter:
-		out.append(n)
-	elif klass == "VehicleWheel3D" and n is VehicleWheel3D:
+	if _is_a(n, klass):
 		out.append(n)
 	for c in n.get_children():
 		_collect(c, klass, out)
+
+
+## Whether `n` is a `klass`, for engine classes and script classes alike.
+##
+## This used to be an `elif` chain naming every script class the panel knew
+## about, so teaching the panel a new system took two edits in two places — and
+## making only the obvious one produced a target that silently found nothing.
+## Walking the script's own inheritance chain means the panel needs telling
+## once.
+func _is_a(n: Node, klass: String) -> bool:
+	if n.is_class(klass):
+		return true
+	var script := n.get_script() as Script
+	while script != null:
+		if script.get_global_name() == klass:
+			return true
+		script = script.get_base_script()
+	return false
 
 
 ## The tunables on `target`, in declaration order, with their group headers.

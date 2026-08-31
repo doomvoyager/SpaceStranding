@@ -63,8 +63,16 @@ func _test_discovery() -> void:
 	_expect(Debug._targets.size() >= 6,
 		"only %d targets discovered; expected the planet, astronaut, rover, wheels, cargo, racks and terrain"
 		% Debug._targets.size())
-	for wanted in ["Planet", "Astronaut", "Rover", "wheels", "Cargo", "Post", "Terrain"]:
+	# Discovery is hand-written even though the properties are reflected, so a
+	# system with a dozen good @exports can ship reaching nobody. Three did on
+	# 2026-08-31 — the scanner, the lattice and the ledger — and the only reason
+	# it was noticed is that Mac went looking for a slider. This list is the
+	# guard: a system that earns tunables earns a line here.
+	for wanted in ["Planet", "Astronaut", "Rover", "wheels", "Cargo", "Post",
+			"Terrain", "Scanner", "Lattice", "Orders"]:
 		_expect(_has_target(wanted), "no target matching %s was discovered" % wanted)
+
+	_report_unreachable()
 
 	# Sliders, not just headers. Rows include labels, so count the ones that
 	# actually carry a control.
@@ -227,6 +235,50 @@ func _target(fragment: String):
 
 func _has_target(fragment: String) -> bool:
 	return _target(fragment) != null
+
+
+## Everything in the scene carrying its own @export vars that no target covers.
+##
+## Printed rather than failed: not every tunable belongs on a slider, and a test
+## that insisted otherwise would be noise. But the list is what makes the next
+## missing system visible without anyone going looking for it.
+func _report_unreachable() -> void:
+	var covered := {}
+	for target in Debug._targets:
+		for node in target.nodes:
+			covered[node] = true
+		if target.group != "":
+			for node in get_tree().get_nodes_in_group(target.group):
+				covered[node] = true
+
+	var missing := PackedStringArray()
+	_walk_for_exports(get_tree().current_scene, covered, missing)
+	if missing.is_empty():
+		print("every node with its own exports is reachable from the panel")
+	else:
+		print("NOT on the panel (may be fine): %s" % ", ".join(missing))
+
+
+func _walk_for_exports(node: Node, covered: Dictionary, out: PackedStringArray) -> void:
+	if node == null:
+		return
+	if not covered.has(node) and _has_own_exports(node):
+		var script := node.get_script() as Script
+		var name := script.get_global_name() if script != null else node.name
+		if not out.has(name):
+			out.append(name)
+	for child in node.get_children():
+		_walk_for_exports(child, covered, out)
+
+
+func _has_own_exports(node: Node) -> bool:
+	if node.get_script() == null:
+		return false
+	for prop in node.get_property_list():
+		var usage := int(prop["usage"])
+		if usage & PROPERTY_USAGE_SCRIPT_VARIABLE and usage & PROPERTY_USAGE_EDITOR:
+			return true
+	return false
 
 
 func _expect(condition: bool, message: String) -> void:
