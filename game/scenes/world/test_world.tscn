@@ -8,7 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/cargo/crate.tscn" id="5_crate"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="6_hud"]
 [ext_resource type="Script" uid="uid://d1rxyiogcibmy" path="res://scripts/world/rock_scatter.gd" id="9_m0ivj"]
-[ext_resource type="PackedScene" path="res://scenes/world/facility.tscn" id="10_facility"]
+[ext_resource type="PackedScene" uid="uid://kgvmwms8r210" path="res://scenes/world/facility.tscn" id="10_facility"]
 [ext_resource type="PackedScene" path="res://scenes/ui/order_panel.tscn" id="11_panel"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_vesper"]
@@ -132,21 +132,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.9, 0, 3.5)
 astronaut_path = NodePath("../Astronaut")
 rover_path = NodePath("../Rover")
 
-[node name="Hearth" parent="." instance=ExtResource("10_facility")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 9.27, -10)
+[node name="Hearth" parent="." unique_id=1581600956 instance=ExtResource("10_facility")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 5.197858, -15.898802)
 facility_id = "hearth"
 display_name = "Hearth"
 
-[node name="Longshadow" parent="." instance=ExtResource("10_facility")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -44, 8.25, 30)
+[node name="Longshadow" parent="." unique_id=42263186 instance=ExtResource("10_facility")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -44, 4.7343216, 30)
 facility_id = "longshadow"
 display_name = "Longshadow"
 
-[node name="OrderPanel" parent="." instance=ExtResource("11_panel")]
+[node name="OrderPanel" parent="." unique_id=2139344188 instance=ExtResource("11_panel")]
 
-[node name="LooseCargo" type="Node3D" parent="."]
+[node name="LooseCargo" type="Node3D" parent="." unique_id=595401200]
 
-[node name="Mast105" parent="LooseCargo" instance=ExtResource("5_crate")]
+[node name="Mast105" parent="LooseCargo" unique_id=1231105223 instance=ExtResource("5_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 5.9, 10)
 mass = 48.0
 cargo_name = "Recovered mast"

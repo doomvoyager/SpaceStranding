@@ -13,6 +13,11 @@ extends Node3D
 ## Run: engine/Godot.app/Contents/MacOS/Godot --headless --path game \
 ##        res://tests/test_cargo_flow.tscn
 
+## Since 2026-08-31 a verb acts on what the astronaut is *looking at*, not on
+## the nearest candidate, so every press in this test has to be aimed first.
+## That is a better test than it was: it asserts what a player experiences
+## rather than what the code happens to accept.
+##
 ## Area3D overlap lists only refresh on a physics step, so every teleport in
 ## this test has to be followed by a few frames before the astronaut can see
 ## what is next to them.
@@ -103,12 +108,14 @@ func _run_transfers() -> void:
 	_expect(back.capacity() == 2, "back rack should have 2 slots, has %d" % back.capacity())
 	_expect(rack.capacity() == 6, "rover rack should have 6 slots, has %d" % rack.capacity())
 
+	_astronaut.aim_at(_crate.global_position)
 	_astronaut._interact()
-	_expect(_crate.is_stowed(), "E next to a loose crate did not pick it up")
+	_expect(_crate.is_stowed(), "E aimed at a loose crate did not pick it up")
 	_expect(back.count() == 1, "back rack holds %d after pickup, expected 1" % back.count())
 	_expect(_slot_error(_crate) < SLOT_TOLERANCE,
 		"carried crate is %.4f m off its back slot" % _slot_error(_crate))
 
+	_astronaut.aim_at(_rover.global_position)
 	_astronaut._move_cargo()
 	_expect(rack.count() == 1, "rover rack holds %d after stow, expected 1" % rack.count())
 	_expect(back.is_empty(), "back rack still holds %d after stow" % back.count())
@@ -138,6 +145,7 @@ func _check_still_attached() -> void:
 func _check_unload() -> void:
 	_expect(_astronaut.nearby_rover() != null,
 		"astronaut is not standing within reach of the rover; test is invalid")
+	_astronaut.aim_at(_rover.global_position)
 	_astronaut._move_cargo()
 	_expect(_astronaut.back_rack().count() == 1,
 		"F empty-handed beside a loaded rover did not take a crate off")

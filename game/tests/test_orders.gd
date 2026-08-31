@@ -217,10 +217,15 @@ func _check_dock_is_reachable() -> void:
 	_expect(_astronaut.nearby_dock() == dock,
 		"the astronaut cannot reach Hearth's dock; test is invalid")
 	_expect(dock.count() > 0, "nothing on the dock to lift")
+	_astronaut.aim_at(dock.global_position)
 	_expect(_astronaut.cargo_prompt() != "",
-		"F offers nothing beside a loaded dock")
+		"F offers nothing when facing a loaded dock")
 
 	var before := dock.count()
+	# Aim on purpose. Without this the test passes only because the dock happens
+	# to sit on the astronaut's default look axis, and would start failing the
+	# day anything in this scene moved.
+	_astronaut.aim_at(dock.global_position)
 	_astronaut._move_cargo()
 	_expect(_astronaut.back_rack().count() == 1,
 		"F beside a loaded dock did not take a crate; back rack holds %d"
@@ -229,6 +234,7 @@ func _check_dock_is_reachable() -> void:
 		"dock still holds %d of %d" % [dock.count(), before])
 
 	# And back the other way, so a crate can be staged rather than only taken.
+	_astronaut.aim_at(dock.global_position)
 	_astronaut._move_cargo()
 	_expect(dock.count() == before,
 		"F carrying a crate beside the dock did not set it down: %d of %d"

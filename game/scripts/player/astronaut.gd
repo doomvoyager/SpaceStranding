@@ -34,6 +34,20 @@ class_name Astronaut
 ## How fast the body swings to face the direction of travel, radians/sec.
 @export var turn_speed := 7.0
 
+@export_group("Interaction")
+## How far off the look direction something can be and still be reachable.
+## Generous on purpose: this is meant to disambiguate a crate from the rover
+## beside it, not to demand precise aim. Past 90 the thing is beside you, and
+## past that it is behind you.
+@export_range(20.0, 110.0, 1.0) var interact_half_angle := 80.0
+
+## How much being off-axis counts against something, relative to being far away.
+##
+## Zero is the old behaviour exactly — nearest wins, aim ignored. At 3.0 a crate
+## 1.5 m away at 60 degrees loses to the rover 2.5 m away dead ahead, which is
+## the case this was built for, while the same crate at 30 degrees still wins.
+@export_range(0.0, 8.0, 0.1) var aim_bias := 3.0
+
 @onready var _cam_pivot: Node3D = $CamPivot
 @onready var _spring_arm: SpringArm3D = $CamPivot/SpringArm3D
 @onready var _camera: Camera3D = $CamPivot/SpringArm3D/Camera3D
@@ -172,75 +186,227 @@ func _face_travel_direction(delta: float) -> void:
 ##
 ## Two verbs, and they never overlap:
 ##
-##   interact (E / A) — deal with the world. Pick up a loose crate if one is in
-##                      range, otherwise board the rover.
-##   drop_cargo (F / X) — move cargo. Carrying something, it goes on the rover's
-##                      rack if you are beside it and there is room, otherwise
-##                      on the ground. Empty-handed beside a loaded rover, it
-##                      comes off the rack instead.
+##   interact (E / A) — deal with the world. A loose crate, a facility terminal,
+##                      or the rover.
+##   drop_cargo (F / X) — move cargo. Carrying: onto a rack with room, else on
+##                      the ground. Empty-handed: off a rack that has something.
 ##
-## Boarding therefore never competes with unloading, so walking up to a loaded
-## rover to drive it always just drives it.
+## Boarding never competes with unloading, so walking up to a loaded rover to
+## drive it always just drives it. That was settled 2026-08-30.
+##
+## **Which of several things a verb acts on is decided by where you are
+## looking**, not by a fixed order of preference. The sphere is only the broad
+## phase — "what is nearby" — and everything it finds is then scored on how well
+## it is lined up. A crate lying beside the rover used to be picked up whatever
+## you wanted, because the list tried crates first; now you get whichever one
+## you are facing.
+##
+## Two details that are load-bearing:
+##
+##   **Camera forward, not body forward.** The body only turns while you are
+##   moving (see _face_travel_direction), so aiming off the body would mean
+##   standing still and turning the camera changed nothing. Where the camera
+##   looks is what the player means.
+##
+##   **Horizontal only.** A crate at your feet is a long way below the camera's
+##   forward ray, and a full 3D dot product would rule it out for being on the
+##   ground. Height is not what "in front of me" is about.
+##
+## A screen-centre raycast — the other standard answer — was rejected: the chase
+## camera sits behind and above, so a ray through the reticle spends most of its
+## time hitting terrain short of anything worth touching.
+
+## Kinds of thing that can be reached. Plain constants rather than an enum,
+## because Reachable is an inner class and reaching an enum from one is more
+## ceremony than it is worth.
+const KIND_CRATE := 0
+const KIND_TERMINAL := 1
+const KIND_ROVER := 2
+const KIND_DOCK := 3
+
+
+## One interactable in reach, and how well it is lined up. `score` is
+## lower-is-better, so picking a target is a min.
+class Reachable:
+	var node: Node3D
+	var kind: int
+	var score: float
+
+	func _init(target: Node3D, target_kind: int, aim_score: float) -> void:
+		node = target
+		kind = target_kind
+		score = aim_score
+
 
 func _interact() -> void:
-	var crate := nearest_loose_crate()
-	if crate != null and not _back_rack.is_full():
-		_back_rack.load_crate(crate)
-		# Cargo lying in the world carries a code but no obligation until it is
-		# in someone's hands. Picking it up is what makes its destination
-		# readable and lets the pad there take it in.
-		Orders.notice_found(crate.order_code())
+	var target := interact_target()
+	if target == null:
 		return
-	var terminal := nearby_terminal()
-	if terminal != null:
-		_open_board(terminal)
-		return
-	_try_enter_rover()
+	match target.kind:
+		KIND_CRATE:
+			var crate := target.node as Crate
+			_back_rack.load_crate(crate)
+			# Cargo lying in the world carries a code but no obligation until it
+			# is in someone's hands. Picking it up is what makes its destination
+			# readable and lets the pad there take it in.
+			Orders.notice_found(crate.order_code())
+		KIND_TERMINAL:
+			_open_board(target.node as FacilityTerminal)
+		KIND_ROVER:
+			(target.node as Rover).enter(self)
 
 
 func _move_cargo() -> void:
 	if _menu_open:
 		return
-	var rover := nearby_rover()
-	var dock := nearby_dock()
+	var target := cargo_target()
 
 	if _back_rack.is_empty():
-		# Empty-handed: take one off whatever is holding cargo. The rover wins
-		# when both are in reach, because standing between the two you are far
-		# more often unloading a haul than restocking a pallet.
-		var source := _unload_source(rover, dock)
-		if source == null:
+		# Empty-handed: take one off whatever you are facing that has cargo.
+		if target == null:
 			return
+		var source := _rack_of(target)
 		var stowed := source.last_loaded_crate()
 		if stowed == null:
 			return
 		_back_rack.load_crate(stowed)
-		if rover != null and source == rover.cargo_rack():
-			rover.refresh_load()
+		if target.kind == KIND_ROVER:
+			(target.node as Rover).refresh_load()
 		return
 
 	var carried := _back_rack.last_loaded_crate()
-	if rover != null and not rover.cargo_rack().is_full():
-		rover.cargo_rack().load_crate(carried)
-		rover.refresh_load()
-		return
-	if dock != null and not dock.is_full():
-		dock.load_crate(carried)
+	if target != null:
+		_rack_of(target).load_crate(carried)
+		if target.kind == KIND_ROVER:
+			(target.node as Rover).refresh_load()
 		return
 
 	carried.release(get_parent(), _drop_point.global_transform)
 
 
-## Which rack `F` would take a crate off, or null if neither has one.
-func _unload_source(rover: Rover, dock: CargoRack) -> CargoRack:
-	if rover != null and not rover.cargo_rack().is_empty():
-		return rover.cargo_rack()
-	if dock != null and not dock.is_empty():
-		return dock
+# --- Aim ----------------------------------------------------------------
+
+## Everything in reach, scored on how well it is lined up with the look
+## direction. Nothing outside `interact_half_angle` is included at all.
+func reachable() -> Array[Reachable]:
+	var out: Array[Reachable] = []
+	var forward := -_cam_pivot.global_transform.basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.0001:
+		return out
+	forward = forward.normalized()
+	var cutoff := cos(deg_to_rad(interact_half_angle))
+	var here := global_position
+
+	for body in _interact_zone.get_overlapping_bodies():
+		var kind := _kind_of(body)
+		if kind < 0:
+			continue
+		var node := _node_for(body, kind)
+		if node == null:
+			continue
+		var to := body.global_position - here
+		to.y = 0.0
+		var distance := to.length()
+		# Something you are standing on top of is unambiguously the thing you
+		# mean, and has no meaningful direction to test.
+		var aim := 1.0 if distance < 0.05 else forward.dot(to / distance)
+		if aim < cutoff:
+			continue
+		out.append(Reachable.new(node, kind, distance * (1.0 + aim_bias * (1.0 - aim))))
+	return out
+
+
+func _kind_of(body: Node3D) -> int:
+	if body is Crate:
+		# A stowed crate is riding in a rack. It is cargo, not scenery, and is
+		# moved with F rather than picked up with E.
+		return -1 if (body as Crate).is_stowed() else KIND_CRATE
+	if body is FacilityTerminal:
+		return KIND_TERMINAL
+	if body is Rover:
+		return KIND_ROVER
+	if body.is_in_group("dock_deck"):
+		return KIND_DOCK
+	return -1
+
+
+## The node a verb actually wants, which for a dock is the rack rather than the
+## deck the astronaut is standing next to.
+func _node_for(body: Node3D, kind: int) -> Node3D:
+	if kind != KIND_DOCK:
+		return body
+	var node: Node = body
+	while node != null:
+		var facility := node as Facility
+		if facility != null:
+			return facility.dock()
+		node = node.get_parent()
 	return null
 
 
-## Nearest crate lying loose within the interact zone, or null.
+func _rack_of(target: Reachable) -> CargoRack:
+	match target.kind:
+		KIND_ROVER:
+			return (target.node as Rover).cargo_rack()
+		KIND_DOCK:
+			return target.node as CargoRack
+	return null
+
+
+## What `interact` would act on right now, or null.
+##
+## A crate is dropped from the running when the back rack is full — otherwise
+## facing a crate you cannot carry would do nothing at all, when boarding the
+## rover behind it was available the whole time.
+func interact_target() -> Reachable:
+	var best: Reachable = null
+	for r in reachable():
+		if r.kind == KIND_DOCK:
+			continue
+		if r.kind == KIND_CRATE and _back_rack.is_full():
+			continue
+		if best == null or r.score < best.score:
+			best = r
+	return best
+
+
+## What `drop_cargo` would act on right now, or null — a rack to take from when
+## empty-handed, a rack with room when carrying. Anything that cannot do the job
+## you are asking for is not a candidate, so facing a full rover with a crate on
+## your back sets it on the dock rather than doing nothing.
+func cargo_target() -> Reachable:
+	var taking := _back_rack.is_empty()
+	var best: Reachable = null
+	for r in reachable():
+		var rack := _rack_of(r)
+		if rack == null:
+			continue
+		if taking and rack.is_empty():
+			continue
+		if not taking and rack.is_full():
+			continue
+		if best == null or r.score < best.score:
+			best = r
+	return best
+
+
+## Point the look direction at a world position. The player does this with the
+## mouse or the right stick; this exists so a test can aim before pressing a
+## key, which is now part of what a key press means.
+func aim_at(point: Vector3) -> void:
+	var to := point - global_position
+	to.y = 0.0
+	if to.length_squared() < 0.0001:
+		return
+	_cam_pivot.global_rotation = Vector3(0.0, atan2(-to.x, -to.z), 0.0)
+
+
+# --- Reach, without aim -------------------------------------------------
+##
+## "Is this near me", as distinct from "is this what I mean". Diagnostics and
+## tests; every verb above goes through aim.
+
 func nearest_loose_crate() -> Crate:
 	var best: Crate = null
 	var best_dist := INF
@@ -255,9 +421,6 @@ func nearest_loose_crate() -> Crate:
 	return best
 
 
-## The facility terminal within reach, or null. A terminal is a StaticBody3D
-## precisely so it shows up here — an Area3D one would be invisible to the
-## interact zone, which reads bodies.
 func nearby_terminal() -> FacilityTerminal:
 	for body in _interact_zone.get_overlapping_bodies():
 		var terminal := body as FacilityTerminal
@@ -266,24 +429,15 @@ func nearby_terminal() -> FacilityTerminal:
 	return null
 
 
-## The facility dock within reach, or null.
-##
-## Matched off the deck's own body rather than off anything in the facility, so
-## standing at the pad does not let you reach a pallet eight metres away.
 func nearby_dock() -> CargoRack:
 	for body in _interact_zone.get_overlapping_bodies():
-		if not body.is_in_group("dock_deck"):
-			continue
-		var node: Node = body
-		while node != null:
-			var facility := node as Facility
-			if facility != null:
-				return facility.dock()
-			node = node.get_parent()
+		if body.is_in_group("dock_deck"):
+			var rack := _node_for(body, KIND_DOCK) as CargoRack
+			if rack != null:
+				return rack
 	return null
 
 
-## The rover within reach, or null.
 func nearby_rover() -> Rover:
 	for body in _interact_zone.get_overlapping_bodies():
 		var rover := body as Rover
@@ -296,39 +450,43 @@ func back_rack() -> CargoRack:
 	return _back_rack
 
 
-## What `interact` would do right now, for the HUD. Empty when there is nothing.
+# --- Prompts ------------------------------------------------------------
+##
+## The HUD asks what each key *would* do rather than describing the rules, so a
+## prompt cannot drift from the behaviour. Both of these run the same target
+## selection the verbs do — the same function, not a matching copy of it.
+
 func interact_prompt() -> String:
 	if _menu_open:
 		return "Close the board"
 	if _driving:
 		return "Leave the rover"
-	var crate := nearest_loose_crate()
-	if crate != null and not _back_rack.is_full():
-		return "Pick up %s" % crate.cargo_name
-	var terminal := nearby_terminal()
-	if terminal != null:
-		return terminal.interact_prompt()
-	if nearby_rover() != null:
-		return "Board the rover"
+	var target := interact_target()
+	if target == null:
+		return ""
+	match target.kind:
+		KIND_CRATE:
+			return "Pick up %s" % (target.node as Crate).cargo_name
+		KIND_TERMINAL:
+			return (target.node as FacilityTerminal).interact_prompt()
+		KIND_ROVER:
+			return "Board the rover"
 	return ""
 
 
-## What `drop_cargo` would do right now, for the HUD.
 func cargo_prompt() -> String:
 	if _driving or _menu_open:
 		return ""
-	var rover := nearby_rover()
-	var dock := nearby_dock()
+	var target := cargo_target()
 	if _back_rack.is_empty():
-		var source := _unload_source(rover, dock)
-		if source == null:
+		if target == null:
 			return ""
-		return "Take a crate off the %s" % source.rack_name.to_lower()
-	if rover != null and not rover.cargo_rack().is_full():
+		return "Take a crate off the %s" % _rack_of(target).rack_name.to_lower()
+	if target == null:
+		return "Put the crate down"
+	if target.kind == KIND_ROVER:
 		return "Stow on the rover"
-	if dock != null and not dock.is_full():
-		return "Set it on the dock"
-	return "Put the crate down"
+	return "Set it on the dock"
 
 
 # --- The order board ----------------------------------------------------
