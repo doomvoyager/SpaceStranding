@@ -1,6 +1,6 @@
 extends CanvasLayer
 class_name HUD
-## Traversal-slice HUD: a static controls card, two context prompts that say
+## Traversal-slice HUD: a controls card on `H`, two context prompts that say
 ## exactly what the two action keys would do right now, a load readout, and a
 ## delivery banner.
 ##
@@ -15,11 +15,21 @@ class_name HUD
 @export var rover_path: NodePath
 @export var pad_path: NodePath
 
+@export_group("Controls card")
+## Whether the reference card starts visible. `H` (or the pad's Back button)
+## toggles it either way.
+##
+## An export rather than a hardcoded default because it is a preference, and
+## because the person most likely to want it off every time is the one with the
+## inspector open. It is also on the F1 panel, so it can be flipped mid-session.
+@export var show_controls_on_start := true
+
 @onready var _interact_label: Label = $Prompts/Interact
 @onready var _cargo_label: Label = $Prompts/Cargo
 @onready var _delivery_label: Label = $Prompts/Delivery
 @onready var _load_label: Label = $Prompts/Load
 @onready var _manifest_label: Label = $Prompts/Manifest
+@onready var _controls_card: Control = $Controls
 
 var _astronaut: Astronaut
 var _rover: Rover
@@ -32,6 +42,21 @@ func _ready() -> void:
 	_rover = get_node_or_null(rover_path) as Rover
 	if _rover == null:
 		_rover = get_tree().get_first_node_in_group("rover") as Rover
+	_controls_card.visible = show_controls_on_start
+
+
+## Handled here rather than in the astronaut because the card is the HUD's, and
+## because it should work while driving and while a panel is up — neither of
+## which routes input through the astronaut.
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_controls"):
+		_controls_card.visible = not _controls_card.visible
+		get_viewport().set_input_as_handled()
+
+
+## The card's own state, for the F1 panel and for tests.
+func controls_visible() -> bool:
+	return _controls_card.visible
 
 
 func _process(_delta: float) -> void:
@@ -43,6 +68,9 @@ func _process(_delta: float) -> void:
 	_hide_all() if menu else _draw()
 
 
+## Only the context prompts go away behind a panel. The controls card is not a
+## prompt — it does not describe the moment, it describes the game — so it keeps
+## whatever state the player put it in.
 func _hide_all() -> void:
 	for label in [_interact_label, _cargo_label, _delivery_label, _load_label,
 			_manifest_label]:

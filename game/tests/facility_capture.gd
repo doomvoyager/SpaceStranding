@@ -42,6 +42,12 @@ func _ready() -> void:
 	add_child(_cam)
 	_cam.current = true
 
+	# The controls card is on H now. Hide it for every shot below, which is both
+	# the check that the toggle works and the reason the captures stop having a
+	# reference card pasted over the top left of the look.
+	var hud := world.find_child("HUD", true, false)
+	hud._controls_card.visible = false
+
 	var p := hearth.global_position
 	# From a distance first: the sign is a navigation aid, so the question is
 	# whether it can be read from where you would be looking for the place.
