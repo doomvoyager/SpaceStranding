@@ -28,3 +28,4 @@ shader_parameter/slope_amount = 0.22
 shader_parameter/slope_sharpness = 2.5
 shader_parameter/fill_color = Color(0.3, 0.36, 0.6, 1)
 shader_parameter/fill_strength = 0.5
+shader_parameter/scan_grid_enabled = true

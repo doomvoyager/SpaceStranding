@@ -37,6 +37,49 @@ window/stretch/mode="canvas_items"
 
 theme/custom_font="uid://vevnpe02133f"
 
+[shader_globals]
+
+scan_origin={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+scan_radius={
+"type": "float",
+"value": -1.0
+}
+scan_strength={
+"type": "float",
+"value": 0.0
+}
+scan_ring_width={
+"type": "float",
+"value": 2.5
+}
+scan_dot_spacing={
+"type": "float",
+"value": 1.1
+}
+scan_dot_size={
+"type": "float",
+"value": 0.17
+}
+scan_easy_color={
+"type": "color",
+"value": Color(0.32, 1, 0.55, 1)
+}
+scan_hard_color={
+"type": "color",
+"value": Color(1, 0.29, 0.26, 1)
+}
+scan_max_slope={
+"type": "float",
+"value": 26.0
+}
+scan_glow={
+"type": "float",
+"value": 0.55
+}
+
 [input]
 
 move_forward={
@@ -123,6 +166,12 @@ brake={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":32,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
 , Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":1,"pressure":0.0,"pressed":false,"script":null)
+]
+}
+scan={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":0,"physical_keycode":81,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+, Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":9,"pressure":0.0,"pressed":false,"script":null)
 ]
 }
 toggle_controls={

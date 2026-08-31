@@ -91,6 +91,44 @@ uniform vec4 slope_color : source_color = vec4(0.46, 0.30, 0.26, 1.0);
 uniform float slope_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float slope_sharpness : hint_range(0.5, 8.0) = 2.5;
 
+group_uniforms scan;
+
+// The pulse is a GLOBAL uniform set: one scanner drives every surface in the
+// world with a single write, rather than the scanner holding a list of
+// materials and keeping it in step with the scene. Declared in project.godot
+// under [shader_globals]; written by scanner.gd.
+//
+// The *tunables* live on scanner.gd as @export vars and are pushed into these,
+// because a ShaderMaterial's uniforms carry PROPERTY_USAGE_EDITOR but not
+// PROPERTY_USAGE_SCRIPT_VARIABLE — so the F1 panel cannot see them, and a
+// number nobody can move while driving is a number nobody will tune.
+global uniform vec3 scan_origin;
+// Metres the wave front has travelled. Negative means no scan is running, which
+// is also the resting state, so the whole block costs one compare when idle.
+global uniform float scan_radius;
+// Overall opacity, 0 when idle. Fades the grid out after the wave has passed.
+global uniform float scan_strength;
+global uniform float scan_ring_width;
+global uniform float scan_dot_spacing;
+global uniform float scan_dot_size;
+global uniform vec4 scan_easy_color;
+global uniform vec4 scan_hard_color;
+// Degrees of slope that read as fully impassable. Measured against what the
+// rover can actually climb — see tests/probe_rover_climb.tscn — so red means
+// "you will not drive up that" rather than "this is steepish".
+global uniform float scan_max_slope;
+// How hard the dots emit. Deliberately a knob: the scene tonemaps with ACES,
+// which clamps saturated colour hardest exactly where it is brightest, so a
+// grid emitting at 1.5 comes out white and carries no information at all. The
+// value that keeps green green is found by looking, not by reasoning — see
+// tests/probe_scan_glow.tscn.
+global uniform float scan_glow;
+
+// Whether THIS material draws the grid. True on ground and rock; false on
+// crates and hulls, where a slope-coloured dot grid would mean nothing. The
+// pulse still reaches them — they get tagged by the scanner instead.
+uniform bool scan_grid_enabled = false;
+
 varying vec3 world_position;
 varying vec3 world_normal;
 
@@ -169,6 +207,61 @@ void fragment() {
 
 	float rim = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), rim_power);
 	EMISSION += rim_color.rgb * rim * rim_strength;
+
+	// --- Scan overlay ---------------------------------------------------
+	//
+	// Added to EMISSION rather than ALBEDO so the banded light() pass leaves it
+	// alone: a holographic overlay should not have a terminator across it, and
+	// EMISSION is the only channel here that survives the quantisation.
+	if (scan_grid_enabled && scan_strength > 0.0) {
+		vec2 ground = world_position.xz;
+		float swept = distance(ground, scan_origin.xz);
+
+		// Dots on a fixed world grid, so the pattern is nailed to the terrain
+		// and does not swim when the camera moves — the same reason the brush
+		// stamps are rectangular and world-locked.
+		vec2 cell_uv = ground / max(scan_dot_spacing, 0.01);
+		vec2 cell = abs(fract(cell_uv) - 0.5);
+		float d = length(cell);
+		// Antialias from the derivative of the CONTINUOUS coordinate. Taking it
+		// from the fract()ed one puts a seam of full-width blur along every
+		// cell boundary, because fract has a discontinuity there.
+		float aa = max(length(fwidth(cell_uv)) * 0.7, 0.001);
+		float dots = 1.0 - smoothstep(scan_dot_size - aa, scan_dot_size + aa, d);
+
+		// Slope straight off the rendered normal, so it accounts for whatever
+		// scale the terrain node is carrying. The player drives the terrain as
+		// drawn, so that is the slope worth reporting.
+		float slope_deg = degrees(acos(clamp(world_normal.y, 0.0, 1.0)));
+		float hardness = clamp(slope_deg / max(scan_max_slope, 1.0), 0.0, 1.0);
+		vec3 grid_col = mix(scan_easy_color.rgb, scan_hard_color.rgb, hardness);
+
+		// Everything the wave has already passed keeps the grid; the wave front
+		// itself is a brighter ring, which is what makes it read as a pulse
+		// going out rather than a radius being resized.
+		float inside = 1.0 - smoothstep(scan_radius - 1.0, scan_radius, swept);
+		float ring = 1.0 - smoothstep(0.0, max(scan_ring_width, 0.01),
+			abs(swept - scan_radius));
+
+		// **Punch the surface out under the dot before lighting it.** Adding
+		// emission on top of the regolith and calling it done was the first
+		// attempt, and green over ferocious red came out yellow — additive
+		// blending destroys the hue, which is the one thing this overlay is
+		// carrying. Killing the albedo under the dot and putting the colour in
+		// EMISSION makes a green dot green whatever it is standing on.
+		float on = dots * inside * scan_strength;
+		float front = ring * ring * scan_strength;
+		float paint = clamp(on + front * 0.8, 0.0, 1.0);
+
+		// **A dot owns both channels rather than adding to either.** Adding was
+		// the first attempt and came out white; darkening the albedo and adding
+		// emission was the second and came out pale mint, because the fill term
+		// a few lines up had already put ambient into EMISSION using the red
+		// albedo, and the dot was then a wash over that. Replacing both is what
+		// finally makes a green dot green on ferocious red ground.
+		ALBEDO = mix(ALBEDO, vec3(0.0), paint);
+		EMISSION = mix(EMISSION, grid_col * scan_glow, paint);
+	}
 
 	// No ambient dial here on purpose: AMBIENT_LIGHT is not a built-in in
 	// fragment() or light() on 4.7.1 — measured, both fail to compile. Scene
