@@ -149,6 +149,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_in
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_storage.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_lattice.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -369,6 +373,11 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   broad phase, and there is no ordering left to get wrong. Note Godot has **no
   cone collision primitive**, so the tempting literal reading of "interaction
   cone" costs a convex shape re-oriented every frame, for a worse result.
+- **A node re-entering the tree does not run `_ready()` again.** Anything that
+  registers itself with an autoload on ready is therefore scenery the second
+  time around - present, visible, and absent from every system that cares.
+  `request_ready()` before `add_child()` restores it. Only bites re-parenting,
+  not a freshly instantiated node, so it hides until a test moves something.
 - **Iterating an untyped `const Array` yields `Variant`, which poisons `:=` two
   lines later.** `for size in SIZES:` then `var x := something * size` fails to
   compile with "Cannot infer the type of x because the value doesn't have a set

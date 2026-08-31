@@ -262,12 +262,16 @@ a receipt log. Storage is a locker, not a junk drawer.
 
 What makes it a system is that it is the ladder [[The-Lattice]] climbs:
 
-| Coverage | Grants |
-|---|---|
-| none | you must be standing there to know what is there |
-| linked | **see** a remote Facility's stock, and its order board |
-| upgraded | **request a transfer** - it arrives later, on its own time |
-| late | standing routes between linked Facilities |
+| Coverage | Grants | |
+|---|---|---|
+| none | you must be standing there to know what is there | **built** |
+| linked | **see** a remote Facility's stock, and its order board | **built** |
+| linked | **request a transfer** - it arrives later, on its own time | **built** |
+| late | standing routes between linked Facilities | design |
+
+Built 2026-08-31. Seeing and requesting turned out to be the same rung rather
+than two: once a terminal can read a remote shelf, refusing to let it ask for
+anything is a gate with nothing behind it. See [[The-Lattice]].
 
 That is the chiral network's convenience with none of its magic, and it means
 stranded stock is a problem you solve by *building the network* - which is
@@ -309,6 +313,7 @@ do this*, which is why `facility_capture.tscn` exists.
 | The thing you press `E` at | `res://scripts/world/facility_terminal.gd` |
 | Two panes, accept and hand back | `res://scripts/ui/order_panel.gd` |
 | Storage, and what is on a shelf | `res://scripts/orders/stored_item.gd` |
+| Transfers between facilities | `res://scripts/orders/order_book.gd` |
 | The table | `game/data/orders.tsv` |
 | Editing the table | `tools/tsv-editor.ps1` |
 
@@ -361,10 +366,9 @@ footprint, because the first pair were placed by eye at `y = 0` and were buried.
 - [x] **Storage is a place.** Per facility, uncapped, holding records rather
       than nodes; deposit at the intake, withdraw from the terminal. Built
       2026-08-31.
-- [ ] TODO: the [[The-Lattice]] ladder itself - seeing a linked facility's stock
-      from elsewhere, then requesting a transfer that takes real time to arrive.
-      Storage now exists to hang it on, and it is the thing that turns
-      per-facility stock from a chore into a system. #now
+- [x] The [[The-Lattice]] ladder - seeing a linked facility's stock from
+      elsewhere and requesting a transfer that takes real time. Built
+      2026-08-31.
 - [ ] TODO: the inventory-and-orders reader Mac's note asks for - what am I
       carrying, whose is it, where does it go. The HUD manifest line covers the
       driving case; a full panel is for when the manifest gets long. #next

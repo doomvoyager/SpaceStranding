@@ -44,6 +44,10 @@ Terrain node in `test_world.tscn` carries a 0.5 scale on Y - Mac flattens the
 world in the editor by scaling it. Using that returned height as a world Y puts
 things at *twice* the ground height.
 
+**Use `world_height_at()` instead.** Added 2026-08-31 when [[The-Lattice]]
+needed ground heights along a sight line: it converts through the node's
+transform so nothing else has to remember any of this.
+
 `test_world.gd` did exactly that from the day it was written, so the rover, the
 astronaut, the beacon and every crate spawned in mid-air and fell a couple of
 metres on load. Nothing noticed until [[Cargo]] started taking damage from

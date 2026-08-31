@@ -9,6 +9,54 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-31 - The Lattice links by line of sight, and transfers cost time
+
+The coverage half of [[The-Lattice]], built. **Placing** relays is deliberately
+not in it: they are authored in the scene, because the payoff had to exist first
+or there would be nothing to place one *for*. Extending the network is still
+meant to be the campaign; this is the reason it will be worth doing.
+
+**Sites link by range AND line of sight**, and coverage is the connected
+component. A radius check would make the network a question of *distance*, which
+the map cannot argue with; sampling the terrain between two masts makes it a
+question of *where the high ground is*, which is what surveying is supposed to
+be about. `test_lattice.tscn` asserts a mast five metres underground cannot see
+out - without that assertion the whole thing is a distance check wearing a
+raycast's clothes, and where a relay goes stops mattering.
+
+**Solved at build time and cached**, answering the open question in the note. A
+link changes only when a site moves or the terrain rebuilds, and both are events
+we already have. Rebuilds are deferred and coalesced.
+
+**Transfers cost time and nothing else.** Mac's call, from three options - time
+only, time plus a fee, time plus a shared power budget. Duration is a dispatch
+delay plus distance over a speed **deliberately slower than the rover**: asking
+the Lattice is the patient option, never the efficient one. If the network ever
+beat driving there yourself, the rover would be a worse vehicle than a menu. The
+stock is off both shelves while it travels, which is the honest reading and also
+stops it being requested twice.
+
+**Remote boards as well as remote shelves.** Mac's call. The note already
+promised "contract visibility from distant settlements", it was nearly free once
+the graph existed, and it turns a terminal into a route-planning tool rather
+than a warehouse window.
+
+**A dark facility is unreadable, not greyed out.** The panel asks
+`facilities_reachable_from()`, which does not return what it cannot see. Dark
+zones being genuinely dark is the line the note has carried since it was
+written, and it only means something if the UI cannot cheat.
+
+Sites are **duck-typed** on three methods rather than sharing a base class,
+because Facility and Relay both extend `Node3D` and GDScript has single
+inheritance.
+
+Costs accepted: transfer speed and dispatch delay are guesses that cannot be
+judged until facilities are a real distance apart, and the Network tab is a list
+- it answers "what can I reach" but not "where is the hole", which is still the
+open coverage-map question.
+
+---
+
 ## 2026-08-31 - Storage holds records, and is uncapped
 
 Cargo was abstract until an order was taken and gone once it was handed back, so
