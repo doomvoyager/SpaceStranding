@@ -51,6 +51,13 @@ landings, at which point the world quietly pre-scuffed its own crates before
 the player touched anything. Convert back through `to_global()` rather than
 assuming the terrain transform is the identity.
 
+## It announces its rebuilds
+
+`rebuilt` fires at the end of `_build()`. [[Scatter]] listens: retuning the
+heightfield moves the ground out from under every rock, and without the signal
+a terrain slider leaves boulders hanging in the air. Anything else that places
+objects on the surface should do the same.
+
 ## Known issues
 
 - [ ] Single patch, no streaming, no LOD. Fine at 512 m, will not scale.

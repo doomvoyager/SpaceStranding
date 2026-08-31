@@ -7,6 +7,11 @@ class_name ProceduralTerrain
 ## system — that will be a streamed, chunked, artist-authored setup (Terrain3D or
 ## equivalent). Keep gameplay code from depending on anything in here.
 
+## Emitted after the mesh and collision are rebuilt. Anything that placed
+## objects on the surface — RockScatter — has to put them back, or a retune
+## leaves them hanging in the air over the new ground.
+signal rebuilt
+
 @export_group("Extent")
 ## Side length of the patch in metres.
 @export var size := 512.0:
@@ -85,6 +90,7 @@ func _build() -> void:
 	_generate_heights()
 	_build_mesh()
 	_build_collision()
+	rebuilt.emit()
 
 
 # --- Heightfield --------------------------------------------------------

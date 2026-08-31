@@ -209,6 +209,17 @@ func _discover() -> Array[Target]:
 		t.deferred = true
 		out.append(t)
 
+	var scatter: Array = []
+	_collect(tree.current_scene if tree.current_scene != null else tree.root,
+		"RockScatter", scatter)
+	if not scatter.is_empty():
+		var t := Target.new()
+		t.title = "Rock scatter — rebuilds on release"
+		t.sample = scatter[0]
+		t.nodes = scatter
+		t.deferred = true
+		out.append(t)
+
 	return out
 
 
@@ -228,6 +239,8 @@ func _collect(n: Node, klass: String, out: Array) -> void:
 	elif klass == "CargoRack" and n is CargoRack:
 		out.append(n)
 	elif klass == "ProceduralTerrain" and n is ProceduralTerrain:
+		out.append(n)
+	elif klass == "RockScatter" and n is RockScatter:
 		out.append(n)
 	elif klass == "VehicleWheel3D" and n is VehicleWheel3D:
 		out.append(n)

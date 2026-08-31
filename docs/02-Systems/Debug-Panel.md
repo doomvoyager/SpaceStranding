@@ -62,10 +62,16 @@ are still iterating. "Reset all" restores what the scenes were authored with.
 | Delivery pad | the pad | the pad |
 | Post | the film material | the film material |
 | Terrain | the terrain | the terrain, on drag release only |
+| Rock scatter | the scatter | the scatter, on drag release only |
 
 Reading from one and writing to many is what makes "all crates" a single set of
 sliders rather than six identical copies. Terrain regenerates a six-figure mesh
-on every write, so it is the one target that commits when a drag *ends*.
+on every write, and the rock scatter re-rolls a few thousand placements, so
+they are the two targets that commit when a drag *ends*.
+
+The scatter's four distance knobs are the exception within the exception: they
+are properties on instances that already exist, so they retune live while
+driving and never trigger a rebuild at all. See [[Scatter]].
 
 **Two targets are exceptions to the reflection rule**, and both take the same
 explicit-list path.

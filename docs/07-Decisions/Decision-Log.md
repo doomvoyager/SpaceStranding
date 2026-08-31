@@ -9,6 +9,42 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-31 - Rocks are cells of MultiMesh, and only the big ones are solid
+
+Mac asked for rocks scattered on the terrain with distance culling. Two things
+were decided; the rest is sliders.
+
+**Cells, not one big MultiMesh.** This was measured before it was designed,
+because the obvious implementation silently does not work.
+`visibility_range_end` is measured against the *instance's* AABB, and a
+MultiMesh is one instance holding every transform - so a whole-patch MultiMesh
+has a whole-patch AABB, the camera is permanently inside it, and the range
+never fires. A 120 m range on 8192 rocks in one MultiMesh dropped **exactly
+zero** of its 1,376,256 primitives. The same rocks in 32 m cells drew 96,768.
+
+Cells are therefore the unit of the whole system, not a tuning detail, and they
+have a floor as well as a ceiling: 16 m cells with nothing culling them cost
+more than doing nothing, because hundreds of small draw calls beat one big one.
+The default landed at 48 m rather than the synthetic 32, because the real
+scatter has a multiplier the probe did not - a MultiMesh holds exactly one
+mesh, so every rock variant is its own instance in every cell.
+
+**Big rocks collide, gravel does not.** Rocks at or above 1.4 m get a convex
+hull; everything smaller is visual only. A shape per pebble is both expensive
+and unpleasant to drive over, and "picking a line through rocks" in [[Rover]]
+is about boulders, not grit. Collision is deliberately *not* distance-culled:
+you cannot reach a rock the renderer has not already drawn, so there is no
+invisible-wall case to solve.
+
+Rejected on the way past: per-rock `StaticBody3D` nodes (hundreds of nodes for
+no benefit over shapes under a per-cell body), and driving the culling from
+GDScript (`visibility_range_*` is done by the render server, so the system runs
+no per-frame code at all).
+
+The rock meshes are procedural placeholders and say so. `rock_meshes` takes
+authored meshes and the generator steps aside - that is the intended path once
+Mac models a set. See [[Scatter]].
+
 ## 2026-08-31 - The post pass is on trial, and merged to one draw
 
 Mac brought the film post stack they had already built for StarChef and wired

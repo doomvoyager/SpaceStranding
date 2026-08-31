@@ -128,6 +128,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ca
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_debug_panel.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_rock_scatter.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -137,6 +141,10 @@ Capture stills of the look, or of the loaded cargo racks. Both must run
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/cargo_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/scatter_capture.tscn
 ```
 
 Run a standalone engine-behaviour probe. These build what they need from
@@ -272,6 +280,28 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   and asking `get_overlapping_bodies()` in the same frame returns the old list.
   Tests that move things and then probe interaction range have to step physics
   in between.
+- **`visibility_range_end` does nothing to a MultiMesh that covers the whole
+  map.** The range is measured against the instance's AABB, and a MultiMesh is
+  *one* instance holding every transform - so if its AABB spans the patch, the
+  camera is always inside it and nothing is ever culled. Measured: a 120 m
+  range on a whole-patch MultiMesh of 8192 rocks dropped **exactly zero** of
+  its 1,376,256 primitives. Splitting the same rocks into 32 m cells and
+  ranging each dropped 93%. The other edge is real too: 16 m cells with nothing
+  culling them cost *more* than one big MultiMesh, because hundreds of tiny
+  draw calls beat one large one. `tests/probe_scatter_cull.tscn`.
+- **A MultiMesh's per-instance transforms do not survive `--headless`.** The
+  dummy renderer accepts `set_instance_transform()` **without an error** and
+  returns identity from `get_instance_transform()`; the same write round-trips
+  exactly under the real renderer. A headless test asserting on instance
+  transforms is testing the null driver - `test_rock_scatter.gd` did, and
+  reported every rock 12 m off the ground. `instance_count`, `custom_aabb` and
+  `visibility_range_end` *do* survive. Measured both ways in
+  `tests/probe_multimesh_readback.tscn`. Anything that needs to know where
+  instances are has to keep its own record.
+- **`MultiMesh.transform_format` can only be set while `instance_count` is 0.**
+  Set it after and Godot refuses the change, then every write fails with "Can't
+  set Transform3D on a Multimesh configured to use Transform2D" - loud, at
+  least, unlike the two above.
 
 ---
 
