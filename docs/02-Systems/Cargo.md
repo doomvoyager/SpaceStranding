@@ -176,12 +176,18 @@ Two verbs that never compete for the same press:
 
 | | Keyboard | Gamepad | Does |
 |---|---|---|---|
-| Interact | `E` | `A` | Pick up a loose crate; otherwise board the [[Rover]] |
-| Move cargo | `F` | `X` | Carrying: stow on the rover if beside it, else put down. Empty-handed beside a loaded rover: take one off |
+| Interact | `E` | `A` | A loose crate, a facility terminal, or board the [[Rover]] |
+| Move cargo | `F` | `X` | Carrying: onto a rack with room, else put down. Empty-handed: off a rack that has something. Racks are the rover's and a facility dock's |
 
 Boarding therefore never competes with unloading - walking up to a loaded rover
 to drive it always just drives it. The HUD asks the astronaut what each key
 *would* do right now, so the prompt can never disagree with what the key does.
+
+**Which of several things in reach a verb acts on is decided by where you are
+looking**, as of 2026-08-31. A crate lying beside the rover used to be picked up
+whatever you wanted, because `E` tried crates first; there is no priority order
+now. See [[Astronaut-Traversal]] for the scoring and the [[Decision-Log]] for
+the measured arcs.
 
 ## Interactions
 

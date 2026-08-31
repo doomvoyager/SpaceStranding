@@ -9,6 +9,61 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-31 - Interaction follows the look direction
+
+Mac hit it in play: a crate lying beside the rover was always picked up,
+because `E` tried crates first. **This does not overturn "two cargo verbs, not
+one priority-ordered interact" from 2026-08-30 - it finishes it.** That decision
+split `E` and `F` so boarding could never compete with unloading, and it stands.
+What it left behind was a fixed order *inside* `E`, and that is what broke.
+
+**Scoring, not a cone.** Mac asked for an interaction cone. Godot has no cone
+collision primitive, and a `ConvexPolygonShape3D` one would have to be
+re-oriented every frame to follow the camera. So the 3.5 m sphere stays as the
+broad phase - *what is nearby* - and everything it finds is scored on how well
+it lines up with the look direction. Lowest score wins. That is what "in front
+of me" actually means, it needs no new geometry, and it degrades gracefully: a
+lone crate slightly off-axis is still reachable, where a hard cone edge would
+drop it in silence.
+
+The priority list is gone entirely, in both verbs. `F` no longer needs the rover
+to beat the dock, either.
+
+**Camera forward, not body forward.** The body only turns while you are moving,
+so aiming off it would mean turning the camera while standing still changed
+nothing about what you could reach. **Horizontal only**, because a crate at your
+feet is far below the camera's forward ray and a full 3D dot product would rule
+it out for being on the ground.
+
+Rejected: a **screen-centre raycast**, the other standard answer. The chase
+camera sits behind and above, so a ray through the reticle spends most of its
+time hitting terrain short of anything worth touching.
+
+**The arcs were measured, not argued.** `probe_interact_aim.tscn` sweeps the look
+direction through a full circle and reports which arc gives which answer, at
+`half_angle` 80 deg and `aim_bias` 3.0:
+
+| | crate | rover | neither |
+|---|---|---|---|
+| crate beside the rover | 109 deg | 83 deg | 168 deg |
+| crate almost in the way | 160 deg | 20 deg | 180 deg |
+| crate well off to one side | 113 deg | 104 deg | 143 deg |
+| crate on the far side | 160 deg | 160 deg | 40 deg |
+
+**The 20 deg case is kept.** With the crate nearly on the sightline to the
+rover, looking at the rover *is* looking through the crate, and no `aim_bias`
+fixes that without making everything else twitchy - it would need about 12,
+against the 3.0 that serves every other case. A step to either side resolves it,
+and so does picking the crate up.
+
+Cost accepted: **every test now has to aim before it presses a key.** That is a
+better test than what it replaced - it asserts what a player experiences rather
+than what the code happens to accept - but it did mean going back through
+`test_cargo_flow` and `test_orders`. `test_orders` had been passing only because
+the dock happened to sit on the default look axis.
+
+---
+
 ## 2026-08-31 - Orders: a named crate, authored in a TSV, with no clock on it
 
 Mac's inbox note specified order management. Three forks in it were real, and

@@ -141,6 +141,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ca
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_orders.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_interact_aim.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -353,6 +357,14 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   invisible to the pick-up verb and can be looked at but never carried. Both
   cost a bug, and both passed every headless assertion, because the nodes
   existed and were exactly where they were supposed to be.
+- **A verb that acts on "the nearest thing" has a bug waiting in it.** An
+  interaction sphere finds everything nearby, and resolving the ambiguity with
+  a fixed order of preference means the common case loses: a crate lying beside
+  the rover is picked up when you meant to drive. Score the candidates on how
+  well they line up with the look direction instead - the sphere stays as the
+  broad phase, and there is no ordering left to get wrong. Note Godot has **no
+  cone collision primitive**, so the tempting literal reading of "interaction
+  cone" costs a convex shape re-oriented every frame, for a worse result.
 - **`owner` is a `Node` property**, so a script that wants to record who
   something belongs to must not call its field `owner`. Shadowing it breaks
   scene serialisation in ways that do not announce themselves. `Crate` uses

@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-08-30
+verified: 2026-08-31
 godot: res://scripts/player/astronaut.gd
 tags: [system, traversal, core-loop]
 ---
@@ -47,16 +47,54 @@ two contexts without either script inspecting the input's source.
 
 Two verbs, and they never compete for the same press:
 
-- **`E` / `A`** - pick up a loose crate if one is in range, otherwise board the
-  [[Rover]].
-- **`F` / `X`** - carrying: stow on the rover if beside it, else put it down.
-  Empty-handed beside a loaded rover: take one off the rack.
+- **`E` / `A`** - deal with the world: a loose crate, a facility terminal, or
+  the [[Rover]].
+- **`F` / `X`** - move cargo: carrying, onto a rack with room, else on the
+  ground; empty-handed, off a rack that has something. Racks are the rover's and
+  a facility dock's - see [[Orders]].
 
 Boarding therefore never competes with unloading. The alternative - one key,
 priority-ordered - hands you a crate when you walk up to a loaded rover meaning
-to drive it. `interact_prompt()` and `cargo_prompt()` expose what each key would
-do right now, and the HUD only renders those, so the prompt cannot drift from
-the behaviour.
+to drive it.
+
+### Reach is a sphere; the target is chosen by aim
+
+**Which of several things in reach either verb acts on is decided by where the
+camera is looking.** The 3.5 m `InteractZone` sphere is only the broad phase -
+*what is nearby*. Everything it finds is then scored, and the lowest score wins:
+
+```
+score = distance * (1 + aim_bias * (1 - dot(look, direction_to_thing)))
+```
+
+Anything more than `interact_half_angle` off the look direction is not a
+candidate at all, so nothing behind you is reachable. Both values are `@export`,
+so they are on the F1 panel; `aim_bias` at 0 is *exactly* the old
+nearest-wins behaviour, which makes it easy to feel what the aim is buying.
+
+There is no priority order any more. There used to be one - crate, then
+terminal, then rover - and it meant a crate lying beside the rover was picked up
+whatever the player wanted, which is the failure the two-verb split was supposed
+to prevent, surviving inside `E`. Measured arcs and the one case that stays
+awkward are in the [[Decision-Log]], 2026-08-31.
+
+Two details are load-bearing. **Camera forward, not body forward**: the body only
+turns while you are moving, so aiming off it would mean turning the camera while
+standing still changed nothing. **Horizontal only**: a crate at your feet sits
+far below the camera's forward ray, and a full 3D dot product would rule it out
+for being on the ground.
+
+### The prompt and the verb are one call
+
+`interact_prompt()` runs `interact_target()`, which is the same function
+`_interact()` acts on; `cargo_prompt()` and `_move_cargo()` share
+`cargo_target()` the same way. The HUD only renders those strings. A prompt
+cannot name something the key would not do, because there is no second copy of
+the rule to drift.
+
+`aim_at()` points the look direction at a world position. The player does this
+with the mouse or the right stick; it is public so a test can aim before
+pressing a key, which is now part of what a key press means.
 
 ## Input handover
 
@@ -68,7 +106,7 @@ both sides guard.
 
 ## Interactions
 
-[[Rover]] · [[Cargo]] · [[Flares]]
+[[Rover]] · [[Cargo]] · [[Flares]] · [[Orders]]
 
 ## Open
 
