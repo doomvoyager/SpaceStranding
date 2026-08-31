@@ -1,0 +1,1 @@
+you approach terminal -> interact -> order panel UI hud opens (two pane, left pane is an order list, right pane is order details (cargo weight, type, fragility, destination)) -> you select an order from the list -> cargo 
