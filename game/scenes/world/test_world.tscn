@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/cargo/crate.tscn" id="5_crate"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="6_hud"]
 [ext_resource type="PackedScene" path="res://scenes/cargo/delivery_pad.tscn" id="7_i3rsd"]
+[ext_resource type="Script" uid="uid://d1rxyiogcibmy" path="res://scripts/world/rock_scatter.gd" id="9_m0ivj"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_vesper"]
 sky_top_color = Color(0.07, 0.05, 0.07, 1)
@@ -132,3 +133,6 @@ rover_path = NodePath("../Rover")
 
 [node name="DeliveryPad" parent="." unique_id=117514931 instance=ExtResource("7_i3rsd")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.7398624, 3.9051394, -38.53001)
+
+[node name="RockScatter" type="Node3D" parent="." unique_id=1492972975]
+script = ExtResource("9_m0ivj")

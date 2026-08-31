@@ -62,6 +62,41 @@ Measured, not reasoned: `res://tests/probe_steer_under_throttle.gd` prints the
 angle actually reached against speed, and `test_analog_input.tscn` asserts that
 holding the throttle at manoeuvring speed still gives full lock.
 
+## The camera leans, it does not roll
+
+`CamPivot` hangs off the chassis, so left alone it inherits the body's basis
+whole - roll the rover and the horizon rolls with it, and on its roof the
+player is upside down.
+
+The camera keeps the lean, because that is what makes a side slope read as a
+side slope, and throws away everything past `tilt_limit_deg` (18). A 15 degree
+roll tilts the camera 15; 45, 90 and 180 all tilt it 18.
+
+**The basis is rebuilt from scratch every frame rather than counter-rotated.**
+A correction written back into the same local basis it was read from compounds,
+and the symptom is a camera that slowly winds itself round over a few seconds
+of driving rather than anything that looks like a bug on frame one. So the
+pivot's orientation is assembled from three parts instead: world up rotated
+toward the chassis up by `tilt_follow` of its tilt and never past the limit,
+the chassis heading projected into that plane so the camera still sits behind
+the rover through a turn, and the player's own yaw on top.
+
+That is why the player's yaw is a `float` on the rover rather than the pivot's
+rotation - the pivot's basis is overwritten every frame, so it cannot also be
+where the yaw is stored. [[Debug-Panel|StickLook]] grew a `read()` returning
+the stick's deltas for that; the astronaut, which is a `CharacterBody3D` and
+never rolls, still uses `apply()` unchanged.
+
+`tilt_smoothing` (0.12 s) is a time constant, not a per-frame factor, so the
+response is the same at any tick rate. It exists because the rig passes
+suspension chatter straight through and the clamp would otherwise snap on and
+off against it. 0 restores the old rigid behaviour.
+
+Asserted in `res://tests/test_camera_levelling.tscn`, which also checks the two
+ways this can look right and be wrong: a camera pinned flat to horizontal
+passes every clamp assertion and is a different feature, and a camera that has
+eaten the heading no longer sits behind the rover.
+
 ## The load
 
 `mass` in the inspector is the **empty** rover. `refresh_load()` adds whatever

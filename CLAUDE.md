@@ -132,6 +132,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_de
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_rock_scatter.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_camera_levelling.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -145,6 +149,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/cargo_capture.tscn
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/scatter_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/camera_levelling_capture.tscn
 ```
 
 Run a standalone engine-behaviour probe. These build what they need from
@@ -302,6 +310,15 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   Set it after and Godot refuses the change, then every write fails with "Can't
   set Transform3D on a Multimesh configured to use Transform2D" - loud, at
   least, unlike the two above.
+- **Correcting a child node's global basis every frame compounds, because the
+  correction lands back in the basis it was read from.** The rover camera hangs
+  off the chassis and has to have the body's roll clamped out of it; writing a
+  counter-rotation to the pivot works on frame one and then winds the camera
+  round over the next few seconds, which reads as drift rather than as a bug in
+  the clamp. Rebuild such a basis from scratch each frame from independent
+  parts, and keep anything the player accumulated - a look yaw - somewhere that
+  is not the basis being overwritten. `tests/test_camera_levelling.tscn` asserts
+  no drift over 120 frames at a fixed attitude.
 
 ---
 

@@ -52,6 +52,23 @@ const ENGINE_FORCE_SIGN := -1.0
 @export_range(-80.0, 0.0) var pitch_min := -50.0
 @export_range(0.0, 80.0) var pitch_max := 40.0
 
+@export_subgroup("Levelling")
+## How far the camera may leave horizontal, in degrees.
+##
+## The rig hangs off the chassis, so left alone it inherits every degree of roll
+## and pitch the body has — put the rover on its roof and the horizon goes with
+## it. The camera should still lean while driving, which is what makes a side
+## slope read as a side slope, so this clamps rather than levels.
+@export_range(0.0, 90.0, 0.5) var tilt_limit_deg := 18.0
+## Fraction of the chassis's tilt the camera takes before the limit bites. 1
+## tracks the body exactly up to the limit and then stops dead; lower values
+## lean more gently and only reach the limit in real trouble.
+@export_range(0.0, 1.0, 0.01) var tilt_follow := 1.0
+## Seconds for the camera's tilt to catch up with the chassis. Suspension
+## chatter is high-frequency and the rig passes it straight through, so a small
+## constant here is the difference between leaning and shaking. 0 is rigid.
+@export_range(0.0, 1.0, 0.01) var tilt_smoothing := 0.12
+
 @onready var _cam_pivot: Node3D = $CamPivot
 @onready var _spring_arm: SpringArm3D = $CamPivot/SpringArm3D
 @onready var _camera: Camera3D = $CamPivot/SpringArm3D/Camera3D
@@ -59,6 +76,13 @@ const ENGINE_FORCE_SIGN := -1.0
 @onready var _rack: CargoRack = $CargoRack
 
 var driver: Astronaut = null
+## The player's own yaw, around the camera's up, in radians.
+##
+## Held as a number rather than as the pivot's rotation because the pivot's
+## basis is rebuilt from scratch every frame — see `_level_camera()`.
+var _look_yaw := 0.0
+## The camera's up vector, chasing the clamped chassis up.
+var _cam_up := Vector3.UP
 var _steer_target := 0.0
 ## Kerb mass, captured from the inspector value before any cargo is counted.
 var _empty_mass := 950.0
@@ -78,13 +102,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		_cam_pivot.rotate_y(-event.relative.x * mouse_sensitivity)
-		_spring_arm.rotate_x(-event.relative.y * mouse_sensitivity)
-		_spring_arm.rotation.x = clampf(
-			_spring_arm.rotation.x,
-			deg_to_rad(pitch_min),
-			deg_to_rad(pitch_max)
-		)
+		_look_yaw -= event.relative.x * mouse_sensitivity
+		_pitch_by(-event.relative.y * mouse_sensitivity)
 
 	if event.is_action_pressed("interact"):
 		exit()
@@ -94,8 +113,69 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if driver == null:
 		return
-	StickLook.apply(
-		_cam_pivot, _spring_arm, stick_sensitivity, pitch_min, pitch_max, delta
+	var look := StickLook.read(stick_sensitivity, delta)
+	_look_yaw += look.x
+	_pitch_by(look.y)
+	_level_camera(delta)
+
+
+## Pitch lives on the spring arm, below the levelling, so aiming up and down is
+## unaffected by what the chassis is doing.
+func _pitch_by(radians: float) -> void:
+	if radians == 0.0:
+		return
+	_spring_arm.rotate_x(radians)
+	_spring_arm.rotation.x = clampf(
+		_spring_arm.rotation.x, deg_to_rad(pitch_min), deg_to_rad(pitch_max)
+	)
+
+
+## Rebuilds the camera pivot's orientation, with the chassis's tilt away from
+## vertical clamped out of it.
+##
+## Rebuilt from scratch rather than counter-rotated: a correction written back
+## into the same local basis it was read from compounds frame on frame. So the
+## basis is assembled from three parts instead — a clamped up vector, the
+## chassis heading projected into that plane so the camera still sits behind the
+## rover through a turn, and the player's own yaw on top.
+##
+## The pivot stays a child of the body, so it still rides with the suspension
+## and only its *orientation* is levelled.
+func _level_camera(delta: float) -> void:
+	var target_up := _clamped_up()
+	# A time constant in seconds, so the response is the same at any tick rate.
+	var k := 1.0 if tilt_smoothing <= 0.0 else 1.0 - exp(-delta / tilt_smoothing)
+	_cam_up = _cam_up.slerp(target_up, k).normalized()
+
+	var up := _cam_up
+	var fwd := -global_basis.z
+	fwd -= up * fwd.dot(up)
+	if fwd.length_squared() < 1e-6:
+		# Nose straight up or down: the roof is the only heading left to use.
+		fwd = global_basis.y
+		fwd -= up * fwd.dot(up)
+	if fwd.length_squared() < 1e-6:
+		fwd = Vector3.FORWARD
+	fwd = fwd.normalized()
+
+	var levelled := Basis(fwd.cross(up).normalized(), up, -fwd)
+	_cam_pivot.global_basis = levelled.rotated(up, _look_yaw)
+
+
+## World up, rotated toward the chassis's up by the followed fraction of its
+## tilt and never past the limit.
+func _clamped_up() -> Vector3:
+	var chassis_up := global_basis.y.normalized()
+	var tilt := Vector3.UP.angle_to(chassis_up)
+	if tilt < 1e-5:
+		return Vector3.UP
+	var axis := Vector3.UP.cross(chassis_up)
+	if axis.length_squared() < 1e-8:
+		# Dead upside down, so every axis is perpendicular and the cross product
+		# gives none: take the chassis's own right and roll out the short way.
+		axis = global_basis.x
+	return Vector3.UP.rotated(
+		axis.normalized(), minf(tilt * tilt_follow, deg_to_rad(tilt_limit_deg))
 	)
 
 
@@ -187,6 +267,9 @@ func enter(astronaut: Astronaut) -> void:
 		return
 	driver = astronaut
 	astronaut.board_vehicle()
+	# Start level with whatever the rover is sitting on rather than easing in
+	# from wherever the camera was left at the end of the last drive.
+	_cam_up = _clamped_up()
 	_camera.current = true
 	set_physics_process(true)
 
