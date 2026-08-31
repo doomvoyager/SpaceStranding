@@ -24,6 +24,14 @@ makes it read as a wave going out rather than a radius being resized.
 Tags name what they are and how far off: `Water canister   12 m`. They are
 capped and decluttered - see below.
 
+**The grid thins out over the last `edge_fade` metres of `reach`**, rather than
+ending on a circle. The wave front already softened as it travelled, but ground
+it had passed stayed at full strength right up to the limit and then simply
+stopped - a hard rim you could see from any height. The same term fades the
+ring, so the front *dissolves* on its way out instead of arriving and switching
+off. 22 m of a 70 m reach by default; `edge_fade` is clamped to 90% of `reach`
+when pushed, so a fade wider than the range cannot dim the grid underfoot.
+
 ## Where the pulse lives
 
 **Global shader uniforms.** One scanner drives every surface in the world with a

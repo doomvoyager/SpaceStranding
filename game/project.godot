@@ -201,3 +201,11 @@ scan_glow={
 "type": "float",
 "value": 0.55
 }
+scan_reach={
+"type": "float",
+"value": 70.0
+}
+scan_edge_fade={
+"type": "float",
+"value": 22.0
+}

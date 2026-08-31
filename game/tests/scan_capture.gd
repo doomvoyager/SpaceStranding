@@ -55,6 +55,21 @@ func _ready() -> void:
 	for stop in [4, 10, 18, 40]:
 		await _shot("%02d_wave" % stop, stop)
 
+	# The outer edge, from high enough that the whole reach is in frame. A low
+	# vantage cannot show it at all, which is why the first pass at this feature
+	# shipped with a hard circular cut nobody had looked at.
+	scanner.max_tags = 0
+	_cam.position = here + Vector3(0.0, 62.0, 46.0)
+	_cam.look_at(here, Vector3.UP)
+	for width: float in [0.0, 12.0, 22.0, 40.0]:
+		scanner.edge_fade = width
+		scanner.ping()
+		for i in 40:
+			await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(
+			"%s/edge_%02.0f.png" % [OUT_DIR, width])
+	print("edge fades captured at 0, 12, 22 and 40 m of a %.0f m reach" % scanner.reach)
+
 	print("radius %.1f m, %d tags" % [scanner.radius(), scanner.tag_count()])
 	print("captured to: ", ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()

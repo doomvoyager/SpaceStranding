@@ -30,6 +30,20 @@ signal pinged(origin: Vector3)
 		reach = v
 		_push()
 
+## Metres of the outer edge over which the grid thins to nothing.
+##
+## Without it the scanned area ends on a hard circle - the wave front softens as
+## it travels, but ground it has already passed stays at full strength right up
+## to `reach` and then stops. Fading the ring by the same term is what makes the
+## front *dissolve* on its way out rather than arrive and switch off.
+##
+## Clamped against `reach` when pushed, so a fade wider than the range cannot
+## make the grid invisible everywhere.
+@export_range(0.0, 120.0, 0.5) var edge_fade := 22.0:
+	set(v):
+		edge_fade = v
+		_push()
+
 ## Metres per second the front travels. Slow enough to read as a wave going out
 ## rather than a light switch.
 @export_range(10.0, 400.0, 1.0) var wave_speed := 95.0:
@@ -225,6 +239,11 @@ func _push() -> void:
 	RenderingServer.global_shader_parameter_set("scan_hard_color", hard_color)
 	RenderingServer.global_shader_parameter_set("scan_max_slope", max_slope_deg)
 	RenderingServer.global_shader_parameter_set("scan_glow", glow)
+	RenderingServer.global_shader_parameter_set("scan_reach", reach)
+	# A fade wider than the reach would start below zero metres and dim the grid
+	# everywhere, including underfoot.
+	RenderingServer.global_shader_parameter_set(
+		"scan_edge_fade", minf(edge_fade, reach * 0.9))
 
 
 # --- Tags ---------------------------------------------------------------

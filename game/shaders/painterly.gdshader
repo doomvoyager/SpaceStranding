@@ -117,6 +117,12 @@ global uniform vec4 scan_hard_color;
 // rover can actually climb — see tests/probe_rover_climb.tscn — so red means
 // "you will not drive up that" rather than "this is steepish".
 global uniform float scan_max_slope;
+// How far the pulse can reach at all, and over how many metres it thins out
+// before it gets there. Without these the scanned area ends on a hard circle:
+// the wave front softens as it travels, but whatever it has already passed
+// stays at full strength right up to the limit and then simply stops.
+global uniform float scan_reach;
+global uniform float scan_edge_fade;
 // How hard the dots emit. Deliberately a knob: the scene tonemaps with ACES,
 // which clamps saturated colour hardest exactly where it is brightest, so a
 // grid emitting at 1.5 comes out white and carries no information at all. The
@@ -242,6 +248,15 @@ void fragment() {
 		float inside = 1.0 - smoothstep(scan_radius - 1.0, scan_radius, swept);
 		float ring = 1.0 - smoothstep(0.0, max(scan_ring_width, 0.01),
 			abs(swept - scan_radius));
+
+		// And it thins out over the last scan_edge_fade metres of its range, so
+		// the scanned area ends by running out rather than by being cut. The
+		// ring is faded by the same term, which means the front dissolves on
+		// its way to the limit instead of arriving and switching off.
+		float edge = 1.0 - smoothstep(
+			scan_reach - max(scan_edge_fade, 0.01), scan_reach, swept);
+		inside *= edge;
+		ring *= edge;
 
 		// **Punch the surface out under the dot before lighting it.** Adding
 		// emission on top of the regolith and calling it done was the first
