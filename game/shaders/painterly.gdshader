@@ -123,6 +123,13 @@ global uniform float scan_max_slope;
 // stays at full strength right up to the limit and then simply stops.
 global uniform float scan_reach;
 global uniform float scan_edge_fade;
+// The outline on anything the scan considers an obstacle. Driven off a rim
+// term rather than an inverted hull: a second, slightly larger pass would mean
+// a second MultiMesh per cell per variant, and draw calls are the thing the
+// scatter's whole cell design is spending its budget on.
+global uniform vec4 scan_outline_color;
+global uniform float scan_outline_strength;
+global uniform float scan_outline_power;
 // How hard the dots emit. Deliberately a knob: the scene tonemaps with ACES,
 // which clamps saturated colour hardest exactly where it is brightest, so a
 // grid emitting at 1.5 comes out white and carries no information at all. The
@@ -137,6 +144,15 @@ uniform bool scan_grid_enabled = false;
 
 varying vec3 world_position;
 varying vec3 world_normal;
+// Per-instance, from the MultiMesh's custom data: 1 on a rock big enough to be
+// an obstacle, 0 otherwise, and 0 on anything that is not a MultiMesh instance
+// at all. INSTANCE_CUSTOM only exists in vertex(), hence the varying.
+varying float instance_solid;
+
+
+void vertex() {
+	instance_solid = INSTANCE_CUSTOM.r;
+}
 
 
 float hash21(vec2 p) {
@@ -276,6 +292,17 @@ void fragment() {
 		// finally makes a green dot green on ferocious red ground.
 		ALBEDO = mix(ALBEDO, vec3(0.0), paint);
 		EMISSION = mix(EMISSION, grid_col * scan_glow, paint);
+
+		// Obstacles get their silhouette drawn on. Gated by the same swept and
+		// edge terms as the grid, so it arrives with the wave and thins out
+		// with it rather than snapping on across the whole map.
+		if (instance_solid > 0.5) {
+			float facing = 1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)),
+				0.0, 1.0);
+			float outline = pow(facing, scan_outline_power)
+				* scan_strength * inside * scan_outline_strength;
+			EMISSION += scan_outline_color.rgb * outline;
+		}
 	}
 
 	// No ambient dial here on purpose: AMBIENT_LIGHT is not a built-in in

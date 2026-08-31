@@ -209,3 +209,15 @@ scan_edge_fade={
 "type": "float",
 "value": 22.0
 }
+scan_outline_color={
+"type": "color",
+"value": Color(1, 0.22, 0.18, 1)
+}
+scan_outline_strength={
+"type": "float",
+"value": 1.6
+}
+scan_outline_power={
+"type": "float",
+"value": 2.2
+}

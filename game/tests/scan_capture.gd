@@ -70,6 +70,40 @@ func _ready() -> void:
 			"%s/edge_%02.0f.png" % [OUT_DIR, width])
 	print("edge fades captured at 0, 12, 22 and 40 m of a %.0f m reach" % scanner.reach)
 
+	# The obstacle outline, framed on the biggest rock the scatter placed. A
+	# vantage picked by hand would as likely as not be looking at gravel, which
+	# is exactly what does NOT get an outline.
+	var scatter := world.find_child("RockScatter", true, false) as RockScatter
+	var positions := scatter.rock_positions()
+	var sizes := scatter.rock_sizes()
+	var best := -1
+	for i in sizes.size():
+		if best < 0 or sizes[i] > sizes[best]:
+			best = i
+	if best >= 0:
+		var rock: Vector3 = scatter.to_global(positions[best])
+		print("biggest rock %.2f m at %s, collision above %.2f"
+			% [sizes[best], rock, scatter.collision_above])
+		scanner.edge_fade = 22.0
+		scanner.max_tags = 0
+		# The pulse comes from the player, so setting _origin by hand achieves
+		# nothing - ping() overwrites it. Move the astronaut to the rock, which
+		# is also what a player standing here would be doing.
+		scanner.cooldown = 0.0
+		# Off to the side, not between the camera and the rock. Still well
+		# inside reach, so the pulse covers the shot either way.
+		astronaut.global_position = rock + Vector3(16.0, 1.2, 2.0)
+		for strength: float in [0.0, 1.6, 3.5]:
+			scanner.outline_strength = strength
+			_cam.position = rock + Vector3(6.0, 2.6, 7.5)
+			_cam.look_at(rock, Vector3.UP)
+			scanner.ping()
+			for i in 40:
+				await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(
+				"%s/outline_%.1f.png" % [OUT_DIR, strength])
+		scanner.outline_strength = 1.6
+
 	print("radius %.1f m, %d tags" % [scanner.radius(), scanner.tag_count()])
 	print("captured to: ", ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()

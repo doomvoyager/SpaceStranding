@@ -174,6 +174,15 @@ func _test_visibility_ranges() -> void:
 			# system exists to avoid.
 			_expect(mmi.visibility_range_end > 0.0,
 				"%s/%s has no cull distance" % [cell.name, mmi.name])
+			# Custom data carries "this rock is an obstacle" to the scan
+			# shader. Like transform_format, it can only be turned on while
+			# instance_count is still 0 - set it after and the engine refuses,
+			# then every write is silently dropped and no rock ever outlines.
+			# The flag survives headless even though the per-instance values do
+			# not, so this is the half worth asserting.
+			_expect(mmi.multimesh.use_custom_data,
+				"%s has no custom data, so the scanner cannot tell an obstacle "
+				% mmi.name + "from gravel")
 			_expect(mmi.multimesh.custom_aabb.size.length() > 0.0,
 				"%s/%s has an empty AABB and will cull wrongly" % [cell.name, mmi.name])
 			if String(mmi.name).begins_with("Near_"):

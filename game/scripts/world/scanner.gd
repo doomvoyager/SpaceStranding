@@ -141,6 +141,25 @@ signal pinged(origin: Vector3)
 		max_slope_deg = v
 		_push()
 
+@export_group("Obstacle outline")
+## Colour of the silhouette drawn on rocks big enough to hit.
+@export var outline_color := Color(1.0, 0.22, 0.18):
+	set(v):
+		outline_color = v
+		_push()
+
+## How hard the outline burns. Zero switches it off.
+@export_range(0.0, 6.0, 0.05) var outline_strength := 1.6:
+	set(v):
+		outline_strength = v
+		_push()
+
+## How tightly the outline hugs the silhouette. Higher is a thinner line.
+@export_range(0.5, 12.0, 0.1) var outline_power := 2.2:
+	set(v):
+		outline_power = v
+		_push()
+
 @export_group("Tags")
 ## Groups a node must be in to be worth tagging. Every one of these already
 ## exists for other reasons, so nothing has to be marked up twice.
@@ -268,6 +287,10 @@ func _push() -> void:
 	# everywhere, including underfoot.
 	RenderingServer.global_shader_parameter_set(
 		"scan_edge_fade", minf(edge_fade, reach * 0.9))
+	RenderingServer.global_shader_parameter_set("scan_outline_color", outline_color)
+	RenderingServer.global_shader_parameter_set(
+		"scan_outline_strength", outline_strength)
+	RenderingServer.global_shader_parameter_set("scan_outline_power", outline_power)
 
 
 # --- Tags ---------------------------------------------------------------
@@ -285,6 +308,11 @@ func taggable() -> Array[Node3D]:
 			# labels on the rover's roof helps nobody.
 			var crate := spatial as Crate
 			if crate != null and crate.is_stowed():
+				continue
+			# Nor does a label on the vehicle you are sitting in, hanging in the
+			# middle of your own windscreen.
+			var rover := spatial as Rover
+			if rover != null and rover.driver != null:
 				continue
 			seen[spatial] = true
 			out.append(spatial)

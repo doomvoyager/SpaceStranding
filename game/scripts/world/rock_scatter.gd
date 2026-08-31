@@ -377,6 +377,10 @@ func _add_multimesh(
 ) -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
+	# Both of these have to be set while instance_count is still 0. The engine
+	# refuses the change afterwards, and every write then fails - loudly for the
+	# transform format, silently for custom data.
+	mm.use_custom_data = true
 	mm.mesh = mesh
 	mm.instance_count = rocks.size()
 
@@ -385,6 +389,15 @@ func _add_multimesh(
 		var xform: Transform3D = rocks[i]["xform"]
 		xform.origin -= centre
 		mm.set_instance_transform(i, xform)
+		# Red channel carries "this one is big enough to be an obstacle", using
+		# exactly the threshold that decides whether it gets a collision shape.
+		# The scanner outlines what you can actually hit rather than what
+		# happens to be visible, and it costs no extra draw call: splitting big
+		# rocks into their own MultiMesh would have doubled the instance count
+		# per cell per variant, which is the cost the whole cell design exists
+		# to avoid. See docs/02-Systems/Scatter.md.
+		var solid := 1.0 if float(rocks[i]["size"]) >= collision_above else 0.0
+		mm.set_instance_custom_data(i, Color(solid, 0.0, 0.0, 0.0))
 		var reach: float = rocks[i]["size"]
 		var box := AABB(xform.origin - Vector3.ONE * reach, Vector3.ONE * reach * 2.0)
 		bounds = box if i == 0 else bounds.merge(box)
