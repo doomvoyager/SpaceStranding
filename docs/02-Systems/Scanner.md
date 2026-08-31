@@ -22,7 +22,9 @@ the front keeps the grid; the front itself is a brighter ring, which is what
 makes it read as a wave going out rather than a radius being resized.
 
 Tags name what they are and how far off: `Water canister   12 m`. They are
-capped and decluttered - see below.
+capped and decluttered - see below. **The rover does not tag itself while you
+are driving it**, which would be a label hanging in your own windscreen naming
+the vehicle you are sitting in.
 
 **The grid thins out over the last `edge_fade` metres of `reach`**, rather than
 ending on a circle. The wave front already softened as it travelled, but ground
@@ -72,6 +74,31 @@ things the pulse had already gone past.
 
 Those were one number until 2026-08-31, which is indistinguishable from correct
 for exactly as long as the player stands still.
+
+## Obstacles get an outline
+
+Rocks big enough to hit are drawn with a red silhouette while the scan is up.
+Colour, strength and sharpness are on the F1 panel; strength 0 turns it off.
+
+**"Sticking above the ground" is a distinction [[Scatter]] already makes.** A
+rock at or above `collision_above` is exactly the set that gets a collision
+shape, so the outline marks what you can actually *hit* rather than whatever
+happens to be visible. Nothing new had to be measured or guessed.
+
+It travels to the shader as **MultiMesh custom data** - red channel 1 on an
+obstacle - and is drawn as a **rim term**. Both choices are about draw calls:
+splitting big rocks into their own MultiMesh, or adding an inverted-hull pass,
+each mean a second MultiMesh per cell per variant, and draw calls are the budget
+the whole cell design exists to protect.
+
+`use_custom_data` has to be set while `instance_count` is still 0, exactly like
+`transform_format`. Set it after and the engine refuses, then every write is
+silently dropped and no rock ever outlines. `test_rock_scatter.tscn` asserts the
+flag is on; the per-instance *values* cannot be checked headless, for the same
+measured reason instance transforms cannot.
+
+The outline is gated by the same swept and edge terms as the grid, so it arrives
+with the wave and thins out with it rather than snapping on across the map.
 
 ## Green and red mean something
 

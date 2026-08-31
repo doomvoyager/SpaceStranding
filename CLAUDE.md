@@ -343,6 +343,12 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   `visibility_range_end` *do* survive. Measured both ways in
   `tests/probe_multimesh_readback.tscn`. Anything that needs to know where
   instances are has to keep its own record.
+- **`MultiMesh.use_custom_data` has the same rule as `transform_format` and
+  fails more quietly.** Both can only be set while `instance_count` is 0. Turn
+  custom data on afterwards and the engine refuses, then every
+  `set_instance_custom_data()` is dropped without a word - where the transform
+  format at least errors. A shader reading `INSTANCE_CUSTOM` then sees zeroes
+  and simply draws nothing, which looks like a shader bug.
 - **`MultiMesh.transform_format` can only be set while `instance_count` is 0.**
   Set it after and Godot refuses the change, then every write fails with "Can't
   set Transform3D on a Multimesh configured to use Transform2D" - loud, at

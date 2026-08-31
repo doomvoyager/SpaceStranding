@@ -127,6 +127,21 @@ intended path once Mac models a set.
 | Real-config cost | `res://tests/probe_scatter_cost.tscn` |
 | Stills | `res://tests/scatter_capture.tscn` |
 
+## Every instance carries whether it is an obstacle
+
+`use_custom_data` is on, and each instance's red channel is 1 when its size is
+at or above `collision_above` - the same threshold that decides whether it gets
+a collision shape. [[Scanner]] reads it to outline rocks you can actually hit.
+
+Custom data rather than a second MultiMesh on purpose: splitting the big rocks
+out would double the instance count per cell per variant, which is precisely the
+draw-call cost the cell design exists to avoid.
+
+**It has to be enabled while `instance_count` is still 0**, exactly like
+`transform_format`. Set it afterwards and the engine refuses the change, and
+every subsequent write is dropped - silently, unlike the transform-format case,
+which at least complains.
+
 ## Interactions
 
 - [[Terrain]] - sampled for height and slope, and emits `rebuilt` so the rocks
