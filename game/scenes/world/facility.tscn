@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://kgvmwms8r210"]
+[gd_scene load_steps=19 format=3 uid="uid://kgvmwms8r210"]
 
 [ext_resource type="Script" uid="uid://c21ldbuxx78ty" path="res://scripts/world/facility.gd" id="1_facility"]
 [ext_resource type="Script" uid="uid://cklnd537bktyc" path="res://scripts/world/facility_terminal.gd" id="2_terminal"]
@@ -6,11 +6,28 @@
 [ext_resource type="Material" path="res://materials/hull_painterly.tres" id="4_hull"]
 [ext_resource type="PackedScene" path="res://scenes/cargo/delivery_pad.tscn" id="5_pad"]
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_intake"]
+size = Vector3(2, 2.4, 1.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_intake"]
+size = Vector3(2, 2.4, 1.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hatch"]
+size = Vector3(1.5, 1.5, 0.08)
+
+[sub_resource type="StandardMaterial3D" id="Material_hatch"]
+albedo_color = Color(0.16, 0.2, 0.24, 1)
+metallic = 0.4
+roughness = 0.55
+emission_enabled = true
+emission = Color(0.3, 0.62, 0.68, 1)
+emission_energy_multiplier = 0.7
+
 [sub_resource type="BoxShape3D" id="BoxShape3D_apron"]
-size = Vector3(13.6, 0.28, 6.4)
+size = Vector3(15.4, 0.28, 6.4)
 
 [sub_resource type="BoxMesh" id="BoxMesh_apron"]
-size = Vector3(13.6, 0.28, 6.4)
+size = Vector3(15.4, 0.28, 6.4)
 
 [sub_resource type="StandardMaterial3D" id="Material_apron"]
 albedo_color = Color(0.29, 0.26, 0.26, 1)
@@ -116,6 +133,34 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.4, 0.32, 0.42)
 
 [node name="Slot8" type="Marker3D" parent="Dock/Slots" unique_id=122426419]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 0.32, 0.42)
+
+[node name="Intake" type="StaticBody3D" parent="." groups=["storage_intake"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1.2, 0)
+
+[node name="Shape" type="CollisionShape3D" parent="Intake"]
+shape = SubResource("BoxShape3D_intake")
+
+[node name="Mesh" type="MeshInstance3D" parent="Intake"]
+mesh = SubResource("BoxMesh_intake")
+surface_material_override/0 = ExtResource("4_hull")
+
+[node name="Hatch" type="MeshInstance3D" parent="Intake"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0.82)
+mesh = SubResource("BoxMesh_hatch")
+surface_material_override/0 = SubResource("Material_hatch")
+
+[node name="Sign" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.4, 0)
+billboard = 1
+no_depth_test = true
+fixed_size = true
+pixel_size = 0.0004
+text = "Facility"
+font_size = 128
+outline_size = 24
+modulate = Color(1, 0.86, 0.66, 0.85)
+outline_modulate = Color(0.06, 0.03, 0.03, 0.8)
+uppercase = true
 
 [node name="Overflow" type="Marker3D" parent="." unique_id=24322814]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6, 0, 2.4)

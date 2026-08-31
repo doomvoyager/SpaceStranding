@@ -1,5 +1,16 @@
 extends Node
-## The order board. Autoloaded as `Orders`.
+## The facility ledger. Autoloaded as `Orders`.
+##
+## Two things live here, and they are the same kind of thing: **what is where,
+## and who owns it.** The order board is what a facility *wants* moved; storage
+## is what a facility is *holding*. Delivery turns one into the other, so
+## splitting them across two autoloads would only mean two globals talking to
+## each other about one fact.
+##
+## Storage lives here rather than on the Facility node for two reasons. The
+## [[The-Lattice]] ladder is meant to let a linked facility's stock be read from
+## somewhere else entirely, which cannot depend on that facility being loaded;
+## and this is the shape the save file wants - one blob, keyed by id.
 ##
 ## Two halves that must never merge:
 ##
@@ -25,6 +36,9 @@ signal accepted(order: Order)
 signal abandoned(order: Order)
 signal completed(order: Order)
 
+## A facility's storage gained or lost something.
+signal stock_changed(facility_id: String)
+
 enum State {
 	## On the board at its origin, waiting to be taken.
 	OFFERED,
@@ -48,6 +62,9 @@ var _delivered_crates: Dictionary = {}
 var _paid: Dictionary = {}
 ## facility id -> Facility node.
 var _facilities: Dictionary = {}
+## facility id -> Array[StoredItem]. Runtime state, like everything else below
+## the catalogue - and unlike the catalogue, this is what the save is for.
+var _stock: Dictionary = {}
 ## Rows the parser refused, kept so a test can assert the table is clean.
 var problems: Array[String] = []
 
@@ -65,6 +82,7 @@ func load_catalogue(path := CATALOGUE_PATH) -> void:
 	_state.clear()
 	_delivered_crates.clear()
 	_paid.clear()
+	_stock.clear()
 	problems.clear()
 
 	var text := _read(path)
@@ -270,6 +288,56 @@ func _unlock_dependents(code: int) -> void:
 		var order: Order = _catalogue[other]
 		if order.requires == code and _state[other] == State.LOCKED:
 			_state[other] = State.OFFERED
+
+
+# --- Storage ------------------------------------------------------------
+##
+## Deliberately **uncapped**. Mac's call, 2026-08-31. The reason to consolidate
+## stock in one place should be that you want it *here* rather than *there* -
+## which is what the [[The-Lattice]] ladder is for - and not that a number ran
+## out. A cap would turn a depot into inventory tetris and add a failure case
+## with no good answer: where does an overflowing delivery go?
+
+## What `facility_id` is holding, in the order it was put there. The array is
+## live, so callers must not hold onto it across a deposit.
+func stock_of(facility_id: String) -> Array[StoredItem]:
+	if not _stock.has(facility_id):
+		var fresh: Array[StoredItem] = []
+		_stock[facility_id] = fresh
+	return _stock[facility_id]
+
+
+func stock_count(facility_id: String) -> int:
+	return stock_of(facility_id).size()
+
+
+func stock_mass(facility_id: String) -> float:
+	var total := 0.0
+	for item in stock_of(facility_id):
+		total += item.mass
+	return total
+
+
+## Put something on the shelf.
+func deposit(facility_id: String, item: StoredItem) -> void:
+	if item == null:
+		return
+	stock_of(facility_id).append(item)
+	stock_changed.emit(facility_id)
+
+
+## Take item `index` off the shelf and hand it back, or null if there is no such
+## item or it is not the player's to take.
+func withdraw(facility_id: String, index: int) -> StoredItem:
+	var shelf := stock_of(facility_id)
+	if index < 0 or index >= shelf.size():
+		return null
+	var item: StoredItem = shelf[index]
+	if not item.is_withdrawable():
+		return null
+	shelf.remove_at(index)
+	stock_changed.emit(facility_id)
+	return item
 
 
 # --- Facilities ---------------------------------------------------------

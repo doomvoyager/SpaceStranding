@@ -61,6 +61,12 @@ theme_override_colors/font_color = Color(0.72, 0.66, 0.62, 1)
 theme_override_font_sizes/font_size = 14
 text = "0 on the board"
 
+[node name="Tabs" type="TabBar" parent="Root/Frame/Margin/Rows"]
+layout_mode = 2
+tab_count = 2
+tab_0/title = "Orders"
+tab_1/title = "Storage"
+
 [node name="Rule" type="HSeparator" parent="Root/Frame/Margin/Rows"]
 layout_mode = 2
 

@@ -43,6 +43,9 @@ func _ready() -> void:
 	_cam.current = true
 
 	var p := hearth.global_position
+	# From a distance first: the sign is a navigation aid, so the question is
+	# whether it can be read from where you would be looking for the place.
+	await _shot("00_from_afar", p + Vector3(38.0, 16.0, 46.0), p + Vector3(0.0, 6.0, 0.0))
 	await _shot("01_facility", p + Vector3(9.0, 5.0, 11.0), p + Vector3(-1.0, 1.0, 0.0))
 	await _shot("02_terminal", p + Vector3(1.4, 2.0, 4.2), p + Vector3(0.0, 1.3, 0.0))
 
@@ -67,6 +70,29 @@ func _ready() -> void:
 	for i in 8:
 		await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("%s/04_board.png" % OUT_DIR)
+
+	# The storage tab, with something on the shelf to look at. Deposited through
+	# the facility rather than assembled by hand, so the capture exercises the
+	# same path the player does.
+	for spec in [["Water canister", 55.0, 0.62], ["Core samples", 22.0, 0.97],
+			["Pipe stock", 55.0, 0.31], ["Spare cell", 48.0, 1.0]]:
+		var item := StoredItem.new()
+		item.cargo_name = spec[0]
+		item.mass = spec[1]
+		item.condition = spec[2]
+		item.value = 140.0
+		Orders.deposit(hearth.facility_id, item)
+	var house := StoredItem.new()
+	house.cargo_name = "Reactor coolant"
+	house.mass = 90.0
+	house.cargo_owner = Crate.Owner.FACILITY
+	house.owner_id = hearth.facility_id
+	Orders.deposit(hearth.facility_id, house)
+
+	panel.get_node("Root/Frame/Margin/Rows/Tabs").current_tab = 1
+	for i in 8:
+		await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("%s/05_storage.png" % OUT_DIR)
 
 	print("captured to: ", ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()

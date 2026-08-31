@@ -223,6 +223,7 @@ const KIND_CRATE := 0
 const KIND_TERMINAL := 1
 const KIND_ROVER := 2
 const KIND_DOCK := 3
+const KIND_STORAGE := 4
 
 
 ## One interactable in reach, and how well it is lined up. `score` is
@@ -276,6 +277,9 @@ func _move_cargo() -> void:
 
 	var carried := _back_rack.last_loaded_crate()
 	if target != null:
+		if target.kind == KIND_STORAGE:
+			(target.node as Facility).store(carried)
+			return
 		_rack_of(target).load_crate(carried)
 		if target.kind == KIND_ROVER:
 			(target.node as Rover).refresh_load()
@@ -328,19 +332,28 @@ func _kind_of(body: Node3D) -> int:
 		return KIND_ROVER
 	if body.is_in_group("dock_deck"):
 		return KIND_DOCK
+	if body.is_in_group("storage_intake"):
+		return KIND_STORAGE
 	return -1
 
 
-## The node a verb actually wants, which for a dock is the rack rather than the
-## deck the astronaut is standing next to.
+## The node a verb actually wants: for a dock that is the rack rather than the
+## deck you are standing next to, and for an intake it is the facility whose
+## shelf it leads to.
 func _node_for(body: Node3D, kind: int) -> Node3D:
-	if kind != KIND_DOCK:
+	if kind != KIND_DOCK and kind != KIND_STORAGE:
 		return body
-	var node: Node = body
+	var facility := _facility_above(body)
+	if facility == null:
+		return null
+	return facility.dock() if kind == KIND_DOCK else facility
+
+
+func _facility_above(node: Node) -> Facility:
 	while node != null:
 		var facility := node as Facility
 		if facility != null:
-			return facility.dock()
+			return facility
 		node = node.get_parent()
 	return null
 
@@ -371,24 +384,32 @@ func interact_target() -> Reachable:
 	return best
 
 
-## What `drop_cargo` would act on right now, or null — a rack to take from when
-## empty-handed, a rack with room when carrying. Anything that cannot do the job
-## you are asking for is not a candidate, so facing a full rover with a crate on
-## your back sets it on the dock rather than doing nothing.
+## What `drop_cargo` would act on right now, or null — somewhere to take a crate
+## from when empty-handed, somewhere to put one when carrying. Anything that
+## cannot do the job you are asking for is not a candidate, so facing a full
+## rover with a crate on your back sets it on the dock rather than doing nothing.
 func cargo_target() -> Reachable:
 	var taking := _back_rack.is_empty()
 	var best: Reachable = null
 	for r in reachable():
-		var rack := _rack_of(r)
-		if rack == null:
-			continue
-		if taking and rack.is_empty():
-			continue
-		if not taking and rack.is_full():
+		if not _can_serve(r, taking):
 			continue
 		if best == null or r.score < best.score:
 			best = r
 	return best
+
+
+func _can_serve(target: Reachable, taking: bool) -> bool:
+	if target.kind == KIND_STORAGE:
+		# **A storage intake swallows anything and hands nothing back.** Taking
+		# something out is choosing one of forty things, and a list is what the
+		# terminal is for — see docs/02-Systems/Orders.md. There is no "last
+		# thing in" a warehouse worth guessing at.
+		return not taking
+	var rack := _rack_of(target)
+	if rack == null:
+		return false
+	return not rack.is_empty() if taking else not rack.is_full()
 
 
 ## Point the look direction at a world position. The player does this with the
@@ -438,6 +459,16 @@ func nearby_dock() -> CargoRack:
 	return null
 
 
+## The storage intake's facility within reach, or null.
+func nearby_storage() -> Facility:
+	for body in _interact_zone.get_overlapping_bodies():
+		if body.is_in_group("storage_intake"):
+			var facility := _facility_above(body)
+			if facility != null:
+				return facility
+	return null
+
+
 func nearby_rover() -> Rover:
 	for body in _interact_zone.get_overlapping_bodies():
 		var rover := body as Rover
@@ -484,8 +515,11 @@ func cargo_prompt() -> String:
 		return "Take a crate off the %s" % _rack_of(target).rack_name.to_lower()
 	if target == null:
 		return "Put the crate down"
-	if target.kind == KIND_ROVER:
-		return "Stow on the rover"
+	match target.kind:
+		KIND_ROVER:
+			return "Stow on the rover"
+		KIND_STORAGE:
+			return "Put it in %s storage" % (target.node as Facility).display_name
 	return "Set it on the dock"
 
 

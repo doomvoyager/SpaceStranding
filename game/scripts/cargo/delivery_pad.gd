@@ -124,6 +124,26 @@ func _accept(crate: Crate) -> void:
 	if closed:
 		print("ORDER %d complete." % code)
 	delivered.emit(crate, payout)
+	_take_in(crate)
+
+
+## The depot takes the crate in.
+##
+## Before storage existed, delivered crates simply stayed where they were set
+## down, so a busy pad slowly silted up with cargo that had already been paid
+## for and could be shoved around forever. Accepting something and then leaving
+## it lying on the deck was never right.
+##
+## It is *consumed* rather than shelved. Delivered order cargo has reached the
+## end of its life - the payout is the outcome - and putting fifty spent crates
+## on the facility's shelf would bury the player's own things under a receipt
+## log. Storage is a locker, not a junk drawer.
+func _take_in(crate: Crate) -> void:
+	_accepted.erase(crate.get_instance_id())
+	var parent := crate.get_parent()
+	if parent != null:
+		parent.remove_child(crate)
+	crate.queue_free()
 
 
 ## What this crate would pay right now. Public so the HUD can warn the player

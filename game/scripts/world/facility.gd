@@ -31,10 +31,10 @@ signal dock_changed
 ## surface, not a second copy of numbers that also live in the inspector.
 @export var crate_scene: PackedScene = preload("res://scenes/cargo/crate.tscn")
 
-## Where a crate goes when there is no room left on the dock. Crates are put
-## down here rather than refused, because an order that cannot be issued is a
-## dead end and a pile on the ground is not.
-@onready var _overflow: Node3D = get_node_or_null("Overflow")
+## Shown floating above the facility so it can be found from a distance. Driven
+## from `display_name` rather than typed in, so renaming a facility renames its
+## sign and the two cannot disagree.
+@onready var _sign: Label3D = get_node_or_null("Sign") as Label3D
 
 var _dock: CargoRack
 var _pad: DeliveryPad
@@ -50,6 +50,8 @@ func _ready() -> void:
 	_dock = _find_child_of_type("CargoRack") as CargoRack
 	_pad = _find_child_of_type("DeliveryPad") as DeliveryPad
 	_terminal = _find_child_of_type("FacilityTerminal") as Node3D
+	if _sign != null:
+		_sign.text = display_name
 	Orders.register_facility(self)
 
 
@@ -123,18 +125,20 @@ func issue(order: Order) -> Array[Crate]:
 	return made
 
 
-## Put a crate on the dock if there is a free slot, otherwise on the ground
-## beside it.
+## Put a crate on the dock if there is a free slot, otherwise on the shelf.
+##
+## Overflow used to be dumped on the ground beside the dock, which was a pile of
+## loose bodies nobody asked for and a way to lose a crate under the terrain.
+## Storage is the right answer and always was; there was simply nowhere to put
+## it before.
 func _place(crate: Crate) -> void:
 	var slot: Node3D = _dock.first_free_slot() if _dock != null else null
 	if slot != null:
 		slot.add_child(crate)
 		crate.stow(slot)
 		return
-	var at := _overflow if _overflow != null else self
-	get_tree().current_scene.add_child(crate)
-	crate.global_transform = at.global_transform
-	crate.position += Vector3(randf_range(-0.6, 0.6), 0.4, randf_range(-0.6, 0.6))
+	Orders.deposit(facility_id, StoredItem.from_crate(crate))
+	crate.queue_free()
 
 
 ## Take every crate belonging to `code` back, wherever it is. The order's row is
@@ -167,6 +171,17 @@ func recall(code: int) -> int:
 		_detach(crate)
 		crate.queue_free()
 		taken += 1
+	# The shelf as well as the world. An order's cargo can reach storage two
+	# ways - overflow past a full dock, or the player putting it there - and
+	# leaving it behind would let the order be taken a second time while the
+	# first lot was still sitting in the warehouse.
+	for id in Orders.facility_ids():
+		var shelf := Orders.stock_of(String(id))
+		for i in range(shelf.size() - 1, -1, -1):
+			if shelf[i].order_code() == code:
+				shelf.remove_at(i)
+				taken += 1
+		Orders.stock_changed.emit(String(id))
 	dock_changed.emit()
 	return taken
 
@@ -188,3 +203,40 @@ func _detach(crate: Crate) -> void:
 ## Crates currently sitting on the dock.
 func docked_crates() -> Array[Crate]:
 	return _dock.crates() if _dock != null else [] as Array[Crate]
+
+
+# --- Storage ------------------------------------------------------------
+
+## Take `crate` in and put it on the shelf. The crate stops existing as a body,
+## which is the point: a warehouse is not a physics problem.
+func store(crate: Crate) -> void:
+	if crate == null:
+		return
+	Orders.deposit(facility_id, StoredItem.from_crate(crate))
+	_detach(crate)
+	crate.queue_free()
+
+
+## Take stored item `index` off the shelf and put it on the dock. Returns the
+## crate, or null if there was nothing to take or nowhere to put it.
+##
+## **Storage to dock, and no further.** The panel does the warehouse half; the
+## player still walks it onto the rack. That is the 2026-08-31 rule, and the
+## reason this does not simply hand the crate to whoever is standing there.
+func withdraw_to_dock(index: int) -> Crate:
+	if _dock == null or _dock.is_full():
+		return null
+	var item := Orders.withdraw(facility_id, index)
+	if item == null:
+		return null
+	var crate := crate_scene.instantiate() as Crate
+	item.apply_to(crate)
+	var slot := _dock.first_free_slot()
+	slot.add_child(crate)
+	crate.stow(slot)
+	dock_changed.emit()
+	return crate
+
+
+func stock() -> Array[StoredItem]:
+	return Orders.stock_of(facility_id)

@@ -12,6 +12,15 @@ class_name OrderPanel
 ## The panel owns no rules. What is on the board, whether an order can be taken
 ## and what happens when it is handed back all live in OrderBook; the facility
 ## spawns and recalls the crates. This draws it.
+##
+## Two tabs, **one layout**. Orders and Storage are the same shape of question —
+## a list of things on the left, the selected one on the right, one action — so
+## they share the panes rather than each having their own. Only the contents of
+## the three controls change.
+##
+## Storage is withdraw-only here. Putting something *in* is a physical act at
+## the intake outside, because handing a crate over needs no choosing; taking
+## one out is choosing one of forty, which is what a list is for.
 
 signal closed
 
@@ -24,10 +33,16 @@ signal closed
 @onready var _action: Button = $Root/Frame/Margin/Rows/Panes/Right/Actions/Action
 @onready var _close_button: Button = $Root/Frame/Margin/Rows/Panes/Right/Actions/Close
 @onready var _status: Label = $Root/Frame/Margin/Rows/Status
+@onready var _tabs: TabBar = $Root/Frame/Margin/Rows/Tabs
+
+const TAB_ORDERS := 0
+const TAB_STORAGE := 1
 
 var _facility: Facility
+## Order codes behind the list rows, while the Orders tab is showing.
 var _codes: Array[int] = []
-var _selected := 0
+## One selection per tab, so switching back does not lose your place.
+var _selected := {TAB_ORDERS: 0, TAB_STORAGE: 0}
 var _open := false
 
 
@@ -37,7 +52,9 @@ func _ready() -> void:
 	_list.item_selected.connect(_on_item_selected)
 	_action.pressed.connect(_on_action_pressed)
 	_close_button.pressed.connect(close)
+	_tabs.tab_changed.connect(_on_tab_changed)
 	Orders.changed.connect(_on_orders_changed)
+	Orders.stock_changed.connect(_on_stock_changed)
 
 
 func is_open() -> bool:
@@ -82,22 +99,54 @@ func _on_orders_changed() -> void:
 		_refresh()
 
 
+func _on_stock_changed(_facility_id: String) -> void:
+	if _open:
+		_refresh()
+
+
+func _on_tab_changed(_index: int) -> void:
+	_refresh()
+
+
+func _tab() -> int:
+	return _tabs.current_tab
+
+
+func _selection() -> int:
+	return int(_selected.get(_tab(), 0))
+
+
 # --- Drawing ------------------------------------------------------------
 
 func _refresh() -> void:
 	if _facility == null:
 		return
-	var board := Orders.board_for(_facility.facility_id)
-	_codes.clear()
 	_list.clear()
-	for order in board:
-		_codes.append(order.code)
-		_list.add_item(_row_text(order))
-	_empty_note.visible = _codes.is_empty()
-	_list.visible = not _codes.is_empty()
-	_selected = clampi(_selected, 0, maxi(_codes.size() - 1, 0))
-	if not _codes.is_empty():
-		_list.select(_selected)
+	_codes.clear()
+
+	var rows := 0
+	if _tab() == TAB_ORDERS:
+		for order in Orders.board_for(_facility.facility_id):
+			_codes.append(order.code)
+			_list.add_item(_row_text(order))
+		rows = _codes.size()
+		_empty_note.text = "Nothing on the board here."
+	else:
+		var shelf := _facility.stock()
+		for item in shelf:
+			# The marker goes in front. As a suffix it was the first thing the
+			# list clipped, which made house stock look exactly like the
+			# player's right up until the Move button refused.
+			var mark := "▪ " if not item.is_withdrawable() else "   "
+			_list.add_item(mark + item.summary())
+		rows = shelf.size()
+		_empty_note.text = "The shelves are empty."
+
+	_empty_note.visible = rows == 0
+	_list.visible = rows > 0
+	_selected[_tab()] = clampi(_selection(), 0, maxi(rows - 1, 0))
+	if rows > 0:
+		_list.select(_selection())
 	_subtitle.text = _subtitle_text()
 	_draw_detail()
 
@@ -110,6 +159,12 @@ func _row_text(order: Order) -> String:
 
 
 func _subtitle_text() -> String:
+	var id := _facility.facility_id
+	if _tab() == TAB_STORAGE:
+		return "%d in storage · %.0f kg · dock %d/%d" % [
+			Orders.stock_count(id), Orders.stock_mass(id),
+			_facility.dock().count(), _facility.dock().capacity(),
+		]
 	var taken := Orders.accepted_orders().size()
 	var done := Orders.delivered_count()
 	return "%d on the board · %d accepted · %d delivered · %.0f cr earned" % [
@@ -118,6 +173,9 @@ func _subtitle_text() -> String:
 
 
 func _draw_detail() -> void:
+	if _tab() == TAB_STORAGE:
+		_draw_storage_detail()
+		return
 	var order := _current()
 	if order == null:
 		_detail.text = ""
@@ -165,27 +223,102 @@ func _status_text(order: Order, accepted: bool) -> String:
 	return "Cargo is put on the dock outside. Load it yourself."
 
 
+func _draw_storage_detail() -> void:
+	var item := _current_item()
+	if item == null:
+		_detail.text = ""
+		_action.disabled = true
+		_action.text = "Move to dock"
+		_status.text = ""
+		return
+
+	var lines := PackedStringArray()
+	lines.append("[b]%s[/b]" % item.cargo_name)
+	lines.append("")
+	lines.append("Condition     %s" % item.condition_label())
+	lines.append("Mass          %.0f kg" % item.mass)
+	lines.append("Handling      %s" % _fragility_word(item.fragility))
+	if item.value > 0.0:
+		lines.append("Worth         %.0f cr at this condition"
+			% (item.value * pow(item.condition, 1.5)))
+	if item.order_code() != 0:
+		lines.append("Belongs to    order %d" % item.order_code())
+	elif not item.is_withdrawable():
+		lines.append("Belongs to    %s" % _facility.display_name)
+	_detail.text = "\n".join(lines)
+
+	var dock_full := _facility.dock().is_full()
+	_action.text = "Move to dock"
+	_action.disabled = not item.is_withdrawable() or dock_full
+	if not item.is_withdrawable():
+		_status.text = "%s's stock. Not yours to take." % _facility.display_name
+	elif dock_full:
+		_status.text = "The dock is full. Clear a slot and come back."
+	else:
+		_status.text = "Goes on the dock outside. Load it yourself."
+
+
+## Same thresholds as Order.fragility_label(), which a stored item has no order
+## to ask. Kept here rather than duplicated into StoredItem because it is a
+## presentation choice, not a property of the thing.
+func _fragility_word(fragility: float) -> String:
+	if fragility <= 0.3:
+		return "rugged"
+	elif fragility <= 0.8:
+		return "sturdy"
+	elif fragility <= 1.3:
+		return "standard"
+	elif fragility <= 2.0:
+		return "delicate"
+	return "fragile"
+
+
 func _current() -> Order:
-	if _selected < 0 or _selected >= _codes.size():
+	var index := _selection()
+	if index < 0 or index >= _codes.size():
 		return null
-	return Orders.get_order(_codes[_selected])
+	return Orders.get_order(_codes[index])
+
+
+func _current_item() -> StoredItem:
+	var shelf := _facility.stock()
+	var index := _selection()
+	if index < 0 or index >= shelf.size():
+		return null
+	return shelf[index]
 
 
 # --- Actions ------------------------------------------------------------
 
 func _on_item_selected(index: int) -> void:
-	_selected = index
+	_selected[_tab()] = index
 	_draw_detail()
 
 
 func _on_action_pressed() -> void:
+	if _facility == null:
+		return
+	if _tab() == TAB_STORAGE:
+		_withdraw()
+		return
 	var order := _current()
-	if order == null or _facility == null:
+	if order == null:
 		return
 	if Orders.is_accepted(order.code):
 		_hand_back(order)
 	else:
 		_take(order)
+
+
+func _withdraw() -> void:
+	var index := _selection()
+	var item := _current_item()
+	if item == null:
+		return
+	if _facility.withdraw_to_dock(index) == null:
+		return
+	print("STORAGE: %s moved from %s to the dock"
+		% [item.cargo_name, _facility.facility_id])
 
 
 func _take(order: Order) -> void:
