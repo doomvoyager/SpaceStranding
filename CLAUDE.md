@@ -153,6 +153,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_st
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_lattice.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_scanner.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -174,6 +178,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/camera_levelling_c
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/facility_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/scan_capture.tscn
 ```
 
 Run a standalone engine-behaviour probe. These build what they need from
@@ -373,6 +381,19 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   broad phase, and there is no ordering left to get wrong. Note Godot has **no
   cone collision primitive**, so the tempting literal reading of "interaction
   cone" costs a convex shape re-oriented every frame, for a worse result.
+- **`_process` and `_physics_process` do not interleave anything like realtime
+  under `--headless`.** A test that ticks its stages on physics frames and
+  asserts against state advanced in `_process` will read zero progress two
+  frames after starting something, and a finished-and-gone effect 150 frames
+  later. Drive such a test off the state it is asserting on, with a frame budget
+  as the failure case, rather than off a frame number.
+- **An overlay drawn into `EMISSION` must own the pixel, not add to it.** Two
+  separate ways to get this wrong, both of which look like a shader bug: adding
+  a saturated colour over a bright surface comes out **white**, because ACES
+  tonemapping clamps saturation hardest where it is brightest; and darkening
+  `ALBEDO` first is still not enough if anything earlier in `fragment()` has
+  already written to `EMISSION` using the original albedo - a fill or ambient
+  term will, and the overlay becomes a wash over it. Replace both channels.
 - **A node re-entering the tree does not run `_ready()` again.** Anything that
   registers itself with an autoload on ready is therefore scenery the second
   time around - present, visible, and absent from every system that cares.

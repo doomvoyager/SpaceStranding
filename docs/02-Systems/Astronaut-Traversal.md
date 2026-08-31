@@ -60,6 +60,9 @@ Boarding therefore never competes with unloading. The alternative - one key,
 priority-ordered - hands you a crate when you walk up to a loaded rover meaning
 to drive it.
 
+**`Q` / `LB`** is the third verb and competes with neither: it acts on the
+world at a distance rather than on anything in reach. See [[Scanner]].
+
 ### Reach is a sphere; the target is chosen by aim
 
 **Which of several things in reach either verb acts on is decided by where the
@@ -109,7 +112,7 @@ both sides guard.
 
 ## Interactions
 
-[[Rover]] · [[Cargo]] · [[Flares]] · [[Orders]]
+[[Rover]] · [[Cargo]] · [[Flares]] · [[Orders]] · [[Scanner]]
 
 ## Open
 

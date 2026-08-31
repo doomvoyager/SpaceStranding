@@ -9,6 +9,49 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-31 - The scan says what the rover can drive, not how steep it is
+
+Mac asked for a Death Stranding scanner: a pulse on `Q`/`LB`, tags on anything
+usable, and a dot grid on the terrain coloured red for difficult and green for
+easy. Built as [[Scanner]]. Two calls in it are worth keeping.
+
+**Green and red are calibrated against the [[Rover]], not against steepness.**
+`probe_rover_climb.tscn` puts the loaded rover on slopes of known angle at full
+throttle and measures how far it gets up each in a fixed run. It turns out the
+rover does not *stall* anywhere useful - it slows smoothly, from 37 m on the
+flat to 19.6 m at 24° and 8.9 m at 40°, sliding backwards only at 56°. So there
+is no cliff to put the threshold on, and the honest one is where progress
+**halves**: 25.5°, rounded to 26. Red then promises "this will cost you half
+your speed or worse". Any other number makes the scan a picture of steepness,
+which the player can already see.
+
+**The pulse rides on global shader uniforms; the tunables do not.** One scanner
+drives every surface with a single write, rather than holding a list of
+materials and keeping it in step with the scene. But the *look* lives as
+`@export` vars on `scanner.gd` and is pushed into those globals, because a
+ShaderMaterial's uniforms are `PROPERTY_USAGE_EDITOR` and not
+`PROPERTY_USAGE_SCRIPT_VARIABLE` - already recorded as an engine fact - so the
+[[Debug-Panel]] cannot see them. A number nobody can move while driving is a
+number nobody will tune.
+
+**Costs accepted:**
+
+- The grid ignores line of sight and tags through hills. [[The-Lattice]] has a
+  sight-line solve that could be reused; whether the scanner *should* be
+  occluded is a design question, not only a cost one.
+- Fixed world-space dot spacing, so the grid is dense far away and sparse up
+  close. Worth judging against terrain with real relief.
+- No icons: a crate, an order's cargo and a facility differ only by tint.
+
+Recorded because it caught three of us out and would again: **a holographic
+overlay must own its pixel, not add to it.** Emission alone came out white
+under ACES, and darkening the albedo was not enough either, because the
+material's own fill term had already written ambient into `EMISSION` using the
+red albedo. Both `ALBEDO` and `EMISSION` have to be replaced under the dot. See
+[[Scanner]].
+
+---
+
 ## 2026-08-31 - The Lattice links by line of sight, and transfers cost time
 
 The coverage half of [[The-Lattice]], built. **Placing** relays is deliberately
