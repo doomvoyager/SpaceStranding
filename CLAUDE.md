@@ -145,6 +145,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_or
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_interact_aim.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_storage.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -365,6 +369,13 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   broad phase, and there is no ordering left to get wrong. Note Godot has **no
   cone collision primitive**, so the tempting literal reading of "interaction
   cone" costs a convex shape re-oriented every frame, for a worse result.
+- **Iterating an untyped `const Array` yields `Variant`, which poisons `:=` two
+  lines later.** `for size in SIZES:` then `var x := something * size` fails to
+  compile with "Cannot infer the type of x because the value doesn't have a set
+  type" - pointing at `x`, not at the loop that caused it. Same for any function
+  whose return type the parser cannot resolve. Write `for size: float in SIZES:`
+  or give the variable an explicit type. Cost two hangs today, because a test
+  scene whose script will not compile runs forever.
 - **`owner` is a `Node` property**, so a script that wants to record who
   something belongs to must not call its field `owner`. Shadowing it breaks
   scene serialisation in ways that do not announce themselves. `Crate` uses

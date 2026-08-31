@@ -23,9 +23,11 @@ Coverage grants:
 - **Hopper jump targets** - [[The-Lander]] cannot jump somewhere unlinked
 - Contract visibility from distant settlements
 - **Remote Facility storage** - see a linked Facility's stock, then later
-  request a transfer from it. This is the ladder [[Orders]] hangs its
-  per-Facility storage on, and the chiral network's convenience without any of
-  its magic
+  request a transfer from it. The chiral network's convenience without any of
+  its magic. **Per-facility storage itself is built** as of 2026-08-31, so this
+  has something real to hang off: `Orders.stock_of(id)` already answers for any
+  facility, loaded or not, which is exactly the query a coverage check would
+  gate. See [[Orders]]
 - Longer [[Flares]] warning windows
 - *(Later)* visibility of other players' persistent structures
 

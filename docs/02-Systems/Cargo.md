@@ -137,6 +137,7 @@ grade the same crate differently.
 | Proper-acceleration measurement | `res://scripts/cargo/jolt_meter.gd` |
 | Acceptance and payout | `res://scripts/cargo/delivery_pad.gd` |
 | Who a crate belongs to | `Crate.cargo_owner` - see [[Orders]] |
+| A crate that is on a shelf rather than in the world | `res://scripts/orders/stored_item.gd` |
 
 ## Racks and slots
 
@@ -153,6 +154,12 @@ A crate is a `RigidBody3D` and stays the same node its whole life. Stowing
 freezes it, switches its collision off and reparents it into a slot; putting it
 down reverses that. Nothing is destroyed and respawned, so a crate cannot lose
 its identity - or, later, its accumulated damage - by being carried.
+
+**Being carried is the scope of that rule.** Cargo put into a facility's storage
+*is* destroyed, and rebuilt with the same condition when it comes out, because
+on a shelf it has stopped being a physical object at all - see [[Orders]]. The
+distinction is what keeps a warehouse from being a free repair shop, and
+`test_storage.tscn` asserts it.
 
 Stowed crates sit on collision layer 0, which means the astronaut's camera
 spring arm passes straight through the tower on their back rather than shoving

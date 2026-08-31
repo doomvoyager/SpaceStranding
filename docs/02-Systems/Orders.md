@@ -215,6 +215,51 @@ system bolted alongside it. Drop events pair naturally with [[Flares]] and
 Stock left at a Facility is *at* that Facility. On its own that is a chore
 generator - "the part you need is six kilometres away" is only interesting once.
 
+### It holds records, not nodes
+
+A warehouse of frozen `RigidBody3D`s would be a great deal of physics for cargo
+nobody can see, touch or collide with. Depositing records what a crate **is** -
+name, mass, fragility, value, **condition**, owner - and frees the node; taking
+it out builds one that is identical in every way the game reads.
+
+That reads against [[Cargo]]'s rule that a crate is the same node its whole
+life, so the line is worth stating precisely: **that rule is about being
+carried.** A crate must not launder its damage by riding on a rack, and it still
+cannot. Going into a warehouse is not carrying, and `recall()` already
+established despawn-into-storage as the honest shape for cargo that has stopped
+being a physical object. `test_storage.tscn` asserts condition survives the
+round trip, because a shelf that quietly repaired things would undo the
+abandonment argument by the back door.
+
+### Deposit is physical, withdraw is the panel
+
+`F` while carrying, facing the intake, hands a crate over. No menu: handing
+something in needs no choosing. Taking one out is choosing one of forty, which
+is what a list is for - so it lives on the terminal's Storage tab and puts the
+crate **on the dock**. That is the settled Storage → Dock rule, now with a real
+Storage on the other end of it.
+
+The facility's own stock shows on the shelf and cannot be taken. You can see
+what a depot is holding without helping yourself to it.
+
+### Uncapped
+
+Mac's call, 2026-08-31. The reason to consolidate should be that you want
+something *here* rather than *there* - which is the ladder below - and not that
+a number ran out. A cap would turn a depot into inventory tetris and add a
+failure case with no good answer: where does an overflowing delivery go?
+
+### Two things it fixed on the way
+
+**Dock overflow used to be dumped on the sand.** Nine crates for eight slots
+meant a pile of loose bodies beside the pallet and a way to lose cargo under the
+terrain. Storage was always the right answer; there was simply nowhere to put it.
+
+**A delivered crate used to sit on the pad forever**, so a busy depot silted up
+with cargo that had already been paid for. It is now taken in and *consumed* -
+not shelved, because fifty spent crates would bury the player's own things under
+a receipt log. Storage is a locker, not a junk drawer.
+
 What makes it a system is that it is the ladder [[The-Lattice]] climbs:
 
 | Coverage | Grants |
@@ -263,6 +308,7 @@ do this*, which is why `facility_capture.tscn` exists.
 | Identity, issuing, recall | `res://scripts/world/facility.gd` |
 | The thing you press `E` at | `res://scripts/world/facility_terminal.gd` |
 | Two panes, accept and hand back | `res://scripts/ui/order_panel.gd` |
+| Storage, and what is on a shelf | `res://scripts/orders/stored_item.gd` |
 | The table | `game/data/orders.tsv` |
 | Editing the table | `tools/tsv-editor.ps1` |
 
@@ -290,6 +336,10 @@ Four of those would not be caught by anything else:
   call, and it would rot silently.
 - **Cargo on a dock must be liftable off it** - the bug above, now asserted.
 
+`res://tests/test_storage.tscn` covers the shelf: that condition survives it,
+that Hearth's shelf is not Longshadow's, that dock overflow lands on it, that
+handing an order back sweeps it, and that house stock cannot be withdrawn.
+
 `res://tests/facility_capture.tscn` writes stills. It earned its keep
 immediately: the first facility was three props scattered on open sand, and the
 parts only read as one place once they shared an apron. `probe_facility_sites.gd`
@@ -308,10 +358,13 @@ footprint, because the first pair were placed by eye at `y = 0` and were buried.
 - [x] Port `tools/tsv-editor.html` from StarChef with a `.ps1` launcher. Done
       2026-08-31, and the tool needed no changes at all - byte-identical round
       trip on `orders.tsv` through its own parser, first try.
-- [ ] TODO: **Storage is not a place yet.** Cargo is abstract until an order is
-      taken and gone once it is handed back, so "the part you need is at the
-      other facility" cannot happen - which is the whole premise of the
-      [[The-Lattice]] ladder below. This is the next real piece. #now
+- [x] **Storage is a place.** Per facility, uncapped, holding records rather
+      than nodes; deposit at the intake, withdraw from the terminal. Built
+      2026-08-31.
+- [ ] TODO: the [[The-Lattice]] ladder itself - seeing a linked facility's stock
+      from elsewhere, then requesting a transfer that takes real time to arrive.
+      Storage now exists to hang it on, and it is the thing that turns
+      per-facility stock from a chore into a system. #now
 - [ ] TODO: the inventory-and-orders reader Mac's note asks for - what am I
       carrying, whose is it, where does it go. The HUD manifest line covers the
       driving case; a full panel is for when the manifest gets long. #next
@@ -321,9 +374,11 @@ footprint, because the first pair were placed by eye at `y = 0` and were buried.
 - [ ] TODO: `crates` above 1 means one order can outgrow the rover's six slots,
       making it a two-trip order. That is either the best content in the game or
       simply tedious, and only driving it will say which. #playtest
-- [ ] TODO: does Storage have a capacity? Infinite is kinder and removes every
-      reason to consolidate, which is the thing the Lattice ladder feeds on.
-      #question
+- [x] Does Storage have a capacity? **No.** Mac's call 2026-08-31 - see
+      "Uncapped" above.
+- [ ] TODO: nothing seeds a facility with starting stock, so a depot is empty
+      until the player fills it. Probably wants a column in a table rather than
+      an inspector array. #question
 - [ ] TODO: abandoning reconditions the cargo, and the only thing charging for
       that is the drive back to the origin. On a short route the repair is
       nearly free and damage stops mattering. Watch for it once two Facilities

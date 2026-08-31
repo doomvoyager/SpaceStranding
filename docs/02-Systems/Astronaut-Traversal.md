@@ -49,9 +49,12 @@ Two verbs, and they never compete for the same press:
 
 - **`E` / `A`** - deal with the world: a loose crate, a facility terminal, or
   the [[Rover]].
-- **`F` / `X`** - move cargo: carrying, onto a rack with room, else on the
-  ground; empty-handed, off a rack that has something. Racks are the rover's and
-  a facility dock's - see [[Orders]].
+- **`F` / `X`** - move cargo: carrying, onto a rack with room, into a facility's
+  storage intake, else on the ground; empty-handed, off a rack that has
+  something. Racks are the rover's and a facility dock's - see [[Orders]].
+
+  An intake **takes and never gives**. Handing something in needs no choosing;
+  taking one of forty things out is what the terminal's list is for.
 
 Boarding therefore never competes with unloading. The alternative - one key,
 priority-ordered - hands you a crate when you walk up to a loaded rover meaning

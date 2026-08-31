@@ -9,6 +9,61 @@ anything.** Newest first.
 
 ---
 
+## 2026-08-31 - Storage holds records, and is uncapped
+
+Cargo was abstract until an order was taken and gone once it was handed back, so
+*"the part you need is at the other facility"* could not happen - and that is the
+premise [[The-Lattice]]'s whole ladder rests on. Storage had to become a place.
+
+**It holds records, not nodes.** A warehouse of frozen `RigidBody3D`s is a great
+deal of physics for cargo nobody can see, touch or collide with. Depositing
+records name, mass, fragility, value, **condition** and owner, then frees the
+node; withdrawing builds one that is identical in every way the game reads.
+
+This reads against [[Cargo]]'s founding rule that a crate is the same node its
+whole life, so the line is worth stating: **that rule is about being carried.** A
+crate must not launder its damage by riding on a rack, and it still cannot.
+`Facility.recall()` had already established despawn-into-storage as the honest
+shape for cargo that has stopped being a physical object. `test_storage.tscn`
+asserts condition survives the round trip, because a shelf that quietly repaired
+things would undo the abandonment argument by the back door.
+
+**Deposit is physical; withdraw is the panel.** `F` at the intake hands a crate
+over - handing something in needs no choosing. Taking one out is choosing one of
+forty, which is what a list is for, and it lands on the dock. That is the
+Storage → Dock rule from earlier the same day, now with a real Storage on the
+other end.
+
+**Uncapped.** Mac's call. The reason to consolidate should be that you want
+something *here* rather than *there*, not that a number ran out; a cap turns a
+depot into inventory tetris and creates a failure case with no good answer -
+where does an overflowing delivery go? Revisit only if hoarding turns out to be
+a problem, which it cannot be until there is something to build.
+
+**Accepting an order still spawns onto the dock, not into storage.** Mac's note
+originally described accept → storage → assign to dock. Rejected as a toll booth:
+it adds a click to every single order for the sake of the uncommon case. Storage
+is the persistent home and the overflow, not a step on the way out.
+
+**State lives in the `Orders` autoload keyed by facility id**, not on the
+Facility node. The Lattice ladder means reading a linked facility's stock without
+that facility necessarily being loaded, and one blob keyed by id is the shape the
+save wants. That makes `order_book.gd` the **facility ledger** rather than only
+the board - orders are what a facility wants moved, storage is what it is
+holding, and delivery turns one into the other. Splitting them across two
+autoloads would only have meant two globals talking about one fact.
+
+Two things fixed on the way, both of which had been wrong since the day they
+shipped and neither of which had anywhere better to go until now:
+
+- **Dock overflow was dumped on the sand** - loose bodies beside the pallet, and
+  a way to lose cargo under the terrain.
+- **A delivered crate sat on the pad forever**, so a busy depot silted up with
+  cargo already paid for. It is now consumed rather than shelved: fifty spent
+  crates would bury the player's own things under a receipt log.
+
+---
+
 ## 2026-08-31 - Interaction follows the look direction
 
 Mac hit it in play: a crate lying beside the rover was always picked up,
