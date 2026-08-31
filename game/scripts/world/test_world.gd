@@ -21,6 +21,7 @@ func _ready() -> void:
 	_place_on_ground(_rover, Vector3(-6.0, 0.0, 0.0), 1.6)
 	_place_on_ground($Beacon, Vector3(0.0, 0.0, -140.0), 0.0)
 	_settle_crates()
+	_settle_structures()
 
 
 ## Crates are hand-placed in the editor on X/Z; only their height is solved
@@ -36,6 +37,24 @@ func _settle_crates() -> void:
 		var crate := child as Node3D
 		if crate != null:
 			_place_on_ground(crate, crate.global_position, CRATE_RESTING_CLEARANCE)
+
+
+## Facilities and relays are hand-placed on X/Z in the editor exactly like the
+## crates, and exactly like the crates only their *height* is solved here. Both
+## scenes put their origin at the ground contact point - the facility's apron
+## sits at y = 0 and the relay's plinth just above it - so they settle flush.
+##
+## They carried hand-tuned Y values baked against the procedural patch until the
+## authored heightmap moved the ground out from under them and left the Hearth
+## 13.6 m underground. The crates already had the fix; the structures were just
+## never given it. Group membership rather than a tree walk, because both scenes
+## already declare it and a new site should not have to be registered twice.
+func _settle_structures() -> void:
+	for group: String in ["facility", "relay"]:
+		for node in get_tree().get_nodes_in_group(group):
+			var n := node as Node3D
+			if n != null:
+				_place_on_ground(n, n.global_position, 0.0)
 
 
 ## Point the key light along the fixed star direction from World.

@@ -9,6 +9,46 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-01 - The terrain is authored art; the map is 4096 m across
+
+Mac delivered two 8193x8193 Gaea exports and asked whether they could replace
+the procedural terrain, keeping the noise available for testing. They could.
+Four calls in it are worth keeping.
+
+**The map is 4096 m across, not 2048 or 8192.** 8192 m would use the master at
+its native 1 m/px and cost 67 M triangles, which is the chunking-and-LOD
+conversation, not a drop-in. 4096 m keeps a single 1025 grid at 4 m spacing -
+about 2 M triangles, the same cost as the 2048 m patch it replaced - and leaves
+the master with 8x detail still in reserve. This also answers the map-size
+question that [[Terrain]]'s "pick the real terrain solution" was gated on.
+
+**Relief is 210 m, chosen from the grade it produces, not from taste.** The
+export is normalised 0..1 with no absolute vertical scale, so the metres were
+ours to pick. Measured across the whole map at mesh resolution: 210 m gives a
+median grade of 3 degrees, p90 of 9 and p99 of 17, with the massif past 60 on
+its steep faces. Drivable everywhere the player will spend time, genuinely
+impassable where it should be. `height_span` is exposed as *relief in metres*
+rather than as a scale factor, so it stays meaningful across a re-export.
+
+**The colour master replaces the base albedo outright.** Mac's call, over
+blending it under the painterly bands. The brush stamps still modulate it, which
+matters because 1 m/texel is soft underfoot and the detail has to come from
+somewhere. The master is pinker and more saturated than [[Visual-Direction]]
+asks for; `macro_tint` and `macro_saturation` exist so that is a slider rather
+than a re-bake.
+
+**The masters stay out of git.** 420 MB, gitignored on the same rule as the
+asset zips - the repo holds what the game uses, not what it was delivered in.
+`tools/bake-terrain.py` produces the ~19 MB that is committed. This was a real
+choice against Git LFS, which would put 420 MB through every clone on two
+machines for masters that change rarely and belong to one person.
+
+**Two engine facts that cost time, recorded so they are not rediscovered.**
+Godot cannot import TIFF at all, so a colour master arrives unusable whatever
+the settings say. And Godot expands a one-channel float EXR to three-channel
+uncompressed float on import - the 218 MB master became an 805 MB texture cache
+before anything asked it to.
+
 ## 2026-08-31 - The scan says what the rover can drive, not how steep it is
 
 Mac asked for a Death Stranding scanner: a pulse on `Q`/`LB`, tags on anything

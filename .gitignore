@@ -15,6 +15,15 @@ engine/
 # --- Build output ---
 builds/
 
+# --- Terrain masters ---
+# 8193x8193 Gaea exports, 420 MB together. Same rule as the zips below: the repo
+# holds what the game uses, not what it was delivered in. `tools/bake-terrain.py`
+# turns these into the ~19 MB the game actually loads, and those ARE committed.
+# The .gdignore is committed so Godot never tries to import the masters - it
+# expanded the height EXR to an 805 MB texture cache once already.
+game/assets/terrain/_source/*
+!game/assets/terrain/_source/.gdignore
+
 # --- Asset download archives ---
 # The extracted folder beside it is what Godot imports; the zip is the same
 # bytes again. The repo holds what the game uses, not what it was delivered in.
@@ -32,6 +41,9 @@ docs/.obsidian/workspace.json.bak
 ._*
 Thumbs.db
 desktop.ini
+
+# --- Python ---
+__pycache__/
 
 # --- Editors ---
 .vscode/

@@ -62,6 +62,7 @@ mechanics. Mac makes their own scene edits between sessions.
 | Godot engine binary | `engine/` - gitignored, see below |
 | Standalone authoring tools | `tools/` at the repo root, **not** `game/tools/` |
 | Authored game tables (TSV) | `game/data/` - edit with `tools/tsv-editor.ps1` |
+| Terrain masters - gitignored, 420 MB | `game/assets/terrain/_source/` - bake with `tools/bake-terrain.py` |
 
 `res://scripts/Foo.gd` on disk is `game/scripts/Foo.gd`.
 
@@ -157,6 +158,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_la
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_scanner.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_heightmap_terrain.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -182,6 +187,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/facility_capture.t
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/scan_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/terrain_capture.tscn
 ```
 
 Run a standalone engine-behaviour probe. These build what they need from
@@ -420,6 +429,39 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   whose return type the parser cannot resolve. Write `for size: float in SIZES:`
   or give the variable an explicit type. Cost two hangs today, because a test
   scene whose script will not compile runs forever.
+- **Godot cannot import TIFF, and expands a one-channel float EXR to three.**
+  The TIFF importer does not exist - the format is unsupported, so an 8-bit RGB
+  master arrives unusable whatever the import settings say. The EXR importer
+  does exist and is worse than it looks: a 218 MB single-channel ZIP EXR became
+  an **805 MB** `CompressedTexture2D`, three channels of uncompressed float
+  holding the same value. Both facts decide the shape of any authored-art
+  pipeline before a line of it is written. Godot *does* preserve full float on
+  the way in - worst error 4.7e-9 against ground truth, and a 4.2 M-float bulk
+  readback in under 10 ms via `Image.convert(FORMAT_RF)` then
+  `get_data().to_float32_array()`. `tests/probe_heightmap_import.gd`.
+- **`detect_3d/compress_to` will silently re-import a data texture as lossy.**
+  It defaults to on, and fires the first time a texture is used in a 3D
+  material - re-encoding to a VRAM format. Harmless for an albedo, fatal for a
+  heightfield, which changes shape with nothing logged. Any texture carrying
+  data rather than colour needs `detect_3d/compress_to=0` written into its
+  `.import` by hand. The mirror of this is that leaving an albedo to detect_3d
+  means it sits **unmipmapped** until something trips the re-import, and a large
+  map with no mipmaps aliases at distance and crawls under camera motion.
+- **`PackedFloat32Array` has no `min()`/`max()`, and cannot be probed for them.**
+  It is a builtin Variant type, not an Object, so `has_method()` does not exist
+  either - both the call *and* the guard around it are **parse** errors, which
+  take the whole script down rather than failing at the call site. A loop is the
+  only option: ~150 ms over 4.2 M floats, which is fine once and not per frame.
+  Same family as `%g`: GDScript's `%` format has no `%e` either.
+- **A verb, a spawn or a scatter that assumes "the terrain is at the origin"
+  breaks the moment it isn't.** Swapping the procedural patch for an authored
+  map offset it by 1.3 km, and three separate systems had quietly baked the old
+  assumption in: `rock_scatter.gd` drew positions in world space from
+  `-half..+half`, and the facilities and relay carried hand-tuned Y values. The
+  Hearth ended up **13.6 m underground**, and every headless test still passed,
+  because the nodes existed and were exactly where they had been told to be.
+  Anything hand-placed should have its X/Z authored and its *height solved* -
+  which the crates already did, and nothing else had been given.
 - **`owner` is a `Node` property**, so a script that wants to record who
   something belongs to must not call its field `owner`. Shadowing it breaks
   scene serialisation in ways that do not announce themselves. `Crate` uses

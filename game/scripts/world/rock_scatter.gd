@@ -271,6 +271,12 @@ func _scatter() -> Dictionary:
 	clump.frequency = 1.0 / maxf(clump_scale, 1.0)
 
 	var half: float = _terrain.size * 0.5
+	# Scatter over where the terrain actually *is*, not over the world origin.
+	# Those were the same thing for as long as there was one procedural patch
+	# centred on nothing in particular. The authored map is offset so the spawn
+	# is not on a cliff face, and rocks placed on the old range would fall off
+	# the patch edge, where height_at() clamps and leaves them hanging.
+	var patch := _terrain.global_position
 	var cos_limit := cos(deg_to_rad(max_slope_deg))
 	var lo := minf(size_min, size_max)
 	var hi := maxf(size_min, size_max)
@@ -281,8 +287,8 @@ func _scatter() -> Dictionary:
 	var buckets := {}
 	for i in count:
 		# Inset by a metre so the sampler never reaches past the patch edge.
-		var wx := rng.randf_range(-half + 1.0, half - 1.0)
-		var wz := rng.randf_range(-half + 1.0, half - 1.0)
+		var wx := patch.x + rng.randf_range(-half + 1.0, half - 1.0)
+		var wz := patch.z + rng.randf_range(-half + 1.0, half - 1.0)
 
 		# Clump mask first: it is the cheapest of the three tests.
 		if clump_amount > 0.0:

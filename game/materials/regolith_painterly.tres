@@ -1,6 +1,7 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
 
 [ext_resource type="Shader" path="res://shaders/painterly.gdshader" id="1_painterly"]
+[ext_resource type="Texture2D" path="res://assets/terrain/world_01_color_4096.webp" id="2_macro"]
 
 [resource]
 resource_name = "Regolith (painterly)"
@@ -8,6 +9,11 @@ shader = ExtResource("1_painterly")
 shader_parameter/albedo_color = Color(0.55, 0.17, 0.11, 1)
 shader_parameter/use_albedo_texture = false
 shader_parameter/albedo_uv_scale = 0.06
+shader_parameter/macro_albedo = ExtResource("2_macro")
+shader_parameter/use_macro_albedo = true
+shader_parameter/macro_strength = 1.0
+shader_parameter/macro_tint = Color(1, 1, 1, 1)
+shader_parameter/macro_saturation = 1.0
 shader_parameter/band_count = 3
 shader_parameter/band_softness = 0.0
 shader_parameter/light_wrap = 0.45
@@ -23,7 +29,7 @@ shader_parameter/rim_color = Color(0.95, 0.55, 0.42, 1)
 shader_parameter/rim_strength = 0.12
 shader_parameter/rim_power = 4.0
 shader_parameter/slope_color = Color(0.34, 0.22, 0.22, 1)
-shader_parameter/slope_amount = 0.55
+shader_parameter/slope_amount = 0.2
 shader_parameter/slope_sharpness = 2.5
 shader_parameter/brush_ref_distance = 11.0
 shader_parameter/fill_color = Color(0.3, 0.36, 0.6, 1)

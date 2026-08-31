@@ -27,6 +27,20 @@ uniform sampler2D albedo_texture : source_color, hint_default_white;
 uniform bool use_albedo_texture = false;
 uniform float albedo_uv_scale = 0.06;
 
+// Authored albedo painted for one specific surface, sampled through UV2, which
+// the terrain lays out 0..1 across the whole patch. UV1 above tiles hundreds of
+// times and is for detail only — sampling a macro map with it gives a
+// kaleidoscope. Off for every material that has no such map.
+uniform sampler2D macro_albedo : source_color, hint_default_white;
+uniform bool use_macro_albedo = false;
+// 1.0 replaces the base colour outright; lower values blend back toward it.
+uniform float macro_strength : hint_range(0.0, 1.0) = 1.0;
+// The Gaea colour master runs warmer and more saturated than the iron-dust
+// direction in docs/04-Art/Visual-Direction.md. These pull it back without a
+// re-bake, which is a two-minute round trip otherwise.
+uniform vec4 macro_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform float macro_saturation : hint_range(0.0, 2.0) = 1.0;
+
 // --- Banded lighting ------------------------------------------------------
 
 group_uniforms banding;
@@ -187,6 +201,12 @@ void fragment() {
 	vec3 base = albedo_color.rgb;
 	if (use_albedo_texture) {
 		base *= texture(albedo_texture, UV * albedo_uv_scale).rgb;
+	}
+	if (use_macro_albedo) {
+		vec3 macro = texture(macro_albedo, UV2).rgb * macro_tint.rgb;
+		float grey = dot(macro, vec3(0.2126, 0.7152, 0.0722));
+		macro = mix(vec3(grey), macro, macro_saturation);
+		base = mix(base, macro, macro_strength);
 	}
 
 	// Flatter ground vs steeper walls. No-op unless slope_amount is dialled up.

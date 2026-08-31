@@ -1,16 +1,70 @@
 @tool
 extends Node3D
 class_name ProceduralTerrain
-## Placeholder heightfield terrain for the traversal slice.
+## Single-patch heightfield terrain, from either authored art or noise.
 ##
-## This exists so there is ground to drive on. It is not the shipping terrain
-## system — that will be a streamed, chunked, artist-authored setup (Terrain3D or
-## equivalent). Keep gameplay code from depending on anything in here.
+## Two sources, chosen by `height_source`:
+##
+## * **Heightmap** — samples the authored Gaea bake. This is what the world uses.
+## * **Procedural** — the original three-octave noise. Kept because every test
+##   that builds its own ground wants a patch with no 15 MB dependency, and
+##   because it is still the fastest way to get arbitrary relief for a probe.
+##
+## Still a *single patch*: no streaming, no LOD. The shipping terrain will be a
+## streamed, chunked setup (Terrain3D or equivalent). Keep gameplay code from
+## depending on anything in here.
+##
+## The class name predates the heightmap source and is now half a lie. Renaming
+## it touches sixteen test files, so it is a deliberate TODO rather than drift.
 
 ## Emitted after the mesh and collision are rebuilt. Anything that placed
 ## objects on the surface — RockScatter — has to put them back, or a retune
 ## leaves them hanging in the air over the new ground.
 signal rebuilt
+
+enum HeightSource {
+	PROCEDURAL, ## Layered FastNoiseLite. No asset dependency.
+	HEIGHTMAP,  ## The authored bake. See tools/bake-terrain.py.
+}
+
+## Used when `heightmap` is left empty, so flipping the source on a fresh node
+## does something useful instead of nothing. Loaded lazily rather than
+## preloaded: `preload()` resolves when the *script* loads, which would drag 50
+## MB into every headless test that builds a procedural patch.
+const DEFAULT_HEIGHTMAP := "res://assets/terrain/world_01_height_2049.exr"
+
+@export_group("Source")
+## Where the heightfield comes from. Defaults to procedural so that a
+## bare `ProceduralTerrain.new()` in a test keeps costing nothing; the world
+## scene sets this to Heightmap explicitly.
+@export var height_source: HeightSource = HeightSource.PROCEDURAL:
+	set(v):
+		height_source = v
+		_queue_rebuild()
+## Single-channel float heightfield, values in 0..1. Anything else is remapped
+## by its own min and max, so the numbers below are always metres of real
+## relief rather than metres per arbitrary unit.
+@export var heightmap: Texture2D:
+	set(v):
+		heightmap = v
+		_map_source = null  # force a re-read; the cache is keyed on the texture
+		_queue_rebuild()
+## Metres from the map's lowest sample to its highest.
+##
+## Relief, not scale, so it stays meaningful when the map is re-exported with a
+## different range. 210 m over the 4096 m patch gives a median grade of about
+## 3 degrees and a p99 of 17 — rolling and drivable, with the massif genuinely
+## impassable on its steep faces.
+@export var height_span := 210.0:
+	set(v):
+		height_span = v
+		_queue_rebuild()
+## Local-space height of the map's *lowest* sample. Leave at 0 to have the
+## terrain's floor sit on its own origin.
+@export var height_floor := 0.0:
+	set(v):
+		height_floor = v
+		_queue_rebuild()
 
 @export_group("Extent")
 ## Side length of the patch in metres.
@@ -25,6 +79,7 @@ signal rebuilt
 		_queue_rebuild()
 
 @export_group("Shape")
+## Everything in this group applies to the Procedural source only.
 @export var height_scale := 48.0:
 	set(v):
 		height_scale = v
@@ -64,6 +119,16 @@ var _heights: PackedFloat32Array
 var _samples := 0
 var _rebuild_queued := false
 
+# Decoded heightmap, cached across rebuilds. Re-reading costs ~10 ms for the
+# pixels and ~150 ms for the range scan, which is a lot to pay on every drag of
+# a size slider. Keyed on the texture so swapping maps still refreshes.
+var _map_source: Texture2D
+var _map_data: PackedFloat32Array
+var _map_w := 0
+var _map_h := 0
+var _map_lo := 0.0
+var _map_hi := 1.0
+
 
 func _ready() -> void:
 	_build()
@@ -96,6 +161,100 @@ func _build() -> void:
 # --- Heightfield --------------------------------------------------------
 
 func _generate_heights() -> void:
+	_heights = PackedFloat32Array()
+	_heights.resize(_samples * _samples)
+	if height_source == HeightSource.HEIGHTMAP and _sample_heightmap():
+		return
+	_generate_heights_procedural()
+
+
+## Fills `_heights` from the authored bake. Returns false if there is no usable
+## map, in which case the caller falls back to noise rather than to flat ground
+## — a terrain that silently becomes a plane is much harder to notice than one
+## that looks wrong.
+func _sample_heightmap() -> bool:
+	var tex := heightmap
+	if tex == null:
+		tex = load(DEFAULT_HEIGHTMAP) as Texture2D
+	if tex == null:
+		push_warning("Terrain: heightmap source selected but no map could be "
+			+ "loaded; falling back to procedural.")
+		return false
+	if tex != _map_source and not _read_map(tex):
+		return false
+
+	var span := _map_hi - _map_lo
+	# A constant map would divide by zero and is a mistake worth reporting
+	# rather than flattening.
+	if is_zero_approx(span):
+		push_warning("Terrain: heightmap has no relief; falling back to procedural.")
+		return false
+	var scale_to_metres := height_span / span
+
+	# The patch maps onto the whole texture, so the grid steps in texel space by
+	# however much the two resolutions differ. When the grid divides the map
+	# evenly — 1025 samples into a 2049 map, say — every step lands exactly on a
+	# texel and the bilinear blend below collapses to an exact read.
+	var last := float(_samples - 1)
+	var step_x := float(_map_w - 1) / last
+	var step_z := float(_map_h - 1) / last
+
+	for z in _samples:
+		var fz := z * step_z
+		for x in _samples:
+			var raw := _bilinear_map(x * step_x, fz)
+			_heights[z * _samples + x] = 				height_floor + (raw - _map_lo) * scale_to_metres
+	return true
+
+
+## Decodes a heightmap texture into a flat float buffer and records its range.
+func _read_map(tex: Texture2D) -> bool:
+	var img := tex.get_image()
+	if img == null:
+		push_warning("Terrain: heightmap has no readable image.")
+		return false
+
+	# The importer hands back RGBF for a single-channel float EXR — three
+	# channels holding the same value, measured in probe_heightmap_import.gd.
+	# Convert to RF so the buffer is one float per texel, on a copy, because the
+	# Image returned by a CompressedTexture2D may be shared with the resource.
+	var work := Image.create_from_data(
+		img.get_width(), img.get_height(), false, img.get_format(), img.get_data())
+	work.convert(Image.FORMAT_RF)
+
+	_map_data = work.get_data().to_float32_array()
+	_map_w = work.get_width()
+	_map_h = work.get_height()
+	_map_source = tex
+
+	# ~150 ms over a 2049 map, which is why this is cached and not per-rebuild.
+	# PackedFloat32Array is a builtin, not an Object: there is no min()/max() to
+	# call and no has_method() to test for one.
+	_map_lo = INF
+	_map_hi = -INF
+	for v in _map_data:
+		_map_lo = minf(_map_lo, v)
+		_map_hi = maxf(_map_hi, v)
+	return true
+
+
+func _bilinear_map(fx: float, fz: float) -> float:
+	var x0 := clampi(int(fx), 0, _map_w - 1)
+	var z0 := clampi(int(fz), 0, _map_h - 1)
+	var x1 := mini(x0 + 1, _map_w - 1)
+	var z1 := mini(z0 + 1, _map_h - 1)
+	var tx := fx - x0
+	var tz := fz - z0
+	var row0 := z0 * _map_w
+	var row1 := z1 * _map_w
+	return lerpf(
+		lerpf(_map_data[row0 + x0], _map_data[row0 + x1], tx),
+		lerpf(_map_data[row1 + x0], _map_data[row1 + x1], tx),
+		tz
+	)
+
+
+func _generate_heights_procedural() -> void:
 	var base := FastNoiseLite.new()
 	base.seed = noise_seed
 	base.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -119,9 +278,6 @@ func _generate_heights() -> void:
 	detail.noise_type = FastNoiseLite.TYPE_SIMPLEX
 	detail.frequency = 0.021
 	detail.fractal_octaves = 2
-
-	_heights = PackedFloat32Array()
-	_heights.resize(_samples * _samples)
 
 	for z in _samples:
 		for x in _samples:
@@ -179,11 +335,18 @@ func _build_mesh() -> void:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	# UV2 spans the patch 0..1, which is what an authored map painted for this
+	# terrain needs. UV1 above is world metres over 16 and tiles hundreds of
+	# times across the patch, so it can carry detail but never the macro albedo.
+	# Deriving one from the other would hard-code the patch size into the
+	# material and break silently the next time `size` moves.
+	var uv2s := PackedVector2Array()
 	var indices := PackedInt32Array()
 
 	verts.resize(_samples * _samples)
 	normals.resize(_samples * _samples)
 	uvs.resize(_samples * _samples)
+	uv2s.resize(_samples * _samples)
 
 	var half := size * 0.5
 	var inv_2r := 1.0 / (2.0 * resolution)
@@ -201,6 +364,7 @@ func _build_mesh() -> void:
 			var dz := (height_at_index(x, z + 1) - height_at_index(x, z - 1)) * inv_2r
 			normals[i] = Vector3(-dx, 1.0, -dz).normalized()
 			uvs[i] = Vector2(x * resolution, z * resolution) / 16.0
+			uv2s[i] = Vector2(float(x), float(z)) / float(_samples - 1)
 
 	# Godot treats CLOCKWISE-wound triangles as front faces. Wound the other way
 	# the whole terrain is backface-culled and you fall through an invisible world.
@@ -219,6 +383,7 @@ func _build_mesh() -> void:
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
 	arrays[Mesh.ARRAY_INDEX] = indices
 
 	var mesh := ArrayMesh.new()
