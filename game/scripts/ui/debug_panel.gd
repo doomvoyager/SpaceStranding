@@ -269,10 +269,19 @@ func _properties_for(target: Target) -> Array[Dictionary]:
 	# discarded the moment anything else does. Without that the delivery pad
 	# inherits Area3D's "Reverb Bus" as a section title.
 	var pending := ""
+	var pending_sub := ""
 	for prop in target.sample.get_property_list():
 		var usage: int = prop["usage"]
 		if usage & PROPERTY_USAGE_GROUP:
 			pending = prop["name"]
+			pending_sub = ""
+			continue
+		# @export_subgroup arrives as its own entry too, and is neither a group
+		# nor a script variable - so before this it fell through to the discard
+		# below and the heading simply vanished. The rover's camera levelling
+		# knobs sat unlabelled under "Camera" because of it.
+		if usage & PROPERTY_USAGE_SUBGROUP:
+			pending_sub = prop["name"]
 			continue
 
 		var included := false
@@ -287,19 +296,22 @@ func _properties_for(target: Target) -> Array[Dictionary]:
 
 		if not included or not _supported(prop["type"]):
 			pending = ""
+			pending_sub = ""
 			continue
-		out.append(_entry(prop, pending))
+		out.append(_entry(prop, pending, pending_sub))
 		pending = ""
+		pending_sub = ""
 	return out
 
 
-func _entry(prop: Dictionary, group: String) -> Dictionary:
+func _entry(prop: Dictionary, group: String, subgroup: String) -> Dictionary:
 	return {
 		"name": prop["name"],
 		"type": prop["type"],
 		"hint": prop["hint"],
 		"hint_string": prop["hint_string"],
 		"group": group,
+		"subgroup": subgroup,
 	}
 
 
@@ -356,6 +368,9 @@ func _rebuild() -> void:
 			var group: String = p["group"]
 			if group != "":
 				_rows.add_child(_group_label(group))
+			var subgroup: String = p["subgroup"]
+			if subgroup != "":
+				_rows.add_child(_subgroup_label(subgroup))
 			match int(p["type"]):
 				TYPE_BOOL:
 					_rows.add_child(_bool_row(target, p))
@@ -453,6 +468,14 @@ func _group_label(text: String) -> Label:
 	l.text = "  " + text
 	l.add_theme_font_size_override("font_size", 11)
 	l.add_theme_color_override("font_color", Color(0.72, 0.62, 0.58, 0.8))
+	return l
+
+
+func _subgroup_label(text: String) -> Label:
+	var l := Label.new()
+	l.text = "    " + text
+	l.add_theme_font_size_override("font_size", 10)
+	l.add_theme_color_override("font_color", Color(0.62, 0.54, 0.52, 0.7))
 	return l
 
 

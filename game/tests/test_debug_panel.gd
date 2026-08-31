@@ -36,6 +36,7 @@ func _physics_process(delta: float) -> void:
 	match _frames:
 		SETTLE:
 			_test_discovery()
+			_test_subgroups_survive()
 			_test_post_target()
 			_test_broadcast_write()
 			_test_reset()
@@ -82,6 +83,38 @@ func _test_discovery() -> void:
 	_expect(wheels != null and Debug._properties_for(wheels).size() >= 8,
 		"the wheel target exposed %d properties; suspension and grip are the tunables the Rover note is waiting on"
 		% (Debug._properties_for(wheels).size() if wheels != null else -1))
+
+
+## `@export_subgroup` arrives in `get_property_list()` as its own entry, and is
+## neither a group nor a script variable - so it used to fall through to the
+## discard that keeps engine headings out, and the heading simply vanished. The
+## rover's camera levelling knobs were the first exports to sit under one, and
+## they rendered unlabelled beneath "Camera".
+##
+## Silent, like every other failure in a reflected panel: the sliders were all
+## there, just anonymous.
+func _test_subgroups_survive() -> void:
+	var rover = _target("Rover")
+	if rover == null:
+		_expect(false, "no rover target to check subgroups on")
+		return
+
+	var props := Debug._properties_for(rover)
+	var seen_group := false
+	var seen_subgroup := false
+	var levelling := 0
+	for p in props:
+		if p["group"] == "Camera":
+			seen_group = true
+		if p.get("subgroup", "") == "Levelling":
+			seen_subgroup = true
+		if p["name"] in ["tilt_limit_deg", "tilt_follow", "tilt_smoothing"]:
+			levelling += 1
+
+	_expect(seen_group, "the rover's Camera group heading was not emitted")
+	_expect(seen_subgroup, "the Levelling subgroup heading was dropped")
+	_expect(levelling == 3,
+		"%d of the 3 camera levelling knobs reached the panel" % levelling)
 
 
 ## The post stack is the second thing that is not a script variable: its
@@ -203,7 +236,7 @@ func _expect(condition: bool, message: String) -> void:
 
 func _finish() -> void:
 	if _failures.is_empty():
-		print("PASS: the tuning panel discovers, writes, resets and retunes gravity.")
+		print("PASS: the tuning panel discovers, subgroups, writes, resets and retunes gravity.")
 		# quit() only schedules the exit, so this must return.
 		get_tree().quit(0)
 		return

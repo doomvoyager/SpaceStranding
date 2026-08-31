@@ -310,6 +310,20 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   Set it after and Godot refuses the change, then every write fails with "Can't
   set Transform3D on a Multimesh configured to use Transform2D" - loud, at
   least, unlike the two above.
+- **`SpringArm3D` excludes nothing by default, including the vehicle it is
+  bolted to.** The rover's own chassis was shortening its chase arm to 1.09 m of
+  9 m whenever the view pitched up, because that swings the arm down through the
+  engine bay - normal driving, not a wreck. `add_excluded_object(get_rid())`.
+  Note the arm is also only as good as where it starts: a mount left in body
+  space follows the roll it exists to ignore, and upside down it ends up under
+  the vehicle with the arm sweeping into the ground.
+- **`@export_subgroup` reaches `get_property_list()` as its own entry**, flagged
+  `PROPERTY_USAGE_SUBGROUP` (256) - neither `PROPERTY_USAGE_GROUP` nor a script
+  variable. Reflection that only knows about groups drops the heading *and*, if
+  it discards a pending heading on any unrecognised entry, can take the parent
+  group's heading with it. The engine puts subgroups in the list too, so
+  handling them surfaces built-in ones like `VehicleWheel3D`'s "Suspension".
+  Used by the F1 panel; see [[Debug-Panel]].
 - **Correcting a child node's global basis every frame compounds, because the
   correction lands back in the basis it was read from.** The rover camera hangs
   off the chassis and has to have the body's roll clamped out of it; writing a

@@ -83,6 +83,10 @@ var driver: Astronaut = null
 var _look_yaw := 0.0
 ## The camera's up vector, chasing the clamped chassis up.
 var _cam_up := Vector3.UP
+## The camera mount, as authored on CamPivot in the scene. Held because the
+## pivot's position is driven every frame and the authored value would
+## otherwise be overwritten on the first one.
+var _mount_offset := Vector3(0.0, 1.2, 0.0)
 var _steer_target := 0.0
 ## Kerb mass, captured from the inspector value before any cargo is counted.
 var _empty_mass := 950.0
@@ -90,6 +94,11 @@ var _empty_mass := 950.0
 
 func _ready() -> void:
 	add_to_group("rover")
+	_mount_offset = _cam_pivot.position
+	# The arm must never be pushed in by the vehicle it is filming. Without
+	# this the chassis is just another obstacle: on its roof the arm collapses
+	# to nothing and the camera ends up inside the rover.
+	_spring_arm.add_excluded_object(get_rid())
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
 	# `mass` in the inspector is the *empty* rover; cargo is added on top.
 	_empty_mass = mass
@@ -159,6 +168,13 @@ func _level_camera(delta: float) -> void:
 	fwd = fwd.normalized()
 
 	var levelled := Basis(fwd.cross(up).normalized(), up, -fwd)
+
+	# The mount hangs off the *levelled* basis, not the chassis's. Left in body
+	# space it follows the roll it is there to ignore, so an inverted rover puts
+	# the camera under itself and the arm sweeps into the ground. Yaw is
+	# deliberately not applied here - the mount stays put on the vehicle while
+	# only the view turns around it.
+	_cam_pivot.global_position = global_position + levelled * _mount_offset
 	_cam_pivot.global_basis = levelled.rotated(up, _look_yaw)
 
 

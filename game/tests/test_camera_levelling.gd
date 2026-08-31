@@ -25,6 +25,8 @@ extends Node3D
 
 const WORLD := preload("res://scenes/world/test_world.tscn")
 const SETTLE := 30
+## Frames to let the spring arm's own cast catch up after posing.
+const ARM_SETTLE := 15
 ## Roll angles to put the chassis through, in degrees. 180 is on its roof.
 const ROLLS := [0.0, 10.0, 18.0, 45.0, 90.0, 135.0, 180.0, -45.0, -90.0]
 ## Pitch angles, nose up and nose down.
@@ -35,6 +37,8 @@ var _frames := 0
 var _rover: Rover
 var _astronaut: Astronaut
 var _pivot: Node3D
+var _spring_arm: SpringArm3D
+var _camera: Camera3D
 
 
 func _ready() -> void:
@@ -43,6 +47,23 @@ func _ready() -> void:
 
 func _physics_process(_delta: float) -> void:
 	_frames += 1
+	# The spring arm casts in its own _physics_process, so the inversion tests
+	# need frames to settle rather than a single posed step.
+	if _frames == SETTLE + ARM_SETTLE:
+		_test_arm_survives_inversion()
+		# Level again, camera pitched hard, which swings the arm down behind the
+		# rover and straight through its own chassis.
+		_pose(Vector3.ZERO)
+		_spring_arm.rotation.x = deg_to_rad(_rover.pitch_max)
+		return
+	if _frames == SETTLE + ARM_SETTLE * 2:
+		_test_chassis_does_not_shove_the_camera(_rover.pitch_max)
+		_spring_arm.rotation.x = deg_to_rad(_rover.pitch_min)
+		return
+	if _frames == SETTLE + ARM_SETTLE * 3:
+		_test_chassis_does_not_shove_the_camera(_rover.pitch_min)
+		_finish()
+		return
 	if _frames != SETTLE:
 		return
 
@@ -54,6 +75,8 @@ func _physics_process(_delta: float) -> void:
 		_finish()
 		return
 	_pivot = _rover.get_node("CamPivot")
+	_spring_arm = _rover.get_node("CamPivot/SpringArm3D")
+	_camera = _rover.get_node("CamPivot/SpringArm3D/Camera3D")
 
 	# Freeze so the transform can be posed directly; a live rigid body fights
 	# every write. Smoothing off so one frame is the settled answer.
@@ -67,7 +90,15 @@ func _physics_process(_delta: float) -> void:
 	_test_it_does_not_compound()
 	_test_heading_is_kept()
 	_test_follow_fraction()
-	_finish()
+
+	# Leaves the rover inverted and well clear of the ground; the arm is
+	# measured ARM_SETTLE frames later, once its cast has caught up.
+	_rover.tilt_follow = 1.0
+	_rover._look_yaw = 0.0
+	var lifted := _rover.global_position
+	lifted.y += 40.0
+	_rover.global_position = lifted
+	_pose(Vector3(0.0, 0.0, deg_to_rad(180.0)))
 
 
 # --- The clamp ----------------------------------------------------------
@@ -144,6 +175,42 @@ func _test_follow_fraction() -> void:
 		"full follow (%.1f) should lean further than half (%.1f)" % [full, half])
 
 
+## On its roof, the camera must still be behind and above the rover at a usable
+## distance. Two separate ways this fails: the arm treats the chassis as an
+## obstacle and collapses to nothing, and the mount - if it is left in body
+## space - flips underneath the rover and sweeps the arm into the ground.
+func _test_arm_survives_inversion() -> void:
+	var reach := _arm_reach()
+	_expect(reach > _spring_arm.spring_length * 0.75,
+		"upside down the arm collapsed to %.2f m of %.2f"
+			% [reach, _spring_arm.spring_length])
+
+	_expect(_pivot.global_position.y > _rover.global_position.y + 0.5,
+		"upside down the camera mount sank to %.2f, below the rover at %.2f"
+			% [_pivot.global_position.y, _rover.global_position.y])
+
+	# And it is still a level view, not a barrel roll.
+	_expect(_tilt_deg() <= _rover.tilt_limit_deg + 0.5,
+		"upside down the camera tilted %.1f" % _tilt_deg())
+
+
+## Pitching the view swings the arm down behind the rover and through its own
+## chassis. The vehicle you are driving must not be an obstacle to the camera
+## filming it, or looking up on the move drags the view into the engine bay.
+##
+## Nothing is under the rover here - it is still 40 m in the air - so anything
+## shortening the arm is the rover itself.
+func _test_chassis_does_not_shove_the_camera(pitch_deg: float) -> void:
+	var reach := _arm_reach()
+	_expect(reach > _spring_arm.spring_length * 0.9,
+		"pitched %.0f deg the chassis pushed the arm in to %.2f m of %.2f"
+			% [pitch_deg, reach, _spring_arm.spring_length])
+
+
+func _arm_reach() -> float:
+	return _spring_arm.global_position.distance_to(_camera.global_position)
+
+
 # --- Helpers ------------------------------------------------------------
 
 func _pose(euler: Vector3) -> void:
@@ -178,7 +245,7 @@ func _expect(condition: bool, message: String) -> void:
 
 func _finish() -> void:
 	if _failures.is_empty():
-		print("PASS: camera tilt clamps at %.0f deg, still leans, keeps heading, does not drift."
+		print("PASS: camera clamps at %.0f deg, leans, keeps heading, does not drift, survives inversion."
 			% _rover.tilt_limit_deg)
 		# quit() only schedules the exit, so this must return.
 		get_tree().quit(0)

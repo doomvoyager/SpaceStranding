@@ -97,6 +97,30 @@ ways this can look right and be wrong: a camera pinned flat to horizontal
 passes every clamp assertion and is a different feature, and a camera that has
 eaten the heading no longer sits behind the rover.
 
+## The spring arm, and two ways it collapsed
+
+The chase arm shortens when something is in the way, which is right for terrain
+and wrong for the rover itself. Two separate faults, both measured:
+
+**The chassis was shoving its own camera.** `SpringArm3D` excludes nothing by
+default, so the vehicle being filmed was just another obstacle. Pitching the
+view up swings the arm down behind the rover and straight through the engine
+bay: measured at **1.09 m of a 9 m arm** at `pitch_max`. That is not a wreck
+case, it is looking up while driving. `add_excluded_object(get_rid())` in
+`_ready()`.
+
+**The camera mount flipped underneath the rover.** `CamPivot`'s position was
+left in body space, so it followed exactly the roll the levelling exists to
+ignore - upside down it sat 1.2 m *below* the chassis and the arm swept into
+the ground, collapsing to 2.21 m. The mount now hangs off the *levelled* basis,
+so it stays above the rover whatever the body is doing. Player yaw is
+deliberately not applied to it: the mount stays put on the vehicle while only
+the view turns around it.
+
+Both are asserted in `test_camera_levelling.tscn`, and both were checked by
+breaking them again afterwards - a test that passes before and after the fix is
+worth nothing.
+
 ## The load
 
 `mass` in the inspector is the **empty** rover. `refresh_load()` adds whatever

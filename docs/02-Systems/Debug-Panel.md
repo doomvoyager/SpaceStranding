@@ -73,6 +73,21 @@ The scatter's four distance knobs are the exception within the exception: they
 are properties on instances that already exist, so they retune live while
 driving and never trigger a rebuild at all. See [[Scatter]].
 
+## Subgroups
+
+`@export_subgroup` arrives in `get_property_list()` as its own entry, flagged
+`PROPERTY_USAGE_SUBGROUP` - neither a group nor a script variable. It therefore
+fell straight through to the discard that keeps engine headings out, and the
+heading vanished.
+
+Silent, in the way everything about a reflected panel is silent: the sliders
+were all present, just anonymous. The rover's camera levelling knobs were the
+first exports to sit under one and rendered as three unlabelled rows beneath
+"Camera".
+
+Handling them also surfaced the engine's own subgroups on the wheel target -
+"Suspension" and "Damping" had always been in the list and never shown.
+
 **Two targets are exceptions to the reflection rule**, and both take the same
 explicit-list path.
 
