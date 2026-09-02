@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-02
+verified: 2026-09-03
 godot: res://scripts/world/terrain.gd
 tags: [system, world, scaffolding]
 ---
@@ -204,6 +204,42 @@ engine/Godot_v4.7.1-stable_win64_console.exe --headless --path game res://tests/
 
 `probe_world_placement` reports where every spawned thing sits relative to the
 ground. It is the fastest way to catch a terrain change having buried something.
+
+## The world-space seam
+
+**Added 2026-09-03**, before any tiling work, because nine tiles break the
+contract five systems were quietly relying on.
+
+| Ask | Answer |
+|---|---|
+| `world_height_at(x, z)` | ground height, world space |
+| `world_surface_at(x, z)` | the whole point, X and Z carried through |
+| `extent() -> Rect2` | where the ground *is*, world X/Z |
+| `sample_step()` | world metres between samples |
+
+Nothing outside `terrain.gd` reads `size`, `resolution`, `height_at()` or
+`height_at_index()` any more. Those are local-space and index-space, and both
+only mean anything while there is exactly one patch centred on its own node.
+
+**Five systems had baked that in.** `map_terrain.gd` and `coverage_map.gd`
+walked the local grid and pushed every sample through `to_global`;
+`rock_scatter.gd` took `size * 0.5` around `global_position`; `rock_scatter.gd`
+and `test_world.gd` each carried their own hand-written `to_local` /
+`height_at` / `to_global` round trip, with their own copy of the warning about
+the node's Y scale. That warning existed because the trap had already been
+sprung once - and the "assumes the terrain is at the origin" bug that left the
+Hearth 13.6 m underground is the same shape, fixed locally rather than as a
+contract. `world_surface_at()` is now the one answer.
+
+The seam is asserted in `test_heightmap_terrain.gd` on a terrain that has been
+**moved 1.3 km and scaled 2x**, not on one sitting at the origin - where every
+implementation is right by accident. Proved load-bearing by reverting `extent()`
+to the naive `Rect2(-half, -half, size, size)`: three assertions fire.
+
+Still open, and deliberately not done here: the coverage mask reaches the
+shader through **UV2**, which spans one patch 0..1. Nine tiles have nine UV2s,
+so the mask has to be sampled by world position instead. That is rendering
+coupling rather than the height contract, and it belongs with the chunking.
 
 ## Known issues
 

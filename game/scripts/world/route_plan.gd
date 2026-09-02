@@ -32,7 +32,7 @@ signal arrived(index: int, cleared: int)
 ## to touch, and in a rover at speed a tight radius is one you drive through
 ## without tripping. Sized against the [[Rover]] rather than the astronaut for
 ## that reason.
-@export_range(2.0, 60.0, 0.5) var arrival_radius := 16.0
+@export_range(2.0, 60.0, 0.5) var arrival_radius := 50.0
 
 ## Whether arriving clears stops. Off makes the route a fixed plan you tick off
 ## by hand; the panel has no such button yet, so this is really a test and F1

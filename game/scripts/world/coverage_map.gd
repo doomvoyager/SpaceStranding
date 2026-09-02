@@ -112,7 +112,8 @@ func rebuild() -> void:
 	if not _terrain.rebuilt.is_connected(queue_rebuild):
 		_terrain.rebuilt.connect(queue_rebuild)
 
-	var span := _terrain.size
+	var ground := _terrain.extent()
+	var span := ground.size.x
 	_n = maxi(int(ceil(span / maxf(metres_per_texel, 0.5))), 4)
 	if _image == null or _image.get_width() != _n:
 		_image = Image.create_empty(_n, _n, false, Image.FORMAT_R8)
@@ -120,7 +121,7 @@ func rebuild() -> void:
 	_image.fill(Color(0.0, 0.0, 0.0, 1.0))
 
 	for site in Lattice.covering_sites():
-		_paint(site, span)
+		_paint(site, ground)
 
 	if _texture == null:
 		_texture = ImageTexture.create_from_image(_image)
@@ -134,26 +135,23 @@ func rebuild() -> void:
 ##
 ## Only the box within reach is visited. Walking the whole patch per site would
 ## be the obvious loop and is thousands of times the work for the same picture.
-func _paint(site: Node, span: float) -> void:
+func _paint(site: Node, ground: Rect2) -> void:
 	var mast: Vector3 = site.call("mast_point")
 	var reach: float = site.call("link_range")
 	if reach <= 0.0:
 		return
-	var half := span * 0.5
-	# Patch-local XZ of the site, which is what the mask is indexed in.
-	var local := _terrain.to_local(Vector3(mast.x, 0.0, mast.z))
-	var per_texel := span / float(_n - 1)
+	# World XZ throughout. The mask used to be indexed in the terrain's own
+	# local space, which is only a coordinate system while there is one patch.
+	var per_texel := ground.size.x / float(_n - 1)
 	var radius := int(ceil(reach / per_texel)) + 1
-	var cx := int(round((local.x + half) / per_texel))
-	var cz := int(round((local.z + half) / per_texel))
+	var cx := int(round((mast.x - ground.position.x) / per_texel))
+	var cz := int(round((mast.z - ground.position.y) / per_texel))
 
 	for j in range(maxi(cz - radius, 0), mini(cz + radius + 1, _n)):
 		for i in range(maxi(cx - radius, 0), mini(cx + radius + 1, _n)):
-			var lx := float(i) * per_texel - half
-			var lz := float(j) * per_texel - half
-			var ground := _terrain.to_global(
-				Vector3(lx, _terrain.height_at(lx, lz), lz))
-			var at := ground + Vector3(0.0, receiver_height, 0.0)
+			var wx := ground.position.x + float(i) * per_texel
+			var wz := ground.position.y + float(j) * per_texel
+			var at := _terrain.world_surface_at(wx, wz) 				+ Vector3(0.0, receiver_height, 0.0)
 			var distance := at.distance_to(mast)
 			if distance > reach:
 				continue
@@ -175,12 +173,10 @@ func _paint(site: Node, span: float) -> void:
 func coverage_at(world_x: float, world_z: float) -> float:
 	if _image == null or _terrain == null or _n <= 0:
 		return 0.0
-	var span := _terrain.size
-	var half := span * 0.5
-	var local := _terrain.to_local(Vector3(world_x, 0.0, world_z))
-	var per_texel := span / float(_n - 1)
-	var i := int(round((local.x + half) / per_texel))
-	var j := int(round((local.z + half) / per_texel))
+	var ground := _terrain.extent()
+	var per_texel := ground.size.x / float(_n - 1)
+	var i := int(round((world_x - ground.position.x) / per_texel))
+	var j := int(round((world_z - ground.position.y) / per_texel))
 	if i < 0 or j < 0 or i >= _n or j >= _n:
 		return 0.0
 	return _image.get_pixel(i, j).r

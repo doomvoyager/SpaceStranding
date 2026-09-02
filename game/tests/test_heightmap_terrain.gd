@@ -61,6 +61,7 @@ func _ready() -> void:
 	_check_range(terrain)
 	_check_uv2(terrain)
 	_check_world_height(terrain)
+	_check_the_seam(terrain)
 	_check_procedural_still_works()
 	_check_fallback_is_not_flat()
 
@@ -131,6 +132,58 @@ func _check_world_height(terrain: ProceduralTerrain) -> void:
 	if absf(world - local * 0.5) > 0.01:
 		_fail("world_height_at ignored the node scale: local %f, world %f"
 			% [local, world])
+	terrain.scale = Vector3.ONE
+
+
+## `extent()` and `sample_step()` — the world-space contract everything outside
+## terrain.gd is supposed to ask through.
+##
+## **The point is that they follow the node.** Five systems used to read `size`
+## and halve it around the node's own origin, which is one patch centred on
+## itself — an assumption that has already cost this project a bug once, when
+## the authored map arrived 1.3 km out and left the Hearth 13.6 m underground.
+## With nine tiles there is no `size` to halve. So the assertion is not that
+## the numbers are right at the origin, which any implementation gets for free:
+## it is that a **moved and scaled** terrain still reports where it actually is.
+func _check_the_seam(terrain: ProceduralTerrain) -> void:
+	var at_origin := terrain.extent()
+	if not is_equal_approx(at_origin.size.x, PATCH):
+		_fail("extent() spans %f, expected the patch size %f"
+			% [at_origin.size.x, PATCH])
+	if not is_equal_approx(at_origin.get_center().x, 0.0) 			or not is_equal_approx(at_origin.get_center().y, 0.0):
+		_fail("extent() is not centred on an unmoved terrain: %s" % at_origin)
+
+	# Offset and scale, the way the real scene carries them.
+	terrain.position = Vector3(-470.0, 0.0, 1242.0)
+	terrain.scale = Vector3(2.0, 1.0, 2.0)
+	var moved := terrain.extent()
+	if not is_equal_approx(moved.get_center().x, -470.0) 			or not is_equal_approx(moved.get_center().y, 1242.0):
+		_fail("extent() did not follow the terrain's offset: centre %s, expected (-470, 1242)"
+			% moved.get_center())
+	if not is_equal_approx(moved.size.x, PATCH * 2.0):
+		_fail("extent() ignored the node scale: %f wide, expected %f"
+			% [moved.size.x, PATCH * 2.0])
+
+	# The step has to be a *world* step, so it scales with the node too.
+	var step := terrain.sample_step()
+	if not is_equal_approx(step, RES * 2.0):
+		_fail("sample_step() is %f, expected %f — it must be world metres"
+			% [step, RES * 2.0])
+
+	# And the two have to agree: walking the extent by the step must land on
+	# ground the height lookup also knows about. This is the property a tiled
+	# field has to preserve, and the one a caller relies on.
+	for corner: Vector2 in [moved.position, moved.end - Vector2(step, step),
+			moved.get_center()]:
+		var h := terrain.world_height_at(corner.x, corner.y)
+		var surface := terrain.world_surface_at(corner.x, corner.y)
+		if not is_equal_approx(surface.y, h) 				or not is_equal_approx(surface.x, corner.x) 				or not is_equal_approx(surface.z, corner.y):
+			_fail("world_surface_at disagrees with world_height_at at %s: %s vs %f"
+				% [corner, surface, h])
+		if not is_finite(h):
+			_fail("no ground at %s, which extent() claims is on the patch" % corner)
+
+	terrain.position = Vector3.ZERO
 	terrain.scale = Vector3.ONE
 
 

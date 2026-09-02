@@ -109,15 +109,12 @@ func _align_star() -> void:
 
 ## Drop `node` onto the terrain at `at`, `clearance` metres above the surface.
 ##
-## height_at() reports a height in the terrain's **local** space, and the
-## Terrain node carries its own transform — it is scaled on Y in the editor to
-## flatten the world. Using that local height as a world Y put everything in
-## the scene at twice the ground height, so the rover, the astronaut and every
+## The terrain node carries its own transform — it is scaled on Y in the editor
+## to flatten the world — so a *local* height used as a world Y put everything
+## in the scene at twice the ground height: the rover, the astronaut and every
 ## crate spawned in mid-air and fell. Invisible until cargo started taking
 ## damage from landing, at which point the world pre-scuffed its own crates.
-## Convert back through the transform instead of assuming it is the identity.
+## `world_height_at` is the one place that conversion happens now.
 func _place_on_ground(node: Node3D, at: Vector3, clearance: float) -> void:
-	var local := _terrain.to_local(at)
-	var h := _terrain.height_at(local.x, local.z)
-	var surface := _terrain.to_global(Vector3(local.x, h, local.z))
-	node.global_position = Vector3(at.x, surface.y + clearance, at.z)
+	node.global_position = Vector3(
+		at.x, _terrain.world_height_at(at.x, at.z) + clearance, at.z)

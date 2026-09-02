@@ -8,7 +8,7 @@ class_name MapTerrain
 ## with a map material: elevation ramp, hillshade from a conventional direction,
 ## contour lines, and the coverage mask.
 ##
-## Heights come from `Terrain.height_at()`, so there is one heightfield in the
+## Heights come from `Terrain.world_height_at()`, so there is one heightfield in the
 ## project and the map cannot drift from the ground you drive on. The mesh is
 ## rebuilt on `Terrain.rebuilt` for the same reason.
 ##
@@ -77,8 +77,11 @@ func rebuild() -> void:
 	if not _terrain.rebuilt.is_connected(queue_rebuild):
 		_terrain.rebuilt.connect(queue_rebuild)
 
-	_span = _terrain.size
-	var half := _span * 0.5
+	# World space throughout. This walked the terrain's own local grid and put
+	# each sample through `to_global`, which is the same picture only while
+	# there is one patch to be local to.
+	var ground := _terrain.extent()
+	_span = ground.size.x
 	var verts := grid + 1
 	var step := _span / float(grid)
 
@@ -91,17 +94,17 @@ func rebuild() -> void:
 
 	for z in verts:
 		for x in verts:
-			var lx := float(x) * step - half
-			var lz := float(z) * step - half
+			var wx := ground.position.x + float(x) * step
+			var wz := ground.position.y + float(z) * step
 			# The terrain node carries its own transform, including a Y scale
-			# used to flatten the world in the editor. Going through to_global
-			# rather than treating the local height as a world one is the
-			# difference between a map and a map at twice the altitude.
-			var world := _terrain.to_global(
-				Vector3(lx, _terrain.height_at(lx, lz), lz))
+			# used to flatten the world in the editor. `world_height_at` is
+			# where that conversion lives; treating a local height as a world
+			# one is the difference between a map and a map at twice the
+			# altitude, and it has been shipped once already.
+			var world := _terrain.world_surface_at(wx, wz)
 			var i := z * verts + x
-			# Kept in the terrain's own X/Z so the map and the world share a
-			# coordinate system and a marker needs no conversion.
+			# Kept in world X/Z so the map and the world share a coordinate
+			# system and a marker needs no conversion.
 			positions[i] = Vector3(world.x, world.y * relief_exaggeration, world.z)
 			lowest = minf(lowest, world.y)
 			highest = maxf(highest, world.y)

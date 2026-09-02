@@ -348,6 +348,44 @@ func world_height_at(world_x: float, world_z: float) -> float:
 	return to_global(Vector3(local.x, height_at(local.x, local.z), local.z)).y
 
 
+## World-space surface point under (world_x, world_z). `world_height_at` with
+## the X and Z carried through, which is what most callers actually wanted —
+## four of them were building this by hand out of `to_local`, `height_at` and
+## `to_global`, each with its own copy of the warning above.
+func world_surface_at(world_x: float, world_z: float) -> Vector3:
+	return Vector3(world_x, world_height_at(world_x, world_z), world_z)
+
+
+## Where the ground is, as a footprint in world X/Z.
+##
+## **This is the seam.** Everything outside this file used to reach for `size`
+## and halve it, which silently assumed one patch centred on the terrain node's
+## own origin — true only while there is exactly one patch. `rock_scatter.gd`
+## already had to be fixed once when the authored map arrived 1.3 km from the
+## origin, and the fix was a local patch rather than a contract. With nine
+## tiles there is no `size` to halve at all, so asking a *field* where it is has
+## to be the question, and this is it.
+##
+## Position is the minimum corner, size is the span in metres. Assumes the
+## terrain is translated and scaled but not rotated, same as `world_height_at`.
+func extent() -> Rect2:
+	var half := size * 0.5
+	var lo := to_global(Vector3(-half, 0.0, -half))
+	var hi := to_global(Vector3(half, 0.0, half))
+	return Rect2(minf(lo.x, hi.x), minf(lo.z, hi.z),
+		absf(hi.x - lo.x), absf(hi.z - lo.z))
+
+
+## World metres between height samples — the finest detail the field carries,
+## and the step anything walking the ground should use rather than inventing
+## one. Derived from `extent()` rather than returning `resolution`, because the
+## node's scale is part of the answer.
+func sample_step() -> float:
+	if _samples <= 1:
+		return resolution
+	return extent().size.x / float(_samples - 1)
+
+
 # --- Mesh ---------------------------------------------------------------
 
 func _build_mesh() -> void:

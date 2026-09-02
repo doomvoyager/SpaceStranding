@@ -29,7 +29,7 @@ class_name RockScatter
 signal scattered(placed: int)
 
 @export_group("Source")
-## The terrain to sit on. Heights come from `ProceduralTerrain.height_at()`
+## The terrain to sit on. Heights come from `ProceduralTerrain.world_height_at()`
 ## rather than from physics queries, the same way test_world places the rover.
 @export var terrain_path := NodePath("../Terrain"):
 	set(v):
@@ -270,13 +270,13 @@ func _scatter() -> Dictionary:
 	clump.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	clump.frequency = 1.0 / maxf(clump_scale, 1.0)
 
-	var half: float = _terrain.size * 0.5
 	# Scatter over where the terrain actually *is*, not over the world origin.
 	# Those were the same thing for as long as there was one procedural patch
 	# centred on nothing in particular. The authored map is offset so the spawn
 	# is not on a cliff face, and rocks placed on the old range would fall off
-	# the patch edge, where height_at() clamps and leaves them hanging.
-	var patch := _terrain.global_position
+	# the patch edge, where the height lookup clamps and leaves them hanging.
+	# `extent()` is now the one place that question is answered — see terrain.gd.
+	var ground := _terrain.extent()
 	var cos_limit := cos(deg_to_rad(max_slope_deg))
 	var lo := minf(size_min, size_max)
 	var hi := maxf(size_min, size_max)
@@ -286,9 +286,9 @@ func _scatter() -> Dictionary:
 
 	var buckets := {}
 	for i in count:
-		# Inset by a metre so the sampler never reaches past the patch edge.
-		var wx := patch.x + rng.randf_range(-half + 1.0, half - 1.0)
-		var wz := patch.z + rng.randf_range(-half + 1.0, half - 1.0)
+		# Inset by a metre so the sampler never reaches past the ground's edge.
+		var wx := rng.randf_range(ground.position.x + 1.0, ground.end.x - 1.0)
+		var wz := rng.randf_range(ground.position.y + 1.0, ground.end.y - 1.0)
 
 		# Clump mask first: it is the cheapest of the three tests.
 		if clump_amount > 0.0:
@@ -447,13 +447,11 @@ func _add_collision(parent: Node3D, rocks: Array, centre: Vector3) -> void:
 
 ## World-space point on the terrain surface under (wx, wz).
 ##
-## height_at() reports a height in the terrain's **local** space and the Terrain
-## node carries a Y scale, so the round trip through its transform is not
-## optional — see the same warning in test_world.gd.
+## The transform round trip this used to do by hand lives in `world_surface_at`
+## now. Three other callers had their own copy of it and of the warning about
+## the terrain's Y scale; one answer is harder to get wrong.
 func _surface(wx: float, wz: float) -> Vector3:
-	var local := _terrain.to_local(Vector3(wx, 0.0, wz))
-	var h := _terrain.height_at(local.x, local.z)
-	return _terrain.to_global(Vector3(local.x, h, local.z))
+	return _terrain.world_surface_at(wx, wz)
 
 
 ## Ground normal in world space, from two finite differences on the surface.
