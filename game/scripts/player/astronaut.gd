@@ -653,6 +653,21 @@ func _on_board_closed() -> void:
 	set_menu_open(false)
 
 
+## Where the player actually is — the rover while driving it, this node
+## otherwise.
+##
+## Boarding hides this node and stops its physics, and nothing moves it again
+## until `disembark`, so `global_position` is wherever you got in. Anything
+## asking where the player is has to go through here or it is answering about
+## a parked ghost. The scanner already had its own copy of this; a second one
+## in the HUD's route bearing was quietly wrong the whole time it existed.
+func vantage() -> Vector3:
+	if not _driving:
+		return global_position
+	var rover := get_tree().get_first_node_in_group("rover") as Node3D
+	return rover.global_position if rover != null else global_position
+
+
 ## Hand the screen to a full-screen panel, or take it back.
 ##
 ## Public because not every panel is opened by the astronaut: the map is on its

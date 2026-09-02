@@ -116,6 +116,13 @@ pressing a key, which is now part of what a key press means.
 
 ## Input handover
 
+**`vantage()` is where the player actually is** — the [[Rover]] while driving
+it, this node otherwise. Boarding hides the astronaut and stops its physics,
+and nothing moves it again until `disembark`, so `global_position` is wherever
+you got in. Anything asking where the player is has to go through here; the
+scanner had its own copy of that rule and the HUD's route bearing had a second
+one that was quietly wrong.
+
 Boarding sets a `_driving` flag that suppresses the astronaut's own look and
 interact handling, and both sides call `set_input_as_handled()` on the boarding
 press. Without that, a single `E` reaches both nodes in the same frame and you

@@ -73,6 +73,43 @@ of stopping dead in mid-air. That gate did not exist before, because the order
 board is only reachable on foot at a terminal and the map is the first panel
 that can be opened at speed.
 
+## The route in the world
+
+**Built 2026-09-02.** Two readings, deliberately answering different
+questions.
+
+**A light pillar on the nearest remaining stop, and only that one.** It is a
+horizon-finder: it answers *which way* from a kilometre out and nothing else.
+A beam per stop would turn a planned trip into a field of columns with no way
+to tell which one you were heading for. Additive, fixed-Y billboarded so it
+stays upright when you look down at it from a rise, tapering out at the top so
+it reads as light rather than as a bar. It hides once you are inside
+`beam_near_cutoff`, because a 140 m column at arm's length is a wall.
+
+**The whole route, on a scan pulse.** `Q` reveals the line you drew, following
+the ground the same way the map's line and the leg lengths do, plus a triangle
+at your feet aimed at the nearest stop. It fades with the pulse. This answers
+*what was the plan* rather than *where next*, and it costs a ping — so the
+route is something you check, not something permanently painted over the world.
+
+The line and the pointer **mix rather than add**. Adding a bright cyan over the
+terminator's pink ground comes out white; it is the same trap the scan dot had
+to learn, and the route line carries its colour for the same reason.
+
+## Arriving
+
+**Reaching a stop clears it and everything before it.** Arrive at the third
+having skipped the first two and all three go: those two are behind you, and
+keeping them would leave the beam pointing back the way you came. Mac's rule.
+
+`arrival_radius` is 16 m and generous on purpose — a stop is a place you meant
+to go, not a target to touch, and in a rover at speed a tight radius is one you
+drive straight through.
+
+**`Route` watches for arrival itself**, not the marker node. A scene without
+the markers should still tick stops off, and tying "have I arrived" to "can I
+see where I am going" is a bug waiting for the first scene that omits one.
+
 ## Where the code is
 
 | | |
@@ -81,6 +118,8 @@ that can be opened at speed.
 | The relief mesh and the click picker | `res://scripts/ui/map_terrain.gd` |
 | How it is drawn | `res://shaders/map_terrain.gdshader` |
 | The route itself | `res://scripts/world/route_plan.gd`, autoloaded as `Route` |
+| The pillar and the scan reveal | `res://scripts/world/route_marks.gd` |
+| The beam | `res://shaders/route_beacon.gdshader` |
 
 ## The route
 
@@ -113,6 +152,16 @@ map is a SubViewport with its own World3D and its own shader, and `--headless`
 builds none of it: every assertion above can pass with the panel rendering a
 blank rectangle. It is also what caught the winding bug below.
 
+`res://tests/test_route_marks.tscn` covers the world half: that the beam
+follows the *nearest* stop rather than the next one drawn, that there is one of
+it, that reaching a stop clears everything behind it, that arrival works **while
+driving** — the astronaut's node stops moving the moment you board — and that
+the route line costs a pulse rather than being painted on.
+
+`res://tests/route_marks_capture.tscn` is its windowed pair, and shoots the
+same framing before and after a pulse: a reveal that faded and a reveal that
+never drew look identical in one picture.
+
 ## Open
 
 - [ ] **Markers pile up when zoomed out.** Five labels at the settlements
@@ -122,7 +171,7 @@ blank rectangle. It is also what caught the winding bug below.
       up that", which is the question a traversal game's map should answer.
       Needs a slope threshold nobody has driven yet. #playtest
 - [ ] The route is not saved. Closing the game loses the trip.
-- [ ] Nothing draws the route in the world — only the HUD's next-stop line. A
-      marker you can see on the horizon is the obvious next thing. #next
+- [x] The route is drawn in the world — a light pillar on the next stop, and
+      the whole line on a scan pulse. Done 2026-09-02.
 - [ ] TODO: should a stop snap to a facility or a mast when you click near one?
       Free-floating waypoints beside a dock read as a near miss. #question

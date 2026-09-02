@@ -16,9 +16,28 @@ extends Node
 ## same reason: a route over a ridge is longer than the map's flat picture of
 ## it, and the number the panel shows is the one you have to drive.
 
-## The route changed — a leg added, removed, reordered, or the whole thing
-## cleared. The map panel and the HUD both redraw on this.
+## The route changed — a leg added, removed, reordered, arrived at, or the whole
+## thing cleared. The map panel, the HUD and the world markers all redraw on it.
 signal changed
+
+## A stop was reached. `index` is where it sat in the route, `cleared` is how
+## many stops went with it — one when you arrive in order, more when you skipped
+## some to get there.
+signal arrived(index: int, cleared: int)
+
+@export_group("Arrival")
+## Metres from a stop that counts as reaching it.
+##
+## Generous on purpose. A stop is a place you meant to go, not a target you have
+## to touch, and in a rover at speed a tight radius is one you drive through
+## without tripping. Sized against the [[Rover]] rather than the astronaut for
+## that reason.
+@export_range(2.0, 60.0, 0.5) var arrival_radius := 16.0
+
+## Whether arriving clears stops. Off makes the route a fixed plan you tick off
+## by hand; the panel has no such button yet, so this is really a test and F1
+## switch.
+@export var clear_on_arrival := true
 
 ## Metres between samples when measuring a leg over the ground. Fine enough that
 ## a ridge in the middle of a leg is paid for, coarse enough that a fifty-leg
@@ -145,3 +164,71 @@ func total_distance(start: Vector2) -> float:
 	for i in _points.size():
 		total += leg_length(i, start)
 	return total
+
+
+# --- Arriving -------------------------------------------------------------
+
+## The remaining stop nearest to `from`, or -1 with no route.
+##
+## Nearest rather than next-in-order, because that is what the world marker
+## points at: a stop behind you is not the one you are heading for, whatever
+## order it was drawn in.
+func nearest_index(from: Vector2) -> int:
+	var best := -1
+	var best_distance := INF
+	for i in _points.size():
+		var d := from.distance_squared_to(_points[i])
+		if d < best_distance:
+			best_distance = d
+			best = i
+	return best
+
+
+## Straight-line metres from `from` to the nearest remaining stop, or -1.
+##
+## Straight line, not over the ground: this is "am I there yet", and a ground
+## distance would say no while you stood on top of it.
+func nearest_distance(from: Vector2) -> float:
+	var i := nearest_index(from)
+	return -1.0 if i < 0 else from.distance_to(_points[i])
+
+
+## Check whether `from` has reached a stop, and clear it if so.
+##
+## **Reaching a stop clears everything up to and including it.** Arriving at the
+## third stop having skipped the first two means the first two are behind you —
+## keeping them would leave the marker pointing back the way you came, which is
+## worse than being wrong about your intent. Mac's rule, 2026-09-02.
+##
+## Returns the index reached, or -1.
+func check_arrival(from: Vector2) -> int:
+	if not clear_on_arrival or _points.is_empty():
+		return -1
+	var reached := -1
+	for i in _points.size():
+		if from.distance_to(_points[i]) <= arrival_radius:
+			reached = i
+			break
+	if reached < 0:
+		return -1
+	var cleared := reached + 1
+	for i in cleared:
+		_points.remove_at(0)
+	changed.emit()
+	arrived.emit(reached, cleared)
+	return reached
+
+
+## Watched here rather than by whatever happens to be drawing the route.
+##
+## The marker node is scenery — a scene without it should still tick stops off —
+## and putting the check anywhere that draws would mean arriving depended on
+## being able to see where you were going.
+func _process(_delta: float) -> void:
+	if _points.is_empty():
+		return
+	var player := get_tree().get_first_node_in_group("player") as Astronaut
+	if player == null:
+		return
+	var at := player.vantage()
+	check_arrival(Vector2(at.x, at.z))

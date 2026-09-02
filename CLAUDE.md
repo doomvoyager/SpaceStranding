@@ -190,6 +190,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_co
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_map_route.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_route_marks.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -227,6 +231,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/coverage_capture.t
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/map_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/route_marks_capture.tscn
 ```
 
 Run a standalone engine-behaviour probe. These build what they need from
@@ -320,6 +328,13 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   want** when asking how violent something was. Free fall reads zero and
   resting reads one gravity, which is exactly right for damage, comfort or
   camera shake - and it costs one vector subtraction.
+- **A boarded astronaut stops moving, so its `global_position` is wherever you
+  got in.** `board_vehicle()` hides the node and disables its physics and
+  nothing moves it again until `disembark`, so anything asking where the player
+  is while they drive is answering about a parked ghost — silently, and only
+  while driving, which is the half nobody tests. The scanner had a private
+  helper for this from the start; a second copy in the HUD's route bearing was
+  wrong the whole time it existed. `Astronaut.vantage()` is the one answer now.
 - **An `Area3D` is a trigger, not a floor.** A pad built as a bare `Area3D`
   detected crates perfectly and let them fall straight through onto the terrain
   beneath, where they still counted as delivered. Every headless test passed;

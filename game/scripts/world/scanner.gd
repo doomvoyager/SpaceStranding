@@ -210,12 +210,12 @@ func _unhandled_input(event: InputEvent) -> void:
 ## astronaut when they are not, and the camera as a last resort so a test scene
 ## with neither still works.
 func _viewer_position() -> Vector3:
-	var rover := get_tree().get_first_node_in_group("rover") as Rover
-	if rover != null and rover.driver != null:
-		return rover.global_position
-	var player := get_tree().get_first_node_in_group("player") as Node3D
+	# Astronaut.vantage() answers the rover-or-foot question now, so this is not
+	# a second copy of that rule. The camera fallback stays, for a test scene
+	# with no player in it at all.
+	var player := get_tree().get_first_node_in_group("player") as Astronaut
 	if player != null:
-		return player.global_position
+		return player.vantage()
 	var camera := get_viewport().get_camera_3d()
 	return camera.global_position if camera != null else global_position
 

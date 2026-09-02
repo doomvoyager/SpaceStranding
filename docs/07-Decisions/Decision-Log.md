@@ -9,6 +9,34 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - One beam, and the route line costs a pulse
+
+Mac specified both readings of a planned route in the world, and the arrival
+rule with them. Recorded because the reasoning is not obvious from the code.
+
+**One pillar, on the nearest remaining stop.** Not one per stop: a planned trip
+would become a field of columns with no way to tell which was next. The beam is
+a horizon-finder and answers exactly one question.
+
+**Nearest, not next in order.** The two are the same thing until you take a
+shortcut, and the shortcut is the case the arrival rule below exists for.
+
+**Reaching a stop clears everything before it.** Mac's rule. Arrive at the
+third having skipped the first two and all three go — those two are behind you,
+and keeping them would point the beam back the way you came, which is worse
+than being wrong about what you meant.
+
+**The route line costs a scan pulse.** A line permanently painted over the
+world is a different and worse feature: it answers "what was the plan" all the
+time, when the thing you need constantly is only "which way", and that is the
+beam's job. Splitting the two readings across a persistent marker and a
+transient one is what keeps either of them meaning something.
+
+**The line and the pointer mix rather than add.** Third time this project has
+met it: adding a saturated colour over bright ground comes out white. See the
+scan dot.
+
+
 ## 2026-09-02 - The map shows dark ground, and other map calls
 
 Mac asked for a 3D minimap opened as a panel, to plan a trip on. Three

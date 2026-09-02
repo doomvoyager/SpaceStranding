@@ -243,6 +243,16 @@ func _discover() -> Array[Target]:
 		t.deferred = true
 		out.append(t)
 
+	var marks: Array = []
+	_collect(tree.current_scene if tree.current_scene != null else tree.root,
+		"RouteMarks", marks)
+	if not marks.is_empty():
+		var t := Target.new()
+		t.title = "Route marks — the pillar and the scan reveal"
+		t.sample = marks[0]
+		t.nodes = marks
+		out.append(t)
+
 	var maps: Array = []
 	_collect(tree.current_scene if tree.current_scene != null else tree.root,
 		"MapPanel", maps)

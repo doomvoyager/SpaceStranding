@@ -212,7 +212,7 @@ func _tick_survey(delta: float) -> void:
 	if _survey != null and _since_survey > 0.0:
 		return
 	_since_survey = survey_interval
-	var at := _astronaut.global_position
+	var at := _astronaut.vantage()
 	_survey = Lattice.survey_at(at.x, at.z)
 
 
@@ -228,7 +228,7 @@ func _tick_survey(delta: float) -> void:
 func _route_text() -> String:
 	if Route.is_empty():
 		return ""
-	var here := _astronaut.global_position
+	var here := _astronaut.vantage()
 	var target := Route.point(0)
 	var to := Vector2(target.x - here.x, target.z - here.z)
 	var distance := to.length()

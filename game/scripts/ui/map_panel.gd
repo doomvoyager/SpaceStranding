@@ -277,7 +277,7 @@ func _rebuild_markers() -> void:
 func _update_live_markers() -> void:
 	var player := _markers.get_node_or_null("Player") as Node3D
 	if player != null and _player() != null:
-		var at := _player().global_position
+		var at := _player().vantage()
 		player.position = _map.map_point(at.x, at.z, marker_lift)
 	var rover_marker := _markers.get_node_or_null("Rover") as Node3D
 	var rover := get_tree().get_first_node_in_group("rover") as Node3D
@@ -340,7 +340,7 @@ func _draw_route() -> void:
 	_line_mesh.clear_surfaces()
 	if Route.is_empty() or _player() == null:
 		return
-	var here := _player().global_position
+	var here := _player().vantage()
 	var chain: Array[Vector2] = [Vector2(here.x, here.z)]
 	for i in Route.count():
 		chain.append(Route.point_2d(i))
@@ -409,7 +409,8 @@ func _refresh() -> void:
 	_legs.clear()
 	var start := Vector2.ZERO
 	if _player() != null:
-		start = Vector2(_player().global_position.x, _player().global_position.z)
+		var at := _player().vantage()
+		start = Vector2(at.x, at.z)
 	for i in Route.count():
 		var flat := Route.point_2d(i)
 		var covered := Lattice.is_covered(flat.x, flat.y)
