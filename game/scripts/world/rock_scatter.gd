@@ -148,7 +148,7 @@ signal scattered(placed: int)
 		_queue_rebuild()
 
 @export_group("Look")
-@export var material: Material = preload("res://materials/rock_painterly.tres"):
+@export var material: Material = preload("res://materials/rock.tres"):
 	set(v):
 		material = v
 		_apply_material()

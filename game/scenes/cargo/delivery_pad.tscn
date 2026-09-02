@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/cargo/delivery_pad.gd" id="1_pad"]
-[ext_resource type="Material" path="res://materials/hull_painterly.tres" id="2_hull"]
+[ext_resource type="Material" path="res://materials/hull.tres" id="2_hull"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_zone"]
 size = Vector3(3.6, 1.4, 3.6)

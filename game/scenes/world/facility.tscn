@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://c21ldbuxx78ty" path="res://scripts/world/facility.gd" id="1_facility"]
 [ext_resource type="Script" uid="uid://cklnd537bktyc" path="res://scripts/world/facility_terminal.gd" id="2_terminal"]
 [ext_resource type="Script" uid="uid://dfpjydpesqij0" path="res://scripts/cargo/cargo_rack.gd" id="3_rack"]
-[ext_resource type="Material" path="res://materials/hull_painterly.tres" id="4_hull"]
+[ext_resource type="Material" path="res://materials/hull.tres" id="4_hull"]
 [ext_resource type="PackedScene" path="res://scenes/cargo/delivery_pad.tscn" id="5_pad"]
 [ext_resource type="Script" path="res://scripts/world/site_sign.gd" id="6_sign"]
 

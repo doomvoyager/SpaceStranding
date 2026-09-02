@@ -46,7 +46,7 @@ single write per frame, rather than holding a list of materials and keeping it
 in step with the scene. Declared in `project.godot` under `[shader_globals]`.
 
 A **local** `scan_grid_enabled` on each material decides who actually draws the
-grid: `regolith_painterly` and `rock_painterly` yes, crates and hulls no, where a
+grid: `regolith` and `rock` yes, crates and hulls no, where a
 slope-coloured dot grid would mean nothing. The pulse still reaches them; they
 get tagged instead.
 

@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/cargo/crate.gd" id="1_crate"]
-[ext_resource type="Material" path="res://materials/crate_painterly.tres" id="2_crate_mat"]
+[ext_resource type="Material" path="res://materials/crate.tres" id="2_crate_mat"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_crate"]
 size = Vector3(0.6, 0.6, 0.6)

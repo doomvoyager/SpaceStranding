@@ -100,7 +100,7 @@ async multiplayer hooks all at once. Extending the Lattice **is** the campaign.
 | A mast | `res://scripts/world/relay.gd` |
 | Surveying a prospective site | `res://scripts/world/lattice.gd` |
 | The boundary on the ground | `res://scripts/world/coverage_map.gd` |
-| Drawing it | `res://shaders/painterly.gdshader`, `coverage_*` uniforms |
+| Drawing it | `res://shaders/surface.gdshader`, `coverage_*` uniforms |
 | What a survey answers | `res://scripts/world/site_survey.gd` |
 | The carried readout | `res://scripts/ui/hud.gd` |
 | Transfers in flight | `res://scripts/orders/order_book.gd` |

@@ -7,7 +7,7 @@ extends Node3D
 ## no image.
 
 const WORLD := preload("res://scenes/world/test_world.tscn")
-const HULL_MAT := preload("res://materials/hull_painterly.tres")
+const HULL_MAT := preload("res://materials/hull.tres")
 const OUT_DIR := "user://look_dev"
 
 ## Off isolates the shader's own output from volumetric fog's frame jitter.

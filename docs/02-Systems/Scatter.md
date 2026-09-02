@@ -106,8 +106,11 @@ having drawn it first, so there is no invisible-wall case.
 
 ## The rocks are placeholder art
 
-`RockMesh` builds noise-displaced icospheres, flat shaded. Flat on purpose: the
-painterly shader quantises light into three bands, and a smooth boulder turns
+`RockMesh` builds noise-displaced icospheres, flat shaded. The reason is now
+historical - `painterly.gdshader` was deleted 2026-09-03 and `surface.gdshader`
+does not band - but the facets still read better than a smooth boulder, so this
+stands until the art style is settled. Originally: the
+painterly shader quantised light into three bands, and a smooth boulder turned
 those bands into concentric contour rings, where facets take one band each and
 read as brushed planes. An icosphere rather than `SphereMesh`, whose poles
 pinch into slivers that displacement makes obvious.
@@ -121,7 +124,7 @@ intended path once Mac models a set.
 |---|---|
 | The scatter | `res://scripts/world/rock_scatter.gd` |
 | Placeholder boulders | `res://scripts/world/rock_mesh.gd` |
-| Material | `res://materials/rock_painterly.tres` |
+| Material | `res://materials/rock.tres` |
 | Regression test | `res://tests/test_rock_scatter.tscn` |
 | Culling mechanism | `res://tests/probe_scatter_cull.tscn` |
 | Real-config cost | `res://tests/probe_scatter_cost.tscn` |

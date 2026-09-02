@@ -153,8 +153,8 @@ func _set_route(on: bool) -> void:
 
 
 func _set_grid(on: bool) -> void:
-	for path in ["res://materials/regolith_painterly.tres",
-			"res://materials/rock_painterly.tres"]:
+	for path in ["res://materials/regolith.tres",
+			"res://materials/rock.tres"]:
 		var material := load(path) as ShaderMaterial
 		if material != null:
 			material.set_shader_parameter("scan_grid_enabled", on)

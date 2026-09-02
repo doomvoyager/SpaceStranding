@@ -99,7 +99,7 @@ const DEFAULT_HEIGHTMAP := "res://assets/terrain/world_01_height_2049.exr"
 ## Surface material for the generated mesh. Defaults to the painterly regolith
 ## resource — open it in the inspector to dial bands, brush stamps and shadow
 ## hue live. Clear it to fall back to the plain PBR placeholder.
-@export var surface_material: Material = preload("res://materials/regolith_painterly.tres"):
+@export var surface_material: Material = preload("res://materials/regolith.tres"):
 	set(v):
 		surface_material = v
 		if _mesh_instance != null:

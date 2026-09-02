@@ -1,7 +1,7 @@
 [gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/relay.gd" id="1_relay"]
-[ext_resource type="Material" path="res://materials/hull_painterly.tres" id="2_hull"]
+[ext_resource type="Material" path="res://materials/hull.tres" id="2_hull"]
 [ext_resource type="Script" path="res://scripts/world/site_sign.gd" id="3_sign"]
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_mast"]

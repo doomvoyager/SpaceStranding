@@ -9,6 +9,45 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-03 - One plain surface shader; the terrain is ours, not Terrain3D
+
+Two calls, both Mac's, both taken after the options were laid out.
+
+**`painterly.gdshader` is deleted, not split.** Claude proposed keeping a
+minimal terrain shader beside plain StandardMaterial3Ds; Mac's answer was
+simpler - one simple shader on everything. `surface.gdshader` replaces it on all
+four materials, now named `regolith`, `rock`, `crate` and `hull` rather than
+`*_painterly`, because a file called painterly pointing at something else is the
+kind of half-lie this project has already had to write a TODO about.
+
+Everything stylistic went: banded terminator, hue-shifted shadows, world-locked
+brush stamps, rim, slope. **Two things stayed and are not art**: the Lattice
+coverage overlay and the scan pulse, which are gameplay and merely happen to be
+delivered by a material. They are the whole reason this is a shader rather than
+a StandardMaterial3D.
+
+**A third thing stayed, and the reason is the planet.** The star sits 5 deg up,
+so flat ground gets `N.L` of about 0.09 and renders black under plain diffuse.
+Painterly had hidden two separate lifts - its own ambient fill *and* `light_wrap`
+in its `light()` - and removing both took the near ground out entirely. Measured
+by capturing the same frame both ways. Raising scene ambient does not substitute:
+blue ambient turns the regolith violet before it is readable, and sky ambient
+cannot help because the sky is dark. So `ambient_light_disabled` plus a flat fill
+survives, at `fill_strength` 1.4 on the terrain, chosen from a sweep at 0.9 / 1.4
+/ 2.0. **The number is provisional and Mac's to set** - it is a material
+property, so it opens in the inspector.
+
+**Rejected: Terrain3D.** It was Claude's recommendation and the docs' standing
+candidate, and it verified well - 64 m to 65.5 km, clipmap LOD, and a control
+map of base id, overlay id and blend weight that is *exactly* the colour-as-mask
+scheme Mac wants later. Mac chose to build it instead: 3x3 authored tiles,
+subdivided into chunks at runtime, distance culling, and fog covering the far
+cutoff. What that costs is editor sculpting and the control-map format; what it
+buys is no dependency and a pipeline that already exists. The measured cell-vs-
+whole-map culling result in `CLAUDE.md` says the chunking half will work.
+
+---
+
 ## 2026-09-03 - The world is 3x3 tiles of 4096 m; art direction is frozen
 
 Mac, after the terrain options were laid out.

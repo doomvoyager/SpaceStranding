@@ -1,0 +1,14 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+
+[ext_resource type="Shader" path="res://shaders/surface.gdshader" id="1_surface"]
+
+[resource]
+resource_name = "Hull"
+shader = ExtResource("1_surface")
+shader_parameter/albedo_color = Color(0.72, 0.7, 0.68, 1)
+shader_parameter/use_albedo_texture = false
+shader_parameter/albedo_uv_scale = 1.0
+shader_parameter/use_macro_albedo = false
+shader_parameter/scan_grid_enabled = false
+shader_parameter/fill_color = Color(0.34, 0.4, 0.62, 1)
+shader_parameter/fill_strength = 0.5

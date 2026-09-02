@@ -423,6 +423,20 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   untestable headless, and `test_scanner.gd` switched its tag separation *off*
   on that assumption rather than measuring. Screen-space declutter is testable;
   `tests/probe_headless_unproject.gd`.
+- **A 5-degree sun makes Lambert useless, and no ambient setting rescues it.**
+  Vesper c is tidally locked and the star sits ~5 deg above the horizon, so
+  `N.L` on flat ground is about **0.09** - the terrain renders essentially
+  black under ordinary diffuse lighting. Sky-sourced ambient cannot fix it
+  because the sky is nearly black too (`sky_top_color` 0.07 over a 0.09 ground
+  hemisphere), and a coloured ambient cannot either: swept, the environment's
+  blue ambient at 1.0-1.8 turns red regolith **violet** long before the
+  foreground is readable, and pure sky ambient at 3.0 leaves it where it
+  started. What actually works is a flat fill multiplied by ALBEDO, which is
+  why `surface.gdshader` keeps `render_mode ambient_light_disabled` and rolls
+  its own - not a style choice, a consequence of the star not moving. The
+  deleted painterly shader got the same lift a second way, from `light_wrap`
+  in its custom `light()`, which is worth knowing before concluding a scene
+  has gone dark for some other reason. Sweeps in `previews/2026-09-03/`.
 - **Godot's built-in `ui_*` actions carry the left stick, and `ui_accept` does
   not carry the pad at all.** Neither appears in `project.godot` unless it has
   been overridden, so these are the bindings nobody writes and therefore nobody
