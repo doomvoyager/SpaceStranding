@@ -24,6 +24,26 @@ class_name HUD
 ## inspector open. It is also on the F1 panel, so it can be flipped mid-session.
 @export var show_controls_on_start := true
 
+@export_group("Speedometer")
+## Whether the rover speed readout is on screen at all. It only ever shows
+## while somebody is driving — on foot there is nothing for it to report, and a
+## walking speed is not a number anybody steers by.
+@export var show_speedo := true
+
+## Decimal places on the figure. One, because the rover tops out around 6.5 m/s
+## and a whole-number readout would spend most of a drive showing "4" — the
+## point of an instrument is that it moves when the thing it measures does.
+@export_range(0, 2, 1) var speedo_decimals := 1
+
+## Below this speed (m/s) the readout reads a flat zero and drops the direction
+## marker.
+##
+## Not cosmetic. `Rover.ground_speed()` takes its sign from which way the
+## chassis is facing, and a parked rover settling on its suspension crosses zero
+## in both directions several times a second — so without a dead band the
+## marker strobes REV at a vehicle that is standing still.
+@export_range(0.0, 2.0, 0.05) var speedo_deadband := 0.15
+
 @export_group("Survey")
 ## Seconds between site surveys while carrying a mast.
 ##
@@ -44,6 +64,13 @@ class_name HUD
 @onready var _route_label: Label = $Prompts/Route
 @onready var _survey_label: Label = $Prompts/Survey
 @onready var _controls_card: Control = $Controls
+@onready var _speedo: Control = $Speedo
+@onready var _speedo_value: Label = $Speedo/Readout/Value
+@onready var _speedo_unit: Label = $Speedo/Readout/Units/Unit
+## The reverse marker is its own label rather than more text on the unit line,
+## so its colour is authored in the scene beside every other HUD colour instead
+## of being written over the theme from code every frame.
+@onready var _speedo_rev: Label = $Speedo/Readout/Units/Rev
 
 var _astronaut: Astronaut
 var _rover: Rover
@@ -85,6 +112,25 @@ func survey_readout() -> String:
 	return _survey_label.text if _survey_label.visible else ""
 
 
+## The speed figure as the player sees it, or "" when the panel is not on
+## screen. Same reason as `survey_readout()` above: a speedometer that is
+## perfectly correct behind a hidden panel passes every assertion about the
+## number and none about the instrument.
+func speedo_readout() -> String:
+	return _speedo_value.text if _speedo.visible else ""
+
+
+## The unit line under the figure, or "" when the panel is not on screen. It
+## reads back the direction marker as well as the unit, so this is how a test
+## asks whether the rover is reporting itself as reversing.
+func speedo_unit() -> String:
+	if not _speedo.visible:
+		return ""
+	if _speedo_rev.visible:
+		return "%s  %s" % [_speedo_unit.text, _speedo_rev.text]
+	return _speedo_unit.text
+
+
 func _process(delta: float) -> void:
 	if _astronaut == null:
 		return
@@ -93,6 +139,10 @@ func _process(delta: float) -> void:
 	_tick_survey(delta)
 	var menu := _astronaut.is_menu_open()
 	_hide_all() if menu else _draw()
+	# Outside the prompt block on purpose: the speedometer is not a prompt, and
+	# it is the one readout that has to keep working while a panel is up — the
+	# map opens at speed and the world keeps running behind it.
+	_draw_speedo(menu)
 
 
 ## Only the context prompts go away behind a panel. The controls card is not a
@@ -245,6 +295,26 @@ func _route_text() -> String:
 		return "%s   ahead" % text
 	return "%s   %.0f° %s" % [text, absf(offset),
 		"right" if offset > 0.0 else "left"]
+
+
+# --- Speedometer --------------------------------------------------------
+
+## Draw the speed panel, or take it off screen.
+##
+## Only while driving. It is bolted to the rover's instruments, not to the
+## player, so it goes away with the vehicle — and a readout that stayed on
+## screen reading 0.0 while you walked would be a dead gauge, which is worse
+## than no gauge.
+func _draw_speedo(menu: bool) -> void:
+	var driving := _rover != null and _rover.driver != null
+	_speedo.visible = show_speedo and driving and not menu
+	if not _speedo.visible:
+		return
+	var speed := _rover.ground_speed()
+	if absf(speed) < speedo_deadband:
+		speed = 0.0
+	_speedo_value.text = String.num(absf(speed), speedo_decimals)
+	_speedo_rev.visible = speed < 0.0
 
 
 func _metres(value: float) -> String:

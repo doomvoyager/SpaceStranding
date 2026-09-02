@@ -2,6 +2,7 @@
 status: built
 verified: 2026-09-02
 godot: res://scripts/world/scanner.gd
+godot: res://scripts/world/site_sign.gd
 tags: [system, traversal, ui]
 ---
 
@@ -25,6 +26,10 @@ Tags name what they are and how far off: `Water canister   12 m`. They are
 capped and decluttered - see below. **The rover does not tag itself while you
 are driving it**, which would be a label hanging in your own windscreen naming
 the vehicle you are sitting in.
+
+**A facility is not tagged at ground level either.** It is named by its own mast
+sign instead, which is the same reveal moved up to the aerial and given four
+times the reach - see below.
 
 **The grid thins out over the last `edge_fade` metres of `reach`**, rather than
 ending on a circle. The wave front already softened as it travelled, but ground
@@ -74,6 +79,47 @@ things the pulse had already gone past.
 
 Those were one number until 2026-08-31, which is indistinguishable from correct
 for exactly as long as the player stands still.
+
+## The name at the mast
+
+`site_sign.gd`, on the `Sign` node of `facility.tscn` and `relay.tscn`. Added
+2026-09-02.
+
+The sign used to be scenery: always up, and big enough to read from across the
+Verge. That worked while there were two facilities on an empty plain, and
+stopped working the moment the world had things in it - a name burning over
+every site at all times is the map drawn on the world, and it flattens the thing
+this game is about, which is not knowing what is over the ridge until you go and
+look.
+
+So the sign is dark until `Q`, and then it is **the site's scan tag**: same
+envelope, same fade, same distance readout that counts down as you approach.
+Two things about it are deliberately not the same as a tag:
+
+- **`sign_range` is 200 m against the pulse's 70.** A facility is the one thing
+  worth finding from further away than the wave itself travels. The pulse never
+  physically reaches a sign at 200 m, so it lights when the front hits its own
+  limit - which reads as the return coming back rather than as a switch.
+- **It is anchored to the mast**, 8.4 m up on a facility and 13.4 on a relay,
+  not to `tag_lift` above the ground.
+
+**`Scanner.tag_groups` no longer lists `facility` or `relay`.** With both, a
+site inside the pulse's reach was named twice - once here at the mast and once
+seven metres below at ground level. The close-range parts of a facility -
+terminal, dock, storage, delivery pad - are still tagged by the scanner, and are
+the reading that matters once you have arrived.
+
+**Size: 0.00018, down from 0.0004.** `probe_sign_size.tscn` renders the same
+frame at five values; 0.0004 dwarfs the building it names, 0.00012 loses its
+strokes to the outline against red terrain, and 0.00018 is legible at 200 m
+without being the loudest thing in frame. It sits just below `tag_size`
+(0.00022), which is right: the sign is further away than anything the scanner
+tags.
+
+`Facility.mast_point()` returns the sign's global position, so the sign is also
+the facility's aerial for [[The-Lattice]]. Hiding a node does not move it, so
+none of the above touches the graph - but *moving* the sign moves the aerial,
+which is worth knowing before nudging it in the inspector.
 
 ## Obstacles get an outline
 
@@ -208,9 +254,18 @@ does not interleave those two clocks anything like realtime: one version asked
 for progress two physics frames after the ping and got exactly zero, the next
 waited 150 frames for a wave that had already finished.
 
+`res://tests/test_site_sign.tscn` covers the mast signs: that they are dark
+with no pulse out, that they connect to the scanner lazily and actually receive
+the ping, that `sign_range` gates, that the distance is measured from the player
+rather than from the mast or from where the ping went out, and that they go dark
+again with the pulse. It also asserts that `tag_groups` has stopped listing
+`facility` and `relay`, which is the guard against the double label coming back.
+
 `res://tests/scan_capture.tscn` is the look pass,
 `res://tests/probe_scan_glow.tscn` the tuning one, and
-`res://tests/probe_scan_cost.tscn` the cost one. All three run **windowed**.
+`res://tests/probe_scan_cost.tscn` the cost one, and
+`res://tests/probe_sign_size.tscn` the sign-size sweep. All four run
+**windowed**.
 
 ## Open
 

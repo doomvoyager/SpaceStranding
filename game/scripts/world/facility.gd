@@ -31,10 +31,12 @@ signal dock_changed
 ## surface, not a second copy of numbers that also live in the inspector.
 @export var crate_scene: PackedScene = preload("res://scenes/cargo/crate.tscn")
 
-## Shown floating above the facility so it can be found from a distance. Driven
-## from `display_name` rather than typed in, so renaming a facility renames its
-## sign and the two cannot disagree.
-@onready var _sign: Label3D = get_node_or_null("Sign") as Label3D
+## The name at the mast. Driven from `display_name` rather than typed in, so
+## renaming a facility renames its sign and the two cannot disagree.
+##
+## It is dark until a scan pulse lights it — see `site_sign.gd`. That is also
+## why `mast_point()` below still works: hiding a node does not move it.
+@onready var _sign: SiteSign = get_node_or_null("Sign") as SiteSign
 
 @export_group("Lattice")
 ## Metres this facility's own aerial reaches. Zero takes the network default.
@@ -68,7 +70,7 @@ func _ready() -> void:
 	_pad = _find_child_of_type("DeliveryPad") as DeliveryPad
 	_terminal = _find_child_of_type("FacilityTerminal") as Node3D
 	if _sign != null:
-		_sign.text = display_name
+		_sign.site_name = display_name
 	Orders.register_facility(self)
 	Lattice.register_site(self)
 

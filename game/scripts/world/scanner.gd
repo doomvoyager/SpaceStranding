@@ -16,7 +16,7 @@ class_name Scanner
 ## it and leaves it where it stood - scanning from the driver's seat would ping
 ## a spot in the sand behind you. It was the camera for a while, which fixed
 ## that but sat six metres back on the chase arm, so every distance read long.
-## `_viewer_position()` answers properly: the rover when someone is driving it,
+## `viewer_position()` answers properly: the rover when someone is driving it,
 ## the astronaut otherwise.
 ##
 ## And the distance on a tag is recomputed against where you are *this frame*,
@@ -163,9 +163,14 @@ signal pinged(origin: Vector3)
 @export_group("Tags")
 ## Groups a node must be in to be worth tagging. Every one of these already
 ## exists for other reasons, so nothing has to be marked up twice.
+## **Not `facility` or `relay`.** A site is named by its own mast sign, which
+## is the same reveal moved up to the aerial and given four times this reach —
+## see `site_sign.gd`. Tagging it here as well would label a nearby facility
+## twice, once at the mast and once seven metres below it. The close-range parts
+## of a facility are still listed, and are the reading that matters once you
+## have arrived.
 @export var tag_groups: Array[String] = [
-	"cargo", "facility", "relay", "rover", "delivery", "terminal", "dock_deck",
-	"storage_intake",
+	"cargo", "rover", "delivery", "terminal", "dock_deck", "storage_intake",
 ]
 
 ## Metres above a tagged node its label floats.
@@ -215,7 +220,11 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Where the player actually is: the rover when they are driving it, the
 ## astronaut when they are not, and the camera as a last resort so a test scene
 ## with neither still works.
-func _viewer_position() -> Vector3:
+##
+## Public because it is the one answer to that question and other things need
+## it — `site_sign.gd` measures a facility's distance from here rather than
+## keeping a second copy of the rover-or-foot rule.
+func viewer_position() -> Vector3:
 	# Astronaut.vantage() answers the rover-or-foot question now, so this is not
 	# a second copy of that rule. The camera fallback stays, for a test scene
 	# with no player in it at all.
@@ -232,7 +241,7 @@ func ping() -> bool:
 		return false
 	if get_viewport().get_camera_3d() == null:
 		return false
-	_origin = _viewer_position()
+	_origin = viewer_position()
 	_elapsed = 0.0
 	_since_ping = 0.0
 	_clear_tags()
@@ -328,7 +337,7 @@ func taggable() -> Array[Node3D]:
 func _reveal_tags(travel: float, strength: float) -> void:
 	var camera := get_viewport().get_camera_3d()
 	# Where the player is *now*, which is what a tag's distance should read.
-	var viewer := _viewer_position()
+	var viewer := viewer_position()
 	# Nearest first, so when the budget runs out it is the far things that lose
 	# their tag rather than whatever the group order happened to put first.
 	var candidates := taggable()

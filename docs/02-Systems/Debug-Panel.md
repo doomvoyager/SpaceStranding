@@ -104,6 +104,7 @@ in `user://` rather than against the real project.
 | Post | the film material | the film material |
 | Terrain | the terrain | the terrain, on drag release only |
 | Rock scatter | the scatter | the scatter, on drag release only |
+| Site signs | the first sign | every sign, by group |
 | Scanner | the scanner | the scanner |
 | Lattice | `Lattice` | `Lattice`, then `rebuild()` on drag release |
 | Orders | `Orders` | `Orders` |

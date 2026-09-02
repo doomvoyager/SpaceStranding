@@ -365,6 +365,23 @@ func forward_speed() -> float:
 	return linear_velocity.dot(-global_transform.basis.z)
 
 
+## How fast the rover is travelling over the ground, signed by which way it is
+## facing. This is what the speedometer reads.
+##
+## **Horizontal, not `linear_velocity.length()`.** The vertical component is not
+## speed you are making toward anywhere, and folding it in means a rover dropped
+## off a ledge reads faster the further it falls — a speedometer that peaks
+## while you are in the air is reporting the wrong quantity at exactly the
+## moment somebody is looking at it.
+##
+## The sign comes off `forward_speed()` rather than off the flat vector, so a
+## rover sliding sideways down a slope still reads positive rather than
+## flickering. Reversing is the only thing that makes it negative.
+func ground_speed() -> float:
+	var flat := Vector2(linear_velocity.x, linear_velocity.z).length()
+	return -flat if forward_speed() < 0.0 else flat
+
+
 # --- Rollover recovery --------------------------------------------------
 #
 # In 0.55 g a flipped rover used to be permanent, and a loaded roof rack makes

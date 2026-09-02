@@ -176,6 +176,46 @@ The bar's material is `duplicate()`d in `_ready()`, because a sub-resource in a
 scene is shared by every instance of that scene and a second rover would
 otherwise light this one's bar.
 
+## The speedometer
+
+`hud.gd`, drawn bottom-right, on screen only while somebody is driving. Added
+2026-09-02 at Mac's request.
+
+**It reads m/s**, which is the unit every other number in this project speaks -
+`reverse_threshold`, `steer_falloff_speed`, the F1 sliders. km/h would give a
+livelier 0-23 against a top speed of about 6.5 m/s, and would mean the figure
+you read while driving was not the figure you tune with. One decimal, because a
+whole number would spend most of a drive showing `4`.
+
+**`Rover.ground_speed()` is horizontal, not `linear_velocity.length()`.** The
+vertical component is not speed you are making toward anywhere, and folding it
+in means a rover dropped off a ledge reads *faster* the further it falls - a
+gauge that peaks while you are in the air is reporting the wrong quantity at
+exactly the moment somebody is looking at it. Its sign comes off
+`forward_speed()` rather than off the flat vector, so a rover sliding sideways
+down a slope still reads positive; reversing is the only thing that makes it
+negative.
+
+**The dead band is load-bearing, not cosmetic.** `REV` is driven by that sign,
+and a rover settling on its suspension crosses zero in both directions several
+times a second - so without `speedo_deadband` a parked vehicle strobes REV at
+you. 0.15 m/s, on an F1 slider.
+
+The figure is set in JetBrains Mono, which was already in the project and used
+nowhere. A proportional font shifts the digits sideways as the number changes,
+which is exactly what a readout updating sixty times a second must not do. It is
+a `theme_override_fonts/font` on one label and comes straight back out if Mac
+would rather it matched the prompts.
+
+`res://tests/test_speedometer.tscn` covers the half that hides: not on screen on
+foot, on screen and saying something once boarded, a flat zero with no marker
+inside the dead band, a fall reported as no speed at all, and reverse marked in
+the marker rather than by a minus sign in front of the figure. Every stage waits
+for the *panel* to catch up rather than reading it on the next physics frame -
+the first version passed its reverse check on a REV left over from the rover
+rolling backwards while parked. `res://tests/speedo_capture.tscn` is the look
+pass and runs **windowed**.
+
 ## The load
 
 `mass` in the inspector is the **empty** rover. `refresh_load()` adds whatever

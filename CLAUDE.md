@@ -207,6 +207,14 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_br
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_rollover_recovery.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_site_sign.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_speedometer.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -256,6 +264,14 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/brake_light_captur
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/rollover_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/speedo_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_sign_size.tscn
 ```
 
 **Every rendered image that gets looked at is kept, in `previews/`.** A capture

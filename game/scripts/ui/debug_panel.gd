@@ -297,6 +297,17 @@ func _discover() -> Array[Target]:
 		t.deferred = true
 		out.append(t)
 
+	# Every sign, not the first one. Same shape as the pads above: a per-site
+	# node with a single-node target silently tunes one facility's sign and
+	# leaves the rest of the world alone.
+	var signs := tree.get_nodes_in_group("site_sign")
+	if not signs.is_empty():
+		var t := Target.new()
+		t.title = "Site signs — all %d, Q to light them" % signs.size()
+		t.sample = signs[0]
+		t.group = "site_sign"
+		out.append(t)
+
 	var scanners: Array = []
 	_collect(tree.current_scene if tree.current_scene != null else tree.root,
 		"Scanner", scanners)
@@ -349,7 +360,7 @@ func _discover() -> Array[Target]:
 	var hud := tree.get_first_node_in_group("hud")
 	if hud != null:
 		var t := Target.new()
-		t.title = "HUD"
+		t.title = "HUD — the speedometer and the controls card"
 		t.sample = hud
 		t.nodes = [hud]
 		out.append(t)

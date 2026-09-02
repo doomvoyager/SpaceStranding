@@ -1,7 +1,8 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/relay.gd" id="1_relay"]
 [ext_resource type="Material" path="res://materials/hull_painterly.tres" id="2_hull"]
+[ext_resource type="Script" path="res://scripts/world/site_sign.gd" id="3_sign"]
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_mast"]
 top_radius = 0.12
@@ -65,10 +66,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.4, 0)
 billboard = 1
 no_depth_test = true
 fixed_size = true
-pixel_size = 0.00028
+pixel_size = 0.00018
 text = "Relay"
 font_size = 128
 outline_size = 24
 modulate = Color(0.62, 0.88, 0.94, 0.8)
 outline_modulate = Color(0.04, 0.06, 0.08, 0.8)
 uppercase = true
+script = ExtResource("3_sign")
+site_name = "Relay"

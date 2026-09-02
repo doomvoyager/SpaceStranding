@@ -9,6 +9,58 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - Facility signs are a scan result, and replace the facility tag
+
+Mac: the signs "were fine in the first stages of development, but now they're a
+bit too obtrusive". They were permanent, and sized to be read from across the
+Verge - a name burning over every site at all times, which is the map drawn on
+the world.
+
+**They are dark until `Q` now, and 45% of their old size** (`pixel_size`
+0.00018, down from 0.0004). Range 200 m, Mac's number, against the pulse's own
+70 m reach: a facility is the one thing worth finding from further away than the
+wave travels. It lights when the front hits its limit, so it still reads as the
+return coming back rather than as a switch.
+
+**The sign replaces the scanner's own facility tag rather than sitting beside
+it.** Mac's call, from three options. `Scanner.tag_groups` no longer lists
+`facility` or `relay`; with both, a site inside the pulse's reach was named
+twice - once at the mast and once seven metres below at ground level. The sign
+carries the distance now, which is what the ground-level tag was for, and the
+close-range parts of a facility - terminal, dock, storage, pad - are still
+tagged and are the reading that matters once you have arrived.
+
+Rejected: keeping both and letting the sign be a bare name. Two labels seven
+metres apart naming the same building is redundant whichever way round it is,
+and the one at the mast is the one you can see from a ridge.
+
+The size was rendered, not chosen: `probe_sign_size.tscn` sweeps five values at
+200 m and at 30 m. 0.0004 dwarfs the building it names; 0.00012 loses its
+strokes to the outline against red terrain. See [[Scanner]].
+
+---
+
+## 2026-09-02 - The speedometer reads m/s, not km/h
+
+Mac's call. km/h would give a livelier 0-23 against a top speed of about 6.5
+m/s, and reads more like a vehicle instrument. m/s wins because it is the unit
+every other number in this project speaks - `reverse_threshold`,
+`steer_falloff_speed`, every F1 slider - so the figure you read while driving is
+the figure you tune with.
+
+Two things that followed from it and are not free choices:
+
+**The gauge is horizontal speed, not `linear_velocity.length()`.** A rover
+dropped off a ledge would otherwise read *faster* the further it falls, which is
+the wrong quantity at exactly the moment somebody is looking at the gauge.
+
+**Reverse is a marker, not a minus sign**, and it needs a dead band. The sign
+comes off `forward_speed()`, and a rover settling on its suspension crosses zero
+several times a second - so without one a parked vehicle strobes REV. 0.15 m/s,
+on a slider. See [[Rover]].
+
+---
+
 ## 2026-09-02 - A flipped rover is righted on foot, and costs time only
 
 In 0.55 g a flipped rover was permanent, and a loaded roof rack makes flipping
