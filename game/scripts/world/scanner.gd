@@ -190,11 +190,29 @@ signal pinged(origin: Vector3)
 ## each other.
 @export_range(0.0, 400.0, 5.0) var tag_separation_px := 110.0
 
+## Screen pixels a mast sign keeps from every other sign, and from every tag.
+##
+## Its own number rather than `tag_separation_px` because a sign is a much wider
+## label — a site name plus a distance, where a tag is usually one short word —
+## and because the two are looked at from different ranges. Measured off
+## `previews/2026-09-02/signsize-0.00018_at_200m.png`, where LONGSHADOW and
+## RELAY sat 145 px apart and overlapped outright: 200 is the first value that
+## separates that frame.
+##
+## Zero switches the arbitration off, which is what the look-dev captures used
+## to get by default.
+@export_range(0.0, 500.0, 5.0) var sign_separation_px := 200.0
+
 var _elapsed := -1.0
 var _since_ping := 999.0
 var _origin := Vector3.ZERO
 ## Live tags, one per tagged node. node -> Label3D.
 var _tags: Dictionary = {}
+## This frame's answer to "which mast signs have room on screen". SiteSign ->
+## bool, rebuilt once a frame and then read by every sign that asks.
+var _sign_slots: Dictionary = {}
+## The process frame `_sign_slots` was built on, or -1.
+var _sign_frame := -1
 @onready var _tag_root := Node3D.new()
 
 
@@ -346,8 +364,10 @@ func _reveal_tags(travel: float, strength: float) -> void:
 			< _origin.distance_squared_to(b.global_position))
 
 	# Where every tag already sits on screen, so a new one can be refused a spot
-	# that is already taken.
-	var taken: Array[Vector2] = []
+	# that is already taken. Seeded with the mast signs, which are decided first
+	# and outrank a tag: a site name is the thing you are scanning to find, and
+	# `Dock  16 m` written through the middle of it helps nobody.
+	var taken: Array[Vector2] = sign_points()
 	for node in _tags:
 		if is_instance_valid(node) and camera != null:
 			taken.append(camera.unproject_position(_anchor(node)))
@@ -368,7 +388,8 @@ func _reveal_tags(travel: float, strength: float) -> void:
 			var anchor := _anchor(node)
 			if camera != null and camera.is_position_behind(anchor):
 				continue
-			if camera != null and not _has_room(camera.unproject_position(anchor), taken):
+			if camera != null and not _has_room(
+					camera.unproject_position(anchor), taken, tag_separation_px):
 				continue
 			label = _make_tag(node)
 			_tags[node] = label
@@ -388,9 +409,9 @@ func _anchor(node: Node3D) -> Vector3:
 	return node.global_position + Vector3.UP * tag_lift
 
 
-func _has_room(at: Vector2, taken: Array[Vector2]) -> bool:
+func _has_room(at: Vector2, taken: Array[Vector2], separation: float) -> bool:
 	for other in taken:
-		if at.distance_to(other) < tag_separation_px:
+		if at.distance_to(other) < separation:
 			return false
 	return true
 
@@ -444,6 +465,104 @@ func _tint(node: Node3D) -> Color:
 	if node is Rover:
 		return Color(0.92, 0.94, 0.96, 1.0)
 	return Color(0.62, 0.9, 0.78, 1.0)
+
+
+# --- Mast signs ---------------------------------------------------------
+#
+# The signs are nodes in their own scenes and run their own reveal - see
+# `site_sign.gd`. What they cannot do on their own is stand out of each other's
+# way, because each one knows nothing about the others: three sites 60 m apart,
+# seen from 200 m, wrote their names straight through one another.
+#
+# So the arbitration lives here, with the tags', and for the same reason. A sign
+# *asks* rather than being told, which is what keeps it out of frame ordering:
+# a flag pushed from here would be a frame stale by the time the sign drew, and
+# the sign would spend that frame visible in a slot it had already lost.
+
+## Whether `sign_node` has room to draw this frame. Called by the sign itself
+## from its own `_process`, so the answer is current at the moment it is used.
+##
+## **A sign missing from this frame's answer forces a fresh one**, and that is
+## not defensive coding — it is the whole correctness argument. The signs run
+## their own clocks in their own `_process`, in tree order, and a sign crosses
+## the threshold from "the wave has not reached me" to "I want to draw" during
+## that pass. So the sign that ran first can have triggered the resolve while a
+## later one still looked idle, leaving it absent from the answer it is about to
+## consult. Absent read as "no reason to refuse you", so it drew — for exactly
+## one frame, in a slot it had already lost, which is the flicker the arbitration
+## exists to prevent. Recomputing with the asker present costs at most a couple
+## of extra passes on the frame a name arrives.
+func sign_has_room(sign_node: SiteSign) -> bool:
+	_resolve_signs()
+	if not _sign_slots.has(sign_node) and sign_node.is_revealing():
+		_sign_frame = -1
+		_resolve_signs()
+	return bool(_sign_slots.get(sign_node, true))
+
+
+## Screen positions of the signs that got a slot this frame.
+func sign_points() -> Array[Vector2]:
+	_resolve_signs()
+	var camera := get_viewport().get_camera_3d()
+	var out: Array[Vector2] = []
+	if camera == null:
+		return out
+	for node in _sign_slots:
+		var sign_node := node as SiteSign
+		if sign_node != null and _sign_slots[node] and is_instance_valid(sign_node):
+			out.append(camera.unproject_position(sign_node.global_position))
+	return out
+
+
+## Decide which signs get a slot. Once a frame, however many ask.
+##
+## **Ordered by distance from the ping, not from the player.** The origin does
+## not move for the life of a pulse, so a name cannot swap places with its
+## neighbour while you drive past — which is the whole point of arbitrating at
+## all. It is the same anchor the tag reveal uses, for the same reason.
+func _resolve_signs() -> void:
+	var frame := Engine.get_process_frames()
+	if frame == _sign_frame:
+		return
+	_sign_frame = frame
+	_sign_slots.clear()
+	var lit: Array[SiteSign] = []
+	for node in get_tree().get_nodes_in_group("site_sign"):
+		var sign_node := node as SiteSign
+		if sign_node != null and sign_node.is_revealing():
+			lit.append(sign_node)
+	# Everyone in, and recorded as such. Bailing out with an empty dictionary
+	# would work - a missing entry reads as "has room" - but it would leave
+	# `sign_slot_count()` reporting nought of nought while two names were on
+	# screen, which is a diagnostic that lies exactly when it is consulted.
+	var camera := get_viewport().get_camera_3d()
+	if camera == null or sign_separation_px <= 0.0:
+		for sign_node in lit:
+			_sign_slots[sign_node] = true
+		return
+	lit.sort_custom(func(a: SiteSign, b: SiteSign) -> bool:
+		return _origin.distance_squared_to(a.global_position) 			< _origin.distance_squared_to(b.global_position))
+	var taken: Array[Vector2] = []
+	for sign_node in lit:
+		if camera.is_position_behind(sign_node.global_position):
+			_sign_slots[sign_node] = false
+			continue
+		var at := camera.unproject_position(sign_node.global_position)
+		var room := _has_room(at, taken, sign_separation_px)
+		_sign_slots[sign_node] = room
+		if room:
+			taken.append(at)
+
+
+## How many signs are drawing this frame, and how many wanted to. Diagnostics
+## and tests.
+func sign_slot_count() -> Vector2i:
+	_resolve_signs()
+	var shown := 0
+	for node in _sign_slots:
+		if _sign_slots[node]:
+			shown += 1
+	return Vector2i(shown, _sign_slots.size())
 
 
 func _clear_tags() -> void:

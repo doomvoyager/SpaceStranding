@@ -9,6 +9,35 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - The scanner arbitrates the signs, and the sign asks
+
+Mast signs wrote their names through one another - three sites 60 m apart, seen
+from 200 m. Each sign is a node in its own scene and knows nothing about the
+others, which is the same shape of failure the tag pile was, reached from the
+opposite direction.
+
+**Rejected: a manager node** owning every sign. The signs are children of
+`facility.tscn` and `relay.tscn` and have to stay draggable in the editor, and a
+second thing that has to be kept in step with what is in the scene is exactly
+what `_discover()` has already taught us to avoid. The scanner already knows
+where the ping came from, what the envelope is, and which labels are on screen.
+One instrument, one arbiter.
+
+**Rejected: telling the signs.** A flag pushed from the scanner is a frame stale
+by the time the sign draws, so the sign spends that frame visible in a slot it
+has already lost. The sign asks, from its own `_process`, at the moment the
+answer is used.
+
+Ordered by distance from the ping rather than from the player, so a name cannot
+swap places with its neighbour while you drive past - the same anchor the tag
+reveal uses, for the same reason.
+
+`sign_separation_px` is its own number (200 px) rather than `tag_separation_px`
+(110), because a site name plus a distance is a much wider label than `Dock`.
+Both are on the F1 panel. See [[Scanner]].
+
+---
+
 ## 2026-09-02 - Facility signs are a scan result, and replace the facility tag
 
 Mac: the signs "were fine in the first stages of development, but now they're a

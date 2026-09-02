@@ -13,8 +13,12 @@ extends Node3D
 ## it carries a distance now, so there is more of it on screen at any size. The
 ## sweep therefore runs *downward* from the old 0.0004.
 ##
-## `reveal()` lights the signs by hand — there is no player here to press Q, and
-## the reveal fades on the scanner's envelope, so they are re-lit per shot.
+## **Fires a real pulse per shot** rather than lighting the signs by hand. It
+## used to call `reveal()`, which was fine while a sign decided its own
+## visibility — but the scanner arbitrates between them now, and `reveal()`
+## sidesteps the ping the arbitration is ordered by. A capture that skipped it
+## would be a picture of a state the game never reaches. The cooldown is
+## switched off so a shot can be taken every second or so.
 ##
 ## Run: engine/Godot_v4.7.1-stable_win64_console.exe --path game \
 ##        res://tests/probe_sign_size.tscn
@@ -47,6 +51,8 @@ func _ready() -> void:
 
 	var hearth := world.find_child("Hearth", true, false) as Facility
 	var sign_node := hearth.get_node("Sign") as SiteSign
+	var scanner := world.find_child("Scanner", true, false) as Scanner
+	scanner.cooldown = 0.0
 	# The reference card would sit over the top-left of every frame.
 	var hud := world.find_child("HUD", true, false)
 	hud._controls_card.visible = false
@@ -77,14 +83,17 @@ func _ready() -> void:
 		for size: float in SIZES:
 			for s in signs:
 				s.pixel_size = size
-				s.reveal()
-			# Long enough for the fade-in to finish, or each frame in the sweep
-			# is a picture of a different alpha rather than of a different size.
-			for i in 40:
+			scanner.ping()
+			# Long enough for the wave to reach its limit and the fade-in to
+			# finish, or each frame in the sweep is a picture of a different
+			# alpha rather than of a different size.
+			for i in 80:
 				await RenderingServer.frame_post_draw
 			var file := "%s/sign_%.5f_at_%.0fm.png" % [OUT_DIR, size, distance]
 			get_viewport().get_texture().get_image().save_png(file)
-			print("  %.5f -> '%s'" % [size, sign_node.text])
+			var slots := scanner.sign_slot_count()
+			print("  %.5f -> '%s', %d of %d signs drawing"
+				% [size, sign_node.text, slots.x, slots.y])
 		print("captured %.0f m" % distance)
 
 	print("captured to: ", ProjectSettings.globalize_path(OUT_DIR))

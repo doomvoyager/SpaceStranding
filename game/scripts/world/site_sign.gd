@@ -113,6 +113,15 @@ func _process(delta: float) -> void:
 			0.0, 1.0)
 	if strength <= 0.0:
 		return
+	# Asked, not told. The scanner decides which names fit on screen — a sign
+	# knows nothing about the other signs, and three sites 60 m apart seen from
+	# 200 m wrote their names straight through one another. Asking here, at the
+	# moment the answer is used, is what keeps it out of frame ordering: a flag
+	# pushed from the scanner would already be a frame old.
+	if not _has_room():
+		visible = false
+		_strength_now = 0.0
+		return
 	visible = true
 	_strength_now = strength
 	modulate.a = strength * _base_alpha
@@ -130,11 +139,22 @@ func reveal() -> void:
 	text = _readout()
 
 
-## Whether the sign is currently showing. `visible` alone is the honest answer
-## because nothing else hides it — but this is what tests should ask, so the
-## question stays the same if that ever stops being true.
+## Whether the sign is currently showing. Not the same question as
+## `is_revealing()` below: a sign can be well inside its pulse and still be
+## dark, because a nearer name got the space it wanted.
 func is_lit() -> bool:
 	return _lit and visible
+
+
+## Whether the sign *wants* to be on screen — lit, arrived, and with pulse left
+## — before anything has decided whether there is room for it.
+##
+## This is what the scanner sorts and arbitrates over, so it must not depend on
+## `visible`: a sign hidden for want of space still has to be counted as a
+## contender, or it would win its slot back the moment it lost it and flicker
+## every other frame.
+func is_revealing() -> bool:
+	return _lit and _since_ping >= _delay and _envelope() > 0.0
 
 
 ## How far up the reveal envelope the sign is, 0 to 1. Diagnostics and tests.
@@ -239,6 +259,16 @@ func _viewer_position() -> Vector3:
 		return scanner.call("viewer_position")
 	var camera := get_viewport().get_camera_3d()
 	return camera.global_position if camera != null else global_position
+
+
+## Ask the scanner whether this sign has the screen space to draw. True with no
+## scanner in the scene: a capture scene lit by `reveal()` has nothing to
+## arbitrate against, and refusing to draw would be the wrong default.
+func _has_room() -> bool:
+	var scanner := _find_scanner()
+	if scanner == null:
+		return true
+	return bool(scanner.call("sign_has_room", self))
 
 
 func _darken() -> void:

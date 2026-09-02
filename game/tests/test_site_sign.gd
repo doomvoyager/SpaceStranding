@@ -19,6 +19,11 @@ extends Node3D
 ##   4. **The pulse has to end and take the signs with it.** A sign that leaks
 ##      past its own fade is scenery again, and only somebody watching the
 ##      screen for seven seconds would notice.
+##   5. **Two names must not write through each other.** Each sign is a node
+##      that knows nothing about the others, so the arbitration lives on the
+##      scanner and the sign asks for it. If that ask were ever dropped, the
+##      signs would still all be correct, all be lit, and be unreadable — which
+##      is the same failure the tag pile was.
 ##
 ## And one guard against the change being reverted by accident: the scanner must
 ## not tag facilities itself any more, or a nearby site gets named twice.
@@ -27,6 +32,14 @@ extends Node3D
 ## in `_process` and these checks run in `_physics_process`, which headless does
 ## not interleave anything like realtime. Each stage waits for the condition it
 ## is about to assert on, with a frame budget as the failure case.
+##
+## **The crowding stages need a camera pointed at the signs**, so this scene
+## makes its own rather than depending on which way the astronaut happens to be
+## facing at spawn. `unproject_position()` is arithmetic on the camera and works
+## perfectly well under `--headless` — measured by
+## `tests/probe_headless_unproject.tscn`, because the nearby fact about
+## synthesised mouse events not reaching the GUI makes that worth checking
+## rather than assuming.
 ##
 ## Runs as a scene rather than via --script so autoloads exist.
 ## Run: engine/Godot_v4.7.1-stable_win64_console.exe --headless --path game \
@@ -54,6 +67,10 @@ var _stage := 0
 var _deadline := 0
 var _failures: Array[String] = []
 var _lit_text := ""
+var _camera: Camera3D
+## Whether the current stage has run its one-off setup. Reset by `_advance()`,
+## so a stage can arrange the world on its first frame and then wait for it.
+var _armed := false
 
 
 func _ready() -> void:
@@ -74,7 +91,9 @@ func _physics_process(_delta: float) -> void:
 		1: _stage_the_pulse_lights_it()
 		2: _stage_it_says_how_far()
 		3: _stage_it_goes_out_again()
-		4: _finish()
+		4: _stage_two_names_in_one_place()
+		5: _stage_the_separation_is_what_does_it()
+		6: _finish()
 
 
 func _find_the_pieces() -> bool:
@@ -93,10 +112,34 @@ func _find_the_pieces() -> bool:
 	_near.sign_range = 5000.0
 	_near.fade_in = 0.05
 	_far = _signs[1]
-	_far.sign_range = 1.0
+	# Every other sign is put out of range, so the crowding stages below are a
+	# two-horse race rather than a count that changes with the world scene.
+	for i in range(1, _signs.size()):
+		_signs[i].sign_range = 1.0
+	# The scanner pings once per stage, and the default cooldown is longer than
+	# the squeezed pulse.
+	_scanner.cooldown = 0.0
+	_look_at_the_near_sign()
 	print("signs found: %d, near '%s', far '%s'"
 		% [_signs.size(), _near.site_name, _far.site_name])
 	return true
+
+
+## A camera of our own, back from the near sign and looking at it.
+##
+## Without one, every assertion below is at the mercy of which way the astronaut
+## was facing when the scene loaded: a sign behind the camera is refused a slot,
+## correctly, and the test would fail for a reason that has nothing to do with
+## what it is testing.
+func _look_at_the_near_sign() -> void:
+	_camera = Camera3D.new()
+	_camera.fov = 60.0
+	_camera.far = 2000.0
+	add_child(_camera)
+	var at := _near.global_position
+	_camera.global_position = at + Vector3(24.0, 6.0, 32.0)
+	_camera.look_at(at, Vector3.UP)
+	_camera.current = true
 
 
 ## 1, and the guard. Nothing is lit before a pulse, and the scanner has stopped
@@ -177,6 +220,95 @@ func _stage_it_says_how_far() -> void:
 	_deadline = _frames + BUDGET
 
 
+## 5. Two names in the same place: the nearer keeps it, the further goes dark.
+##
+## The far sign is moved to a metre beyond the near one along the line out from
+## the ping, which puts them within a few pixels of each other on screen and
+## leaves the priority order unambiguous.
+func _stage_two_names_in_one_place() -> void:
+	if not _armed:
+		_armed = true
+		_crowd_them()
+		_expect(_scanner.ping(), "the scanner refused the crowding ping")
+		return
+	# Both, not just the near one. They arrive at different times - the delay is
+	# each sign's own distance over the wave speed - and reading the arbitration
+	# while only one contender has turned up is how the first version of this
+	# stage reported "1 of 1 signs drawing" and called the declutter proven.
+	if not (_near.is_revealing() and _far.is_revealing()):
+		if _frames < _deadline:
+			return
+		_expect(false, "the two signs were never inside their pulse at the "
+			+ "same time: near %s, far %s"
+				% [_near.is_revealing(), _far.is_revealing()])
+		_finish()
+		return
+	var slots := _scanner.sign_slot_count()
+	print("crowded at %.0f px separation: %d of %d signs drawing"
+		% [_scanner.sign_separation_px, slots.x, slots.y])
+	_expect(_near.is_revealing() and _far.is_revealing(),
+		"only one of the two signs is inside its pulse, so there is nothing "
+		+ "to arbitrate: near %s, far %s"
+			% [_near.is_revealing(), _far.is_revealing()])
+	_expect(slots.y >= 2,
+		"the scanner saw %d signs wanting to draw, not two" % slots.y)
+	_expect(_near.is_lit(),
+		"'%s' is the nearer name and lost its slot anyway" % _near.site_name)
+	_expect(not _far.is_lit(),
+		"'%s' drew straight through '%s' — two names in one place"
+			% [_far.site_name, _near.site_name])
+	_expect(slots.x == 1,
+		"%d signs drew in one spot at a %.0f px separation"
+			% [slots.x, _scanner.sign_separation_px])
+	_advance(5)
+
+
+## And the separation is what does it, rather than the far sign being broken.
+## At zero the arbitration is off and both names come back.
+func _stage_the_separation_is_what_does_it() -> void:
+	if not _armed:
+		_armed = true
+		_scanner.sign_separation_px = 0.0
+		# A fresh pulse: the one the last stage fired has faded by now, and a
+		# stage that waits for a reveal nobody started waits forever.
+		_expect(_scanner.ping(), "the scanner refused the second crowding ping")
+		return
+	if not (_near.is_lit() and _far.is_lit()):
+		if _frames < _deadline:
+			return
+		_expect(false, "with the separation off, only %s drew"
+			% ("the near sign" if _near.is_lit() else
+				"the far sign" if _far.is_lit() else "neither sign"))
+		_finish()
+		return
+	var slots := _scanner.sign_slot_count()
+	print("separation off: %d of %d signs drawing" % [slots.x, slots.y])
+	_expect(_far.is_lit(),
+		"'%s' stayed dark with the separation switched off, so it was not "
+			% _far.site_name
+		+ "crowding that hid it")
+	_expect(_near.is_lit(), "'%s' went dark with the separation switched off"
+		% _near.site_name)
+	_expect(slots.x == 2 and slots.y == 2,
+		"with the arbitration off the scanner reported %d of %d signs drawing, "
+			% [slots.x, slots.y]
+		+ "when both are on screen")
+	_advance(6)
+
+
+## Put the far sign a metre past the near one, on the line out from the ping.
+## Same pixel, unambiguous order.
+func _crowd_them() -> void:
+	_far.sign_range = 5000.0
+	_far.fade_in = 0.05
+	var origin := _scanner.viewer_position()
+	var out := (_near.global_position - origin).normalized()
+	_far.global_position = _near.global_position + out
+	print("crowded '%s' onto '%s', %.2f m apart"
+		% [_far.site_name, _near.site_name,
+			_far.global_position.distance_to(_near.global_position)])
+
+
 ## 4. The pulse ends and the sign goes with it.
 func _stage_it_goes_out_again() -> void:
 	if _near.is_lit():
@@ -190,7 +322,7 @@ func _stage_it_goes_out_again() -> void:
 	_expect(not _near.visible, "the sign went unlit but stayed visible")
 	_expect(_near.text == _near.site_name,
 		"a dark sign kept its distance readout: '%s'" % _near.text)
-	_stage = 4
+	_advance(4)
 
 
 # --- helpers ------------------------------------------------------------
@@ -225,6 +357,12 @@ func _viewer_distance(sign_node: SiteSign) -> float:
 		_site_of(sign_node).global_position)
 
 
+func _advance(stage: int) -> void:
+	_stage = stage
+	_armed = false
+	_deadline = _frames + BUDGET
+
+
 func _expect(condition: bool, message: String) -> void:
 	if not condition:
 		_failures.append(message)
@@ -233,7 +371,7 @@ func _expect(condition: bool, message: String) -> void:
 func _finish() -> void:
 	if _failures.is_empty():
 		print("PASS: site signs are dark until a pulse, gated by range, "
-			+ "and go out with it.")
+			+ "decluttered against each other, and go out with it.")
 		# quit() only schedules the exit, so this must return or the failure
 		# path below runs anyway and overwrites the code with 1.
 		get_tree().quit(0)

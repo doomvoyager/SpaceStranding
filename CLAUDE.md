@@ -305,6 +305,12 @@ scratch so they work under `--script`, where autoloads do not exist:
 engine/Godot.app/Contents/MacOS/Godot --headless --path game --script res://tests/probe_vehicle_axes.gd
 ```
 
+Probes that need autoloads or a viewport run as a scene instead:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_headless_unproject.tscn
+```
+
 Tests that touch project scripts must run **as a scene**, like the rover test
 above, because those scripts reach for `World`.
 
@@ -404,6 +410,15 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   therefore fails headless and passes windowed, which looks exactly like a
   broken click path. `DisplayServer.get_name() == "headless"` is the check;
   skip the claim loudly rather than weakening it. `tests/test_pad_cursor.gd`.
+- **`Camera3D.unproject_position()` works perfectly well under `--headless`**,
+  and so does `is_position_behind()`. Both are arithmetic on the camera's own
+  projection against `get_visible_rect()`, which the dummy display server still
+  reports at the configured window size - measured at 1600x900, with a point
+  dead ahead landing exactly on the centre pixel. Worth stating because the
+  neighbouring facts about synthesised mouse events make screen-space work look
+  untestable headless, and `test_scanner.gd` switched its tag separation *off*
+  on that assumption rather than measuring. Screen-space declutter is testable;
+  `tests/probe_headless_unproject.gd`.
 - **`get_viewport().get_mouse_position()` returns junk under `--headless`**
   and a stale value in a window whenever something other than the mouse is
   driving the pointer. Anything emulating a cursor has to arbitrate on

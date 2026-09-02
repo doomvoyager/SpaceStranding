@@ -64,7 +64,13 @@ func _ready() -> void:
 	_scanner.fade = 2.0
 	_scanner.max_tags = 3
 	# Off, so the budget is what is under test rather than the screen-space
-	# declutter, which needs a real projection to mean anything.
+	# declutter, which would otherwise refuse tags this stage is counting.
+	#
+	# It was switched off originally on the belief that a projection means
+	# nothing under --headless. That was a guess, and it was wrong:
+	# `unproject_position()` is arithmetic on the camera and measures correctly
+	# with the dummy renderer - see `probe_headless_unproject.gd`, and
+	# `test_site_sign.gd`, which does test declutter headless.
 	_scanner.tag_separation_px = 0.0
 	add_child(_scanner)
 

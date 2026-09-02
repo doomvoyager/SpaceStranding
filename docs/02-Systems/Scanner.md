@@ -116,6 +116,43 @@ without being the loudest thing in frame. It sits just below `tag_size`
 (0.00022), which is right: the sign is further away than anything the scanner
 tags.
 
+### Two names in one place
+
+A sign is a node in its own scene and knows nothing about the other signs, so
+the first version wrote them straight through one another: three sites 60 m
+apart, seen from 200 m, produced `LONGSHADOW - 58 M` and `RELAY - 23 M` sharing
+the same 145 px of screen. The same failure the tag pile was, arrived at from
+the opposite direction.
+
+**The arbitration lives on the scanner, and the sign asks for it.**
+`sign_has_room()` decides once a frame which names fit, nearest-to-the-ping
+first, refusing anything within `sign_separation_px` of a name already placed.
+200 px by default, which is the first value that separates the frame above; a
+sign is a much wider label than a tag, which is why it is not
+`tag_separation_px`.
+
+Three things about the shape of it:
+
+- **Ordered by distance from the ping, not from the player.** The origin does
+  not move for the life of a pulse, so a name cannot swap places with its
+  neighbour while you drive past.
+- **The sign asks rather than being told.** A flag pushed from the scanner would
+  be a frame stale by the time the sign drew, and the sign would spend that
+  frame visible in a slot it had already lost.
+- **A sign missing from a frame's answer forces a fresh one.** That is the
+  correctness argument, not defensive coding: the signs run their own clocks in
+  their own `_process`, in tree order, and one crosses from "the wave has not
+  reached me" to "I want to draw" *during* that pass - so the sign that ran
+  first can trigger the resolve while a later one still looks idle. Absent read
+  as "no reason to refuse you". It cost exactly one frame of a name drawn in a
+  slot it had lost, and the crowding test caught it.
+
+New tags are also refused a spot on top of a sign - `sign_points()` seeds the
+tag reveal's taken list. **A tag already placed is not moved**, though: tags are
+sticky once created, and a site further off than something taggable beside it
+lights its sign after that tag has claimed its spot. They end up on adjacent
+lines rather than through each other, which is legible, so it stands.
+
 `Facility.mast_point()` returns the sign's global position, so the sign is also
 the facility's aerial for [[The-Lattice]]. Hiding a node does not move it, so
 none of the above touches the graph - but *moving* the sign moves the aerial,
@@ -260,6 +297,17 @@ the ping, that `sign_range` gates, that the distance is measured from the player
 rather than from the mast or from where the ping went out, and that they go dark
 again with the pulse. It also asserts that `tag_groups` has stopped listing
 `facility` and `relay`, which is the guard against the double label coming back.
+
+Its last two stages move one sign onto another and assert that the nearer name
+keeps the space and the further one goes dark, then switch `sign_separation_px`
+to zero and assert both come back - so a pass cannot be a sign that was simply
+broken. It builds its own camera rather than depending on which way the
+astronaut faces at spawn, because a sign behind the camera is correctly refused
+a slot and the test would fail for the wrong reason. `unproject_position()` is
+arithmetic on the camera and works fine under `--headless`; that was measured by
+`res://tests/probe_headless_unproject.tscn` rather than assumed, because the
+neighbouring fact about synthesised mouse events never reaching the GUI makes it
+exactly the kind of thing that would not.
 
 `res://tests/scan_capture.tscn` is the look pass,
 `res://tests/probe_scan_glow.tscn` the tuning one, and
