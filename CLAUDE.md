@@ -59,6 +59,7 @@ mechanics. Mac makes their own scene edits between sessions.
 | Settled arguments, rejected ideas | `docs/07-Decisions/Decision-Log.md` |
 | Session history | `docs/05-Sessions/` |
 | HTML reports and audits | `docs/09-Reports/` |
+| Look-dev renders, one folder per day | `previews/YYYY-MM-DD/` - gitignored, see below |
 | Godot engine binary | `engine/` - gitignored, see below |
 | Standalone authoring tools | `tools/` at the repo root, **not** `game/tools/` |
 | Authored game tables (TSV) | `game/data/` - edit with `tools/tsv-editor.ps1` |
@@ -255,6 +256,23 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/brake_light_captur
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/rollover_capture.tscn
+```
+
+**Every rendered image that gets looked at is kept, in `previews/`.** A capture
+scene writes to Godot's `user://` first, because that is where a running game
+can write without touching the project; the shots are then copied into
+`previews/YYYY-MM-DD/` - one folder per day - and named
+`<capture-set>-<shot>.png` so a day browses flat as thumbnails. Do this at the
+end of a capture run, before writing up what the images showed. The folder is
+gitignored apart from its README; see `previews/README.md`.
+
+Tuning sweeps count, and are the reason the rule exists: the seven frames that
+settled `brake_light_energy` at 0.9 were rendered against values that no longer
+exist in the project, so the capture scene cannot reproduce them. A note that
+says "1.4 starts washing out" is worth more with the frame beside it.
+
+```bash
+mkdir -p "previews/$(date +%F)"
 ```
 
 Time where the frame goes during a scan pulse, with and without the map. Also

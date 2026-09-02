@@ -15,6 +15,15 @@ engine/
 # --- Build output ---
 builds/
 
+# --- Preview renders ---
+# Every look-dev capture Claude renders and looks at, one folder per day. They
+# are the visual record of a session and they are large - a single day ran to
+# 40 MB - so the repo holds the notes that cite them, not the pixels. The
+# README is committed so the folder exists on both machines. See CLAUDE.md
+# "Preview renders".
+previews/*
+!previews/README.md
+
 # --- Terrain masters ---
 # 8193x8193 Gaea exports, 420 MB together. Same rule as the zips below: the repo
 # holds what the game uses, not what it was delivered in. `tools/bake-terrain.py`
