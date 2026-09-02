@@ -19,6 +19,17 @@ class_name Relay
 ## of relays retunes from one place.
 @export var range_override := 0.0
 
+@export_group("Placement")
+## Metres between the terrain surface and this node. Zero, because the relay's
+## plinth sits on its own origin, so it settles flush.
+##
+## Authored on X/Z and solved on height, which is the only arrangement that
+## survives a re-baked terrain — see `test_world.gd`. The editor keeps the same
+## invariant live while you drag: `res://addons/spawn_gizmos` re-solves the
+## height so the mast in the viewport is standing on the ground it will stand
+## on at runtime, and draws the tether down to the contact point.
+@export var ground_clearance := 0.0
+
 @onready var _antenna: Node3D = get_node_or_null("Antenna")
 
 

@@ -8,6 +8,8 @@ Entry point. Everything else hangs off this.
 - [[The-Planet]] - the world spec every constant derives from
 - [[Visual-Direction]] - the look, and the one decision it all hangs off
 - [[Debug-Panel]] - F1 in game. Every tunable on a slider
+- [[Placement]] - spawn markers and the ground snap. Drag things, don't type
+  coordinates
 - `00-Inbox/` is the drop zone. Clear it at session start.
 
 ---

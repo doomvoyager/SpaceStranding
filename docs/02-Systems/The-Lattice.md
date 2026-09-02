@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-08-31
+verified: 2026-09-01
 godot: res://scripts/world/lattice.gd
 tags: [system, progression, core-loop]
 ---
@@ -141,3 +141,14 @@ relay went to (-12, 14) with 8.2 m of clearance and 9.0 m of range to spare.
       hole". #question
 - [ ] TODO: transfer speed and dispatch delay are guesses (2.5 m/s, 20 s). They
       only become judgeable once facilities are a real distance apart. #playtest
+
+## Siting a relay
+
+A relay is authored on X and Z; its **height is solved**, never typed. That is
+not tidiness - links are decided by line of sight over the terrain, so a mast
+sitting two metres below the ridge it was meant to see over links to a different
+set of sites than the one you placed. See [[Placement]], which draws the tether
+down to the contact point so the offset is visible before you press play.
+
+Drawing `link_range` as a gizmo ring, so siting is judged in the viewport, is
+open there.

@@ -138,6 +138,13 @@ mesh into the `.tscn`.
 through the node transform. This is now load-bearing in a way it was not before,
 because the terrain is translated rather than sitting on the origin.
 
+**`is_built()` before trusting a height.** An unbuilt terrain answers **zero**
+for every point rather than failing, and zero is a perfectly plausible height -
+so anything solving positions against one quietly stacks the whole scene onto
+this node's own origin. The editor ground snap in [[Placement]] refuses to write
+until this is true; it is the only guard between a not-yet-built patch and a
+destructive edit that looks exactly like a correct one.
+
 **UV2 spans the patch 0..1; UV1 tiles.** The macro albedo is sampled through
 UV2. UV1 is world metres over 16 and repeats hundreds of times across the patch,
 so it can carry detail and never the macro map. Deriving one from the other
@@ -151,6 +158,11 @@ everything in the `facility` and `relay` groups onto the ground, exactly as it
 already did for crates - X/Z stay hand-placed in the editor, only height is
 solved. Both scenes put their origin at the ground contact point, so they settle
 flush.
+
+The editor now solves the same height *while you drag* - see [[Placement]] - so
+the Y in the scene file is no longer a number nobody has checked since the last
+terrain it was tuned against. When that landed the Hearth's stored Y was still
+7 m out and the recovered mast 6 m, neither visible without pressing play.
 
 **The scatter assumed the terrain was at the origin.** `rock_scatter.gd` drew
 positions from `-half..+half` in world space, which was the same thing only

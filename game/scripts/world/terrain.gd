@@ -290,7 +290,20 @@ func _generate_heights_procedural() -> void:
 			_heights[z * _samples + x] = h * height_scale
 
 
+## Whether there is a heightfield to query yet.
+##
+## Worth asking before trusting `height_at()`, because an unbuilt terrain
+## answers zero for every point rather than failing — and zero is a plausible
+## height, so anything solving positions against it silently piles the whole
+## scene onto this node's own origin. The editor asks: the ground snapper in
+## `res://addons/spawn_gizmos` refuses to move anything until this is true.
+func is_built() -> bool:
+	return _samples > 0 and _heights.size() == _samples * _samples
+
+
 func height_at_index(x: int, z: int) -> float:
+	if _heights.is_empty():
+		return 0.0
 	x = clampi(x, 0, _samples - 1)
 	z = clampi(z, 0, _samples - 1)
 	return _heights[z * _samples + x]

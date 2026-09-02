@@ -162,6 +162,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_sc
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_heightmap_terrain.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_spawn_points.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -466,6 +470,25 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   something belongs to must not call its field `owner`. Shadowing it breaks
   scene serialisation in ways that do not announce themselves. `Crate` uses
   `cargo_owner`.
+- **`EditorNode3DGizmoPlugin` can only be instantiated by the editor**, so no
+  gizmo code can be exercised from a game run - `.new()` fails with "can only be
+  instantiated by editor", the following line calls a method on `Nil`, and
+  because a test scene whose script errors never quits, the run *hangs* rather
+  than failing. Verify a gizmo plugin by printing from its `_enter_tree()` under
+  `--headless --editor --quit-after`, which does construct it. Everything
+  underneath - the placement arithmetic, the type rule - has to live outside the
+  gizmo class if it is to be tested at all. See [[Placement]].
+- **An `@export` is visible to the inspector and to `get()` whether or not the
+  script is `@tool`.** Worth knowing before adding `@tool` to a gameplay script
+  just so an editor tool can read a field off it: `@tool` also starts running
+  that script's `_ready()` in the editor, which for anything registering with an
+  autoload is a different and worse problem. Editor tooling that keys off a
+  property rather than a type needs nothing from the node's script at all.
+- **A node created with `.new()` and never added to a tree is never freed.**
+  Nodes are not reference counted, so a test that builds one to probe an
+  unbuilt-state code path leaks it, and the report arrives at exit as RID and
+  ObjectDB leak errors naming engine internals rather than the test. `free()` it
+  by hand; a teardown walking `get_children()` will not reach it.
 
 ---
 

@@ -75,6 +75,20 @@ enum Owner {
 ## costs roughly a tenth of the load's condition.
 @export var jolt_ruin := 45.0
 
+@export_group("Placement")
+## Metres between the terrain surface and this crate's origin, when it is
+## authored into a scene rather than issued by a facility.
+##
+## Half the 0.6 m crate plus a hair, so a world crate starts *resting* instead
+## of falling. Cargo takes damage from being dropped and one spawned even 15 cm
+## up lands hard enough to register, so the whole world would begin the session
+## pre-scuffed for no reason the player could see. See [[Cargo]].
+##
+## The editor reads this too: `res://addons/spawn_gizmos` keeps the crate at
+## exactly this height above the ground while you drag it, so the height in the
+## scene file is the height you will get.
+@export var ground_clearance := 0.31
+
 ## 1.0 pristine, 0.0 destroyed. Only ever goes down: there is no field repair,
 ## and delivery pays on what arrives.
 var condition := 1.0

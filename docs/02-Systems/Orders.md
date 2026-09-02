@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-08-31
+verified: 2026-09-01
 godot: res://scripts/orders/order_book.gd
 tags: [system, core-loop, cargo]
 ---
@@ -390,3 +390,10 @@ footprint, because the first pair were placed by eye at `y = 0` and were buried.
       that Facilities are simply never that close. #playtest
 - [ ] TODO: timed orders, if they ever come back, need the flare interaction
       solved first - sheltering must not cost the window. See [[Flares]].
+
+## Where a facility stands
+
+A facility is authored on X and Z with its **height solved** - its apron sits at
+y = 0 in `facility.tscn`, so it settles flush. The Hearth spent a session 13.6 m
+underground because that height was once a hand-tuned number, and was still 7 m
+out three weeks later. See [[Placement]].

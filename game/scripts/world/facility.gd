@@ -42,6 +42,17 @@ signal dock_changed
 ## linked with no relay at all — see [[The-Lattice]].
 @export var range_override := 0.0
 
+@export_group("Placement")
+## Metres between the terrain surface and this node. Zero, because the apron
+## sits at y = 0 in facility.tscn, so it settles flush.
+##
+## The Hearth spent a session 13.6 m underground because its height was a
+## hand-tuned number baked against the procedural patch, and the authored
+## heightmap moved the ground out from under it. Height is solved now, never
+## typed — and `res://addons/spawn_gizmos` solves it live in the editor too, so
+## the same mistake cannot be made silently again.
+@export var ground_clearance := 0.0
+
 var _dock: CargoRack
 var _pad: DeliveryPad
 var _terminal: Node3D

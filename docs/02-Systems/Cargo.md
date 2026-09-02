@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-08-31
+verified: 2026-09-01
 godot: res://scripts/cargo/cargo_rack.gd
 tags: [system, core-loop]
 ---
@@ -252,3 +252,16 @@ underneath. Nothing headless noticed, because delivery still worked.
       #playtest
 - [ ] TODO: crates are one size. Volume as a real axis needs multi-slot items
       or a second crate size. #question
+
+## Where a world crate starts
+
+A crate authored into a scene carries `ground_clearance`, defaulting to **0.31 m**
+- half the 0.6 m crate plus a hair - so it begins *resting* rather than falling.
+One spawned even 15 cm up lands hard enough to register damage, which would have
+every crate in the world pre-scuffed at session start for no reason the player
+could see.
+
+X and Z are hand-placed; the height is solved, in the editor while you drag and
+again on load. See [[Placement]]. The constant used to live in `test_world.gd`,
+which meant it only applied to crates parented under one particular node - the
+recovered mast under `LooseCargo` was quietly exempt and kept a hand-tuned Y.

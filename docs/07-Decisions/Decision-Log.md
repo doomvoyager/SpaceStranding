@@ -9,6 +9,50 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-01 - X and Z are authored; height is always solved
+
+Mac asked for gizmos to position the things scripts were spawning, now that
+there is a heightmap to position them against. Four calls came out of it.
+
+**One invariant, kept in two places on purpose.** `y == ground(x, z) +
+ground_clearance`. The editor maintains it while you drag; `test_world.gd`
+re-derives it on load. That duplication is deliberate - the editor's copy makes
+the scene file honest to read and diff, and the runtime's copy is what catches a
+re-baked or retuned terrain moving the ground under an authored position.
+Rejected: dropping the runtime solve once the editor writes a real Y, which
+would make the `.tscn` the single source of truth and leave everything floating
+after a re-bake until each scene was reopened. `test_spawn_points.tscn` asserts
+the two solvers agree, because two implementations of one rule is exactly the
+shape that drifts.
+
+**Dragging vertically edits the clearance, it does not fight you.** The
+alternative - snapping Y back to the solved height - makes the node
+unmovable on one axis. Letting the clearance absorb the drag keeps the inspector
+number and the scene file agreeing, which is the whole invariant. It has one
+wart: undoing a snap restores the old Y and the follow-up absorb turns that into
+a clearance. That is self-consistent, and cheaper than the alternative.
+
+**Editor tooling keys off a property, not a list of types.** Anything carrying
+`ground_clearance` is anchored. [[Debug-Panel]] keeps a hand-written
+`_discover()` list and it is already on record as the reason three finished
+systems reached nobody in one day. A new node opts in by declaring the export
+and the addon needs no edit. The corollary is that `facility.gd`, `relay.gd` and
+`crate.gd` did **not** become `@tool` scripts: an `@export` is readable through
+`get()` without one, and `@tool` would have started running their `_ready()` -
+and their autoload registrations - inside the editor.
+
+**A real gizmo addon, not `@tool` preview meshes.** Mac's call, and the right
+one: gizmo geometry is drawn into the viewport and is never a node, so it cannot
+be serialised into a `.tscn`. This project has already baked a six-figure-
+triangle mesh into a scene file by giving a generated node an `owner`. The cost
+is that the drawing half cannot be tested headlessly at all -
+`EditorNode3DGizmoPlugin` refuses to instantiate outside the editor - so the
+arithmetic under it was deliberately kept in classes that can be.
+
+The scene file was lying by metres when this landed: the Hearth's stored Y was
+7 m off the ground beneath it, the recovered mast 6 m. Both now seeded from a
+solved height.
+
 ## 2026-09-01 - The terrain is authored art; the map is 4096 m across
 
 Mac delivered two 8193x8193 Gaea exports and asked whether they could replace

@@ -13,6 +13,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/order_panel.tscn" id="11_panel"]
 [ext_resource type="PackedScene" path="res://scenes/world/relay.tscn" id="12_relay"]
 [ext_resource type="Script" uid="uid://c4krw0ip6kg7x" path="res://scripts/world/scanner.gd" id="13_scanner"]
+[ext_resource type="Script" path="res://scripts/world/spawn_point.gd" id="14_spawn"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_vesper"]
 sky_top_color = Color(0.07, 0.05, 0.07, 1)
@@ -95,6 +96,7 @@ height_scale = 96.0
 ridge_weight = 0.912
 
 [node name="Beacon" type="Node3D" parent="." unique_id=95117728]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.390732, -140)
 
 [node name="Mast" type="MeshInstance3D" parent="Beacon" unique_id=1650547877]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9, 0)
@@ -107,54 +109,76 @@ light_color = Color(1, 0.32, 0.24, 1)
 light_energy = 8.0
 omni_range = 60.0
 
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="AstronautSpawn" type="Node3D" parent="Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.287066, 0)
+script = ExtResource("14_spawn")
+spawn_id = "astronaut"
+ground_clearance = 1.2
+
+[node name="RoverSpawn" type="Node3D" parent="Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.839805, 0)
+script = ExtResource("14_spawn")
+spawn_id = "rover"
+ground_clearance = 1.6
+
+[node name="BeaconSpawn" type="Node3D" parent="Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.390732, -140)
+script = ExtResource("14_spawn")
+spawn_id = "beacon"
+ground_clearance = 0.0
+
 [node name="Astronaut" parent="." unique_id=2068191989 instance=ExtResource("3_astronaut")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.287066, 0)
 
 [node name="Rover" parent="." unique_id=1609840956 instance=ExtResource("4_rover")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.839805, 0)
 
 [node name="Crates" type="Node3D" parent="." unique_id=134943891]
 
 [node name="Crate1" parent="Crates" unique_id=1012537758 instance=ExtResource("5_crate")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.2, 0, 2.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.2, -1.13747, 2.2)
 
 [node name="Crate2" parent="Crates" unique_id=1889753566 instance=ExtResource("5_crate")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, 0, 2.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, -1.10088, 2.9)
 mass = 55.0
 cargo_name = "Water canister"
 
 [node name="Crate3" parent="Crates" unique_id=1028324466 instance=ExtResource("5_crate")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0, 3.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, -0.992227, 3.7)
 
 [node name="Crate4" parent="Crates" unique_id=623864605 instance=ExtResource("5_crate")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.3, 0, 1.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.3, -1.16403, 1.7)
 mass = 22.0
 cargo_name = "Core samples"
 
 [node name="Crate5" parent="Crates" unique_id=762425525 instance=ExtResource("5_crate")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.9, 0, 4.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.9, -0.93683, 4.5)
 mass = 48.0
 cargo_name = "Spare cell"
 
 [node name="Crate6" parent="Crates" unique_id=1516569004 instance=ExtResource("5_crate")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.9, 0, 3.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.9, -1.07312, 3.5)
 
 [node name="HUD" parent="." unique_id=826782983 instance=ExtResource("6_hud")]
 astronaut_path = NodePath("../Astronaut")
 rover_path = NodePath("../Rover")
 
 [node name="Hearth" parent="." unique_id=1581600956 instance=ExtResource("10_facility")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 5.197858, -15.898802)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, -1.81001, -15.898802)
 facility_id = "hearth"
 display_name = "Hearth"
 
 [node name="Longshadow" parent="." unique_id=42263186 instance=ExtResource("10_facility")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -44, 4.7343216, 30)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -44, 1.13779, 30)
 facility_id = "longshadow"
 display_name = "Longshadow"
 
 [node name="Relays" type="Node3D" parent="." unique_id=682848763]
 
 [node name="RidgeRelay" parent="Relays" unique_id=1020977503 instance=ExtResource("12_relay")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 2.09, 14)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, -0.642126, 14)
 relay_id = "ridge"
 
 [node name="OrderPanel" parent="." unique_id=2139344188 instance=ExtResource("11_panel")]
@@ -162,7 +186,7 @@ relay_id = "ridge"
 [node name="LooseCargo" type="Node3D" parent="." unique_id=595401200]
 
 [node name="Mast105" parent="LooseCargo" unique_id=1231105223 instance=ExtResource("5_crate")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 5.9, 10)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, -0.11602, 10)
 mass = 48.0
 cargo_name = "Recovered mast"
 cargo_owner = 3
