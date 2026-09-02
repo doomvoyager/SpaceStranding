@@ -194,6 +194,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ma
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_route_marks.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_pad_cursor.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -335,6 +339,19 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   while driving, which is the half nobody tests. The scanner had a private
   helper for this from the start; a second copy in the HUD's route bearing was
   wrong the whole time it existed. `Astronaut.vantage()` is the one answer now.
+- **A synthesised mouse event does not reach the GUI under `--headless`.**
+  `Input.parse_input_event()` delivers it — it turns up in `_unhandled_input`
+  with the position you gave it — but with no window there is nothing to
+  hit-test against, so Godot never finds the Control under the pointer and
+  `gui_input` is never emitted. A test that clicks a button or a viewport
+  therefore fails headless and passes windowed, which looks exactly like a
+  broken click path. `DisplayServer.get_name() == "headless"` is the check;
+  skip the claim loudly rather than weakening it. `tests/test_pad_cursor.gd`.
+- **`get_viewport().get_mouse_position()` returns junk under `--headless`**
+  and a stale value in a window whenever something other than the mouse is
+  driving the pointer. Anything emulating a cursor has to arbitrate on
+  *movement* — compare against the last value seen — rather than re-reading the
+  OS position every frame, or the platform silently wins every tie.
 - **An `Area3D` is a trigger, not a floor.** A pad built as a bare `Area3D`
   detected crates perfectly and let them fall straight through onto the terrain
   beneath, where they still counted as delivered. Every headless test passed;

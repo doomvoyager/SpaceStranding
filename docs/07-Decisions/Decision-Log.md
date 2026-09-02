@@ -9,6 +9,34 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - Pad support is an emulated pointer, not a focus rig
+
+Mac asked whether the map was controller-friendly. It was not: orbit and pan
+worked and nothing else — no placing a stop, no zoom, no buttons, no list.
+Mac proposed stick-driven cursor emulation with `A` as left click, and that is
+what was built.
+
+**It warps the real pointer and synthesises real mouse events.** The rejected
+alternative is the conventional one: give every panel a focus chain and drive
+it with `ui_up`/`ui_down`/`ui_accept`. That is more work per panel, has to be
+redone for each new panel, and cannot express the one thing the map actually
+needs — pointing at an arbitrary spot of ground. Emulating the pointer means
+every existing Control keeps working untouched and a panel added later gets
+pad support for free.
+
+**The panels take no keyboard focus at all.** Falls out of the above: with
+everything pointer-driven, focus navigation adds nothing and costs two real
+conflicts — `ui_left`/`ui_right` stealing the d-pad from panning, and `A`
+pressing a focused button *as well as* clicking where the pointer is.
+
+**The pad's axes are read directly, not through the `move_*` actions.** Those
+carry WASD as well as the stick, and a panel where `W` nudges the pointer is
+not what was asked for.
+
+Also fixed in passing: the scanner was pinging from behind an open panel,
+burning its cooldown on a pulse into a world nobody could see.
+
+
 ## 2026-09-02 - One beam, and the route line costs a pulse
 
 Mac specified both readings of a planned route in the world, and the arrival

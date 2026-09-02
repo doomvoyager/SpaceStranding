@@ -25,6 +25,8 @@ signal closed
 @export var orbit_sensitivity := 0.4
 @export var pad_orbit_speed := 90.0
 @export var pad_pan_speed := 0.9
+## Zoom steps per second at full trigger.
+@export var pad_zoom_speed := 8.0
 
 @export_group("Markers")
 @export var marker_lift := 6.0
@@ -83,6 +85,19 @@ func _ready() -> void:
 	_clear_button.pressed.connect(func() -> void: Route.clear())
 	Route.changed.connect(_on_route_changed)
 	Lattice.coverage_changed.connect(_rebuild_markers)
+	_drop_focus()
+
+
+## Nothing in this panel takes keyboard focus.
+##
+## Everything here is driven by a pointer — a mouse, or the left stick through
+## PadCursor — so focus navigation has nothing to add, and leaving it on costs
+## two real conflicts: `ui_left`/`ui_right` would move focus instead of panning
+## the camera, and `A` would press whichever button happened to be focused *as
+## well as* clicking wherever the pointer was.
+func _drop_focus() -> void:
+	for control in [_legs, _up_button, _down_button, _drop_button, _clear_button]:
+		(control as Control).focus_mode = Control.FOCUS_NONE
 
 
 ## On its own key rather than through a verb, and in `_unhandled_input` rather
@@ -146,6 +161,12 @@ func frame_on(world_xz: Vector2, distance: float) -> void:
 	_distance = clampf(distance, zoom_min, zoom_max)
 	_clamp_focus()
 	_place_camera()
+
+
+## The map view's rectangle on screen. For tests, and for anything that wants to
+## aim a pointer at the map rather than at the panel around it.
+func view_rect() -> Rect2:
+	return _view_container.get_global_rect()
 
 
 func _player() -> Astronaut:
@@ -239,11 +260,20 @@ func _process(delta: float) -> void:
 		_yaw -= orbit.x * pad_orbit_speed * delta
 		_pitch = clampf(_pitch + orbit.y * pad_orbit_speed * delta,
 			pitch_min, pitch_max)
-	var pan := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	# Pan is on the d-pad, not the left stick: the left stick drives the pointer
+	# now (see PadCursor), and placing a stop matters more than sweeping the
+	# camera. `ui_*` is free to use for this because the panel's own controls
+	# take no focus — see `_drop_focus()`.
+	var pan := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if pan.length_squared() > 0.0001:
-		# _pan already scales by zoom, so this only has to turn a held stick
+		# _pan already scales by zoom, so this only has to turn a held direction
 		# into the pixels-per-second a drag would have produced.
 		_pan(pan * pad_pan_speed * 600.0 * delta)
+	# Triggers zoom. Analog, so it is a rate rather than a step.
+	var zoom := Input.get_axis("drive_back", "drive_forward")
+	if absf(zoom) > 0.01:
+		_distance = clampf(_distance * pow(zoom_step, -zoom * pad_zoom_speed * delta),
+			zoom_min, zoom_max)
 	_place_camera()
 	_draw_route()
 	_update_live_markers()

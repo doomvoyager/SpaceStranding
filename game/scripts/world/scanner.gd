@@ -201,6 +201,12 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Not from behind a full-screen panel. Q with the map open was firing a pulse
+	# into a world nobody could see — harmless, and it burned the cooldown, so
+	# the scan you wanted after closing the map did nothing.
+	var player := get_tree().get_first_node_in_group("player") as Astronaut
+	if player != null and player.is_menu_open():
+		return
 	if event.is_action_pressed("scan"):
 		ping()
 		get_viewport().set_input_as_handled()

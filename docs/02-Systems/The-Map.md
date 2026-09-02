@@ -110,6 +110,43 @@ drive straight through.
 the markers should still tick stops off, and tying "have I arrived" to "can I
 see where I am going" is a bug waiting for the first scene that omits one.
 
+## On a controller
+
+**Built 2026-09-02**, after the honest answer to "is this pad-friendly?" turned
+out to be no: you could orbit and pan and nothing else — no placing a stop, no
+zoom, no buttons, no list selection.
+
+| | |
+|---|---|
+| Left stick | Move the pointer |
+| `A` | Click |
+| Right stick | Orbit |
+| D-pad | Pan |
+| Triggers | Zoom |
+| `B` | Close |
+
+`PadCursor` **moves the real pointer and synthesises real mouse events** rather
+than drawing a cursor of its own. Every panel is already built out of Controls
+that respond to a mouse, so warping the actual pointer means all of that keeps
+working untouched and there is no second input path to keep in step. A panel
+added later gets pad support for nothing.
+
+It is live only while `Astronaut.is_menu_open()`, so it cannot interfere with
+driving or walking. It reads the pad's axes directly rather than the
+`move_*` actions, because those carry WASD too and a panel where `W` nudges the
+pointer would be a strange thing to have built.
+
+**The mouse takes the pointer back when it moves, not every frame.** Re-reading
+the OS position each idle frame looks equivalent and hands authority to
+whatever the platform last reported — which is a stale value the moment the
+stick is driving.
+
+The panel's controls take **no keyboard focus**. Everything is pointer-driven,
+so focus navigation has nothing to add and leaving it on costs two real
+conflicts: `ui_left`/`ui_right` would move focus instead of panning, and `A`
+would press whichever button was focused *as well as* clicking where the
+pointer was.
+
 ## Where the code is
 
 | | |
@@ -120,6 +157,7 @@ see where I am going" is a bug waiting for the first scene that omits one.
 | The route itself | `res://scripts/world/route_plan.gd`, autoloaded as `Route` |
 | The pillar and the scan reveal | `res://scripts/world/route_marks.gd` |
 | The beam | `res://shaders/route_beacon.gdshader` |
+| The pad pointer | `res://scripts/ui/pad_cursor.gd` |
 
 ## The route
 

@@ -58,7 +58,8 @@ theme_override_colors/font_color = Color(0.42, 0.86, 0.94, 1)
 
 [node name="Subtitle" type="Label" parent="Root/Frame/Margin/Rows/Header"]
 layout_mode = 2
-text = "Click the ground to add a stop.  Drag to orbit, right-drag to pan, wheel to zoom."
+text = "Click the ground to add a stop.  Drag to orbit, right-drag to pan, wheel to zoom.
+Pad: left stick points, A places, right stick orbits, d-pad pans, triggers zoom."
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.78, 0.8, 0.84, 0.75)
 
