@@ -192,6 +192,7 @@ cargo_name = "Recovered mast"
 cargo_owner = 3
 owner_id = "105"
 value = 200.0
+deploys_as = ExtResource("12_relay")
 
 [node name="RockScatter" type="Node3D" parent="." unique_id=1492972975]
 script = ExtResource("9_m0ivj")

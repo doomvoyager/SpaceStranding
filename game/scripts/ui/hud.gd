@@ -24,15 +24,31 @@ class_name HUD
 ## inspector open. It is also on the F1 panel, so it can be flipped mid-session.
 @export var show_controls_on_start := true
 
+@export_group("Survey")
+## Seconds between site surveys while carrying a mast.
+##
+## Deliberately coarse. A survey is a handful of line-of-sight walks over the
+## heightfield, which is cheap enough to run every frame — but a readout that
+## updates every frame stops reading as an instrument and starts reading as a
+## compass needle pointing at the answer, and following a gradient is not the
+## same activity as choosing a site. Four times a second is fast enough to feel
+## live and slow enough to make you stand still and look.
+@export_range(0.05, 2.0, 0.05) var survey_interval := 0.25
+
 @onready var _interact_label: Label = $Prompts/Interact
 @onready var _cargo_label: Label = $Prompts/Cargo
 @onready var _delivery_label: Label = $Prompts/Delivery
 @onready var _load_label: Label = $Prompts/Load
 @onready var _manifest_label: Label = $Prompts/Manifest
+@onready var _survey_label: Label = $Prompts/Survey
 @onready var _controls_card: Control = $Controls
 
 var _astronaut: Astronaut
 var _rover: Rover
+## Last survey, and when it was taken. Held rather than recomputed per frame
+## so the readout has something to show between refreshes.
+var _survey: SiteSurvey
+var _since_survey := 0.0
 
 
 func _ready() -> void:
@@ -60,11 +76,19 @@ func controls_visible() -> bool:
 	return _controls_card.visible
 
 
-func _process(_delta: float) -> void:
+## The survey line as the player sees it, or "" when it is not on screen.
+## For tests: a readout that is correct and never shown is the failure mode
+## this project keeps meeting, and only the visibility half is easy to miss.
+func survey_readout() -> String:
+	return _survey_label.text if _survey_label.visible else ""
+
+
+func _process(delta: float) -> void:
 	if _astronaut == null:
 		return
 	# A panel owns the whole screen while it is up, and a controls card floating
 	# over it would just be noise.
+	_tick_survey(delta)
 	var menu := _astronaut.is_menu_open()
 	_hide_all() if menu else _draw()
 
@@ -74,7 +98,7 @@ func _process(_delta: float) -> void:
 ## whatever state the player put it in.
 func _hide_all() -> void:
 	for label in [_interact_label, _cargo_label, _delivery_label, _load_label,
-			_manifest_label]:
+			_manifest_label, _survey_label]:
 		label.visible = false
 
 
@@ -87,6 +111,10 @@ func _draw() -> void:
 	_manifest_label.visible = manifest != ""
 	if _manifest_label.visible:
 		_manifest_label.text = manifest
+	_survey_label.visible = _survey != null and _astronaut.carried_deployable() != null
+	if _survey_label.visible:
+		_survey_label.text = _survey.summary()
+
 	var receipt := _recent_receipt()
 	_delivery_label.visible = receipt != ""
 	if _delivery_label.visible:
@@ -158,3 +186,23 @@ func _rack_text(rack: CargoRack) -> String:
 	if rack.is_empty():
 		return text
 	return "%s · %s" % [text, Crate.label_for(rack.worst_condition())]
+
+
+
+## Re-survey the ground underfoot, at most every `survey_interval` seconds and
+## only while there is a mast on the astronaut's back.
+##
+## The survey is of where the *player* stands, not where they are looking. A
+## mast is raised at your feet, so answering for anywhere else would be telling
+## you about a spot you cannot use.
+func _tick_survey(delta: float) -> void:
+	if _astronaut.carried_deployable() == null:
+		_survey = null
+		_since_survey = 0.0
+		return
+	_since_survey -= delta
+	if _survey != null and _since_survey > 0.0:
+		return
+	_since_survey = survey_interval
+	var at := _astronaut.global_position
+	_survey = Lattice.survey_at(at.x, at.z)

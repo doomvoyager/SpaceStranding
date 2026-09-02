@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-09-01
+verified: 2026-09-02
 godot: res://scripts/world/lattice.gd
 tags: [system, progression, core-loop]
 ---
@@ -98,6 +98,9 @@ async multiplayer hooks all at once. Extending the Lattice **is** the campaign.
 |---|---|
 | Sites, linking, line of sight, coverage | `res://scripts/world/lattice.gd` |
 | A mast | `res://scripts/world/relay.gd` |
+| Surveying a prospective site | `res://scripts/world/lattice.gd` |
+| What a survey answers | `res://scripts/world/site_survey.gd` |
+| The carried readout | `res://scripts/ui/hud.gd` |
 | Transfers in flight | `res://scripts/orders/order_book.gd` |
 | The Network tab | `res://scripts/ui/order_panel.gd` |
 
@@ -120,6 +123,19 @@ let the system look like it worked while being something else:
 - **A transfer takes time and lands on the right shelf**, at the condition it
   left with. Instant arrival would make this a teleporter.
 
+`res://tests/test_mast_survey.tscn` covers the survey arithmetic against a real
+generated terrain: that a site in range but buried loses to a clear one further
+away, that the margin is the *minimum* of the two slacks rather than the
+friendlier one, that ground out of everything's reach says so, and that
+`survey_mast_height` still matches the antenna in `relay.tscn`.
+
+`res://tests/test_mast_readout.tscn` covers the half that assertions usually
+miss: whether anyone ever *sees* it. It loads the real world scene, puts a
+deployable crate on the astronaut's back and checks the line appears - and puts
+ordinary freight there and checks it does not. Correct-and-invisible is this
+project's most repeated failure, and it has never once been caught by testing
+the arithmetic.
+
 `res://tests/probe_relay_site.gd` is how the test world's relay site was chosen.
 It scans ground that is in range of both facilities and can see both, and scores
 each candidate on its **weakest** margin. Ranking on sight-line clearance alone
@@ -133,7 +149,9 @@ relay went to (-12, 14) with 8.2 m of clearance and 9.0 m of range to spare.
 - [ ] TODO: **relays are authored, not placed.** Making one haulable is the
       campaign: the mast becomes cargo, and choosing where it goes becomes the
       survey. Order 105 already puts a downed mast in the world waiting for it.
-      #now
+      **The survey half is built** as of 2026-09-02 - see below. What remains is
+      the mast as cargo you can actually raise: a verb, and the planted relay
+      registering itself. #now
 - [ ] TODO: do relays need maintenance, or are they fire-and-forget? Maintenance
       creates return-trip content but risks becoming a chore. #question
 - [ ] TODO: what does the coverage map actually look like on screen? The Network
@@ -141,6 +159,40 @@ relay went to (-12, 14) with 8.2 m of clearance and 9.0 m of range to spare.
       hole". #question
 - [ ] TODO: transfer speed and dispatch delay are guesses (2.5 m/s, 20 s). They
       only become judgeable once facilities are a real distance apart. #playtest
+
+## Surveying a site
+
+**Built 2026-09-02.** `Lattice.survey_at(x, z)` asks the coverage question of
+ground that is not a site yet: it stands a prospective mast on the terrain at
+that spot and runs the same range-and-sight-line test the graph runs, against
+every registered site. It answers with a `SiteSurvey` - linked or not, which
+site, and how much slack there is.
+
+**The slack is the weakest of two margins**, never the kinder one: metres of
+link range left over, and the smallest gap between the sight line and the
+ground under it. This is the same rule `probe_relay_site` used to choose the
+world's own relay site, and it exists because ranking on clearance alone picks
+sites sitting at 44.0 m of a 45 m reach - fine until anything moves.
+
+It is **carried, not consulted.** While a mast is on the astronaut's back the
+HUD shows one coarse line - *links to Longshadow - 9 m margin*, or *no link
+from here* - refreshed four times a second rather than per frame. The interval
+is a design choice and is on the F1 panel: a per-frame readout stops reading as
+an instrument and starts reading as a compass needle pointing at the answer,
+and following a gradient is not the same activity as choosing a site.
+
+Three answers, not two. `unknown` is distinct from *no link* - an unbuilt
+terrain answers zero for every height and zero is a plausible height, so
+"cannot say" has to be sayable.
+
+The mast height the survey stands on (`survey_mast_height`, 11 m) is a second
+copy of `relay.tscn`'s antenna, kept because a survey has to answer for a mast
+that is not a node yet and instancing the scene four times a second would be
+absurd. `test_mast_survey` fails if the two ever disagree.
+
+What the survey deliberately does **not** do: refuse anything. It is an
+instrument, not a gate. Whether a bad site is forbidden or merely a bad idea is
+open, and is a question for when raising a mast exists.
 
 ## Siting a relay
 

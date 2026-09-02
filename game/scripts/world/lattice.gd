@@ -42,6 +42,17 @@ signal coverage_changed
 ## the bilinear height lookup disagreeing with the mesh by a few centimetres.
 @export_range(0.0, 10.0, 0.1) var los_clearance := 1.0
 
+@export_group("Surveying")
+## Antenna height, in metres, of a mast the player is carrying but has not
+## raised yet — the offset `survey_at()` stands its prospective site on.
+##
+## A second copy of relay.tscn's Antenna height, which is exactly the kind of
+## duplication this project does not want. It is here because a survey has to
+## answer for a mast that does not exist as a node yet, and instancing the
+## relay scene to measure it a few times a second would be absurd. The copy is
+## kept honest by test_mast_survey, which fails if the two ever disagree.
+@export_range(1.0, 40.0, 0.5) var survey_mast_height := 11.0
+
 ## id -> site node.
 var _sites: Dictionary = {}
 ## id -> Array[String] of ids it links to directly.
@@ -229,3 +240,77 @@ func link_count() -> int:
 	for id in _links:
 		n += _links[id].size()
 	return n / 2
+
+
+
+# --- Surveying ----------------------------------------------------------
+##
+## Asking the coverage question of ground that is not a site yet. This is what
+## makes siting a mast a decision rather than a menu: the same range-and-
+## sight-line test the graph runs, pointed at where you happen to be standing.
+
+## What a mast raised at this spot would link to.
+##
+## Scores every registered site and keeps the sturdiest link rather than the
+## nearest one — see SiteSurvey.margin for why the nearest is the wrong answer.
+func survey_at(x: float, z: float) -> SiteSurvey:
+	var out := SiteSurvey.new()
+	var terrain := _terrain()
+	if terrain == null or not terrain.is_built():
+		out.unknown = true
+		return out
+
+	var ground := terrain.world_height_at(x, z)
+	out.mast_point = Vector3(x, ground + survey_mast_height, z)
+	if _sites.is_empty():
+		out.unknown = true
+		return out
+
+	for id in _sites:
+		var node: Node = _sites[id]
+		if node == null:
+			continue
+		var point: Vector3 = node.call("mast_point")
+		# A mast the player raises carries no range override, so its own reach is
+		# the network default; the shorter of the two ends still wins.
+		var reach: float = minf(default_range, node.call("link_range"))
+		var span := out.mast_point.distance_to(point)
+		if span > reach:
+			continue
+		if not has_line_of_sight(out.mast_point, point):
+			continue
+		var clearance := line_clearance(out.mast_point, point)
+		var spare := reach - span
+		var margin := minf(clearance, spare)
+		if out.linked and margin <= out.margin:
+			continue
+		out.linked = true
+		out.best_id = String(id)
+		out.margin = margin
+		out.range_spare = spare
+		out.clearance = clearance
+	return out
+
+
+## Smallest gap between the line and the terrain beneath it, in metres.
+##
+## The raw gap, with `los_clearance` deliberately *not* subtracted, so the
+## number means the same thing here as it does in probe_relay_site and in the
+## siting figures quoted in docs/02-Systems/The-Lattice.md.
+##
+## Endpoints are skipped for the same reason has_line_of_sight skips them: a
+## mast standing on the ground would otherwise report zero clearance to itself.
+## Kept separate from has_line_of_sight rather than sharing an implementation,
+## because that one early-exits on the first blocked sample and this one has to
+## see them all.
+func line_clearance(from: Vector3, to: Vector3) -> float:
+	var terrain := _terrain()
+	if terrain == null:
+		return INF
+	var span := from.distance_to(to)
+	var steps := maxi(int(ceil(span / maxf(los_step, 0.1))), 2)
+	var worst := INF
+	for i in range(1, steps):
+		var point := from.lerp(to, float(i) / float(steps))
+		worst = minf(worst, point.y - terrain.world_height_at(point.x, point.z))
+	return worst

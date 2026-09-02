@@ -481,6 +481,22 @@ func back_rack() -> CargoRack:
 	return _back_rack
 
 
+## The deployable crate on the astronaut's back, or null.
+##
+## The HUD asks this rather than walking the rack itself, for the same reason
+## it asks for the interact prompt: carrying rules live in one place, and a
+## readout that decided for itself what counts as carrying a mast would be a
+## second copy of them.
+##
+## Only the back rack counts. A mast riding on the rover is freight; a mast on
+## your back is a thing you are looking for somewhere to put.
+func carried_deployable() -> Crate:
+	for crate in _back_rack.crates():
+		if crate.is_deployable():
+			return crate
+	return null
+
+
 # --- Prompts ------------------------------------------------------------
 ##
 ## The HUD asks what each key *would* do rather than describing the rules, so a

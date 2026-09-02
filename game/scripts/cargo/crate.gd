@@ -79,6 +79,20 @@ enum Owner {
 ## costing roughly a tenth of the load's condition to costing 0.22.
 @export var jolt_ruin := 45.0
 
+@export_group("Deployment")
+## What this crate becomes when it is raised in the field, or null for
+## ordinary freight — which is nearly all of it.
+##
+## A mast is the first cargo that is not just weight with an address: where it
+## ends up is the decision, not the errand. Setting this is what turns a crate
+## from something you deliver into something you site, and it is what the HUD
+## keys its survey readout off.
+##
+## A property rather than a subclass or a type list, for the same reason
+## ground_clearance is one: a new deployable opts in by declaring what it
+## becomes, without anything anywhere else learning it exists.
+@export var deploys_as: PackedScene
+
 @export_group("Placement")
 ## Metres between the terrain surface and this crate's origin, when it is
 ## authored into a scene rather than issued by a facility.
@@ -247,3 +261,9 @@ func _move_to(new_parent: Node) -> void:
 	if old != null:
 		old.remove_child(self)
 	new_parent.add_child(self)
+
+
+## Whether this crate is something you raise rather than something you drop
+## off. See `deploys_as`.
+func is_deployable() -> bool:
+	return deploys_as != null

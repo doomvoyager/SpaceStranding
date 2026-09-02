@@ -104,6 +104,28 @@ Measured across 30-120 Hz: 2.7% variation.
 It also models the real thing it stands in for. Straps and packing have give,
 so cargo never feels an infinitely sharp edge.
 
+## Cargo you site, rather than deliver
+
+**Added 2026-09-02.** A crate can carry `deploys_as: PackedScene` - what it
+becomes when it is raised in the field. Empty for nearly everything; set on a
+relay mast.
+
+That one property is the difference between freight with an address and freight
+where *the address is the decision*. A mast has no destination pad: where it
+ends up is the point, which is why carrying one turns on the site survey in the
+HUD (see [[The-Lattice]]).
+
+A property rather than a subclass or a list of types, for the same reason
+`ground_clearance` is one - a new deployable opts in by declaring what it
+becomes, and nothing anywhere else has to learn it exists. See the 2026-09-01
+entry in [[Decision-Log]].
+
+`Crate.is_deployable()` is the query; `Astronaut.carried_deployable()` answers
+for the back rack specifically, because a mast riding on the rover is still
+freight and a mast on your back is a thing you are looking for somewhere to
+put. **Raising one is not built yet** - the property currently only drives the
+readout.
+
 ## Delivery
 
 `DeliveryPad` is an `Area3D` with a solid deck. Set a crate down on it and it
