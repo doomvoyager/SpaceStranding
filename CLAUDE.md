@@ -311,6 +311,10 @@ Probes that need autoloads or a viewport run as a scene instead:
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_headless_unproject.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_pad_bindings.tscn
+```
+
 Tests that touch project scripts must run **as a scene**, like the rover test
 above, because those scripts reach for `World`.
 
@@ -419,6 +423,21 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   untestable headless, and `test_scanner.gd` switched its tag separation *off*
   on that assumption rather than measuring. Screen-space declutter is testable;
   `tests/probe_headless_unproject.gd`.
+- **Godot's built-in `ui_*` actions carry the left stick, and `ui_accept` does
+  not carry the pad at all.** Neither appears in `project.godot` unless it has
+  been overridden, so these are the bindings nobody writes and therefore nobody
+  reads. Measured in 4.7.1: `ui_left`/`ui_right`/`ui_up`/`ui_down` are each
+  *arrow key + d-pad button + left-stick axis*, so one stick deflection returns
+  a full-magnitude `get_vector` on `ui_*` **and** whatever else is reading that
+  stick - which had the map panel panning itself out from under the pointer the
+  pointer was aiming. And `ui_accept` is Enter, KP Enter and Space with **no
+  joypad event**, so `A` presses nothing, which is easy to write a confident
+  comment about and wrong. A *pad* feature should read the pad
+  (`Input.is_joy_button_pressed`, `Input.get_joy_axis`) rather than an InputMap
+  action, because an action carries bindings you did not write. Note the second
+  half is also a hazard in reverse: binding `A` into `ui_accept` globally makes
+  it press a *focused* control as well as clicking under an emulated pointer.
+  `tests/probe_pad_bindings.tscn` prints both.
 - **`get_viewport().get_mouse_position()` returns junk under `--headless`**
   and a stale value in a window whenever something other than the mouse is
   driving the pointer. Anything emulating a cursor has to arbitrate on

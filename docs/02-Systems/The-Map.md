@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-02
+verified: 2026-09-03
 godot: res://scripts/ui/map_panel.gd
 tags: [system, ui, traversal]
 ---
@@ -17,8 +17,8 @@ rover and you on it, and a multi-stop route you draw by clicking the ground.
 - **Click the ground** to add a stop. With a leg selected it is *inserted* after
   that one, which is what "I need to stop here on the way" means; with nothing
   selected it lands on the end, which is what drawing a route forward means.
-- **Drag** to orbit, **right-drag** to pan, **wheel** to zoom. On a pad, right
-  stick orbits, left stick pans.
+- **Drag** to orbit, **right-drag** to pan, **wheel** to zoom. On a pad, see
+  [[The-Map#On a controller]] - the left stick is the pointer, not the pan.
 - **Up / Down / Drop / Clear** reorder and edit the route.
 - The side list shows each leg's length and whether that stop is inside
   coverage; the summary shows the whole trip.
@@ -160,6 +160,41 @@ pointer would be a strange thing to have built.
 the OS position each idle frame looks equivalent and hands authority to
 whatever the platform last reported — which is a stale value the moment the
 stick is driving.
+
+### Two bindings that were never read
+
+**Fixed 2026-09-03**, both found by measuring the InputMap rather than reading
+it. Mac's report was that the sticks overlapped and the cursor dragged the map
+around with it; the cause was two separate bugs in the same day-old feature.
+
+**`ui_left`/`ui_right`/`ui_up`/`ui_down` are the left stick as well as the
+d-pad.** The panel panned on `Input.get_vector("ui_left", ...)` under a comment
+saying pan was "on the d-pad, not the left stick" - which had never been true.
+Godot's built-in UI actions do not appear in `project.godot` unless they have
+been overridden, so nothing about that binding was ever written down and nothing
+about it was ever read. Measured: one left-stick deflection returns a
+full-magnitude pointer step *and* a full-magnitude pan, so aiming the cursor
+swept the map out from under it. `_dpad()` reads the four d-pad buttons off the
+pad directly now, which is the remedy `PadCursor._stick()` had already adopted
+for the same reason one function away.
+
+**`ui_accept` has no pad binding at all** - Enter, KP Enter and Space, and
+nothing else. So `A` did nothing in any panel for the whole life of the feature,
+which is the one input a pad-only pointer must have. `PadCursor` reads the
+bottom action button directly rather than binding it into `ui_accept`, because a
+global binding would make `A` press a *focused* control as well as clicking
+under the pointer: the map drops focus and would survive it, the order board
+grabs focus and would fire twice. Keeping it local means neither panel has to
+know.
+
+Both had shipped green. The test that would have caught the second one had
+skipped it on purpose, saying "the binding is one line and `ui_accept` is
+Godot's" - and it is Godot's, and Godot's does not have a pad on it. It is
+asserted now: the press is an ordinary event and `Input.parse_input_event`
+delivers those headless perfectly well. Only the last few centimetres - the GUI
+hit-test - were ever out of reach, and the whole claim had been abandoned on
+account of them. Proved load-bearing by reverting the fix under it: exit 1,
+"pressing A in an open panel emitted 0 clicks".
 
 The panel's controls take **no keyboard focus**. Everything is pointer-driven,
 so focus navigation has nothing to add and leaving it on costs two real

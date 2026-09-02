@@ -66,8 +66,10 @@ func _physics_process(_delta: float) -> void:
 		1: _stage_asleep_until_a_panel_opens()
 		2: _stage_awake_with_a_panel()
 		3: _stage_a_click_is_a_mouse_event()
-		4: _stage_a_click_plants_a_stop()
-		5: _finish()
+		4: _stage_the_button_is_actually_bound()
+		5: _stage_the_stick_does_not_pan()
+		6: _stage_a_click_plants_a_stop()
+		7: _finish()
 
 
 func _find_the_pieces() -> bool:
@@ -160,6 +162,82 @@ func _stage_a_click_is_a_mouse_event() -> void:
 	_stage = 4
 
 
+## 6. The button the stage above deliberately did not check.
+##
+## It said so out loud: "the binding is one line and `ui_accept` is Godot's."
+## Both halves were wrong. Measured in 4.7.1, `ui_accept` carries Enter, KP
+## Enter and Space and **no joypad event at all**, so A did nothing in a panel
+## for as long as `PadCursor` had existed — the one input a pad-only feature has
+## to have. It read as untestable because the *end-to-end* click is: no window,
+## no hit-test, no `gui_input`. But the press itself is an ordinary event, and
+## `Input.parse_input_event` delivers those headless perfectly well. Only the
+## last few centimetres were ever out of reach, and the whole thing was
+## abandoned on account of them.
+func _stage_the_button_is_actually_bound() -> void:
+	if _first_time():
+		_clicks.clear()
+		return
+	if _waited == 0:
+		_press_pad_button(JOY_BUTTON_A, true)
+		_press_pad_button(JOY_BUTTON_A, false)
+	if not _settled(not _clicks.is_empty()):
+		return
+	_expect(_clicks.size() == 1,
+		"pressing A in an open panel emitted %d clicks" % _clicks.size())
+	_stage = 5
+
+
+## 7. The left stick must move the pointer and nothing else.
+##
+## `map_panel.gd` panned on `Input.get_vector("ui_left", …)` under a comment
+## saying pan was "on the d-pad, not the left stick". Godot's built-in UI
+## actions never appear in `project.godot` unless overridden, so nobody wrote
+## that binding and nobody read it — and its engine default carries the left
+## stick *as well as* the d-pad. One deflection therefore drove the pointer and
+## swept the map out from under it at the same time.
+##
+## What is asserted is the trap rather than the fix: `_dpad()` reads button
+## state, and `Input.is_joy_button_pressed` answers for real pads only, so with
+## no controller attached it is zero however it is written and the assertion
+## would pass vacuously. `Input.get_vector` does respond to a synthesised axis,
+## so the thing that *can* be pinned down is that `ui_*` still means the left
+## stick — which is what makes reading it a bug. If a future Godot changes that
+## default, this fires and the comment above becomes wrong rather than silently
+## unnecessary.
+func _stage_the_stick_does_not_pan() -> void:
+	if _first_time():
+		return
+	if _waited == 0:
+		var push := InputEventJoypadMotion.new()
+		push.axis = JOY_AXIS_LEFT_X
+		push.axis_value = 1.0
+		Input.parse_input_event(push)
+	if not _settled(_waited > 2):
+		return
+	var ui := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	_expect(ui.length() > 0.5,
+		"`ui_*` no longer follows the left stick (read %s) — the reason " % ui
+			+ "map_panel reads the d-pad directly is gone, and the comment "
+			+ "explaining it is now wrong")
+	_expect(_panel._dpad() == Vector2.ZERO,
+		"the left stick panned the map: _dpad() returned %s" % _panel._dpad())
+	var release := InputEventJoypadMotion.new()
+	release.axis = JOY_AXIS_LEFT_X
+	release.axis_value = 0.0
+	Input.parse_input_event(release)
+	if Input.get_connected_joypads().is_empty():
+		print("SKIP: no pad attached, so _dpad() is zero however it is written —")
+		print("      run this test with a controller plugged in to mean it.")
+	_stage = 6
+
+
+func _press_pad_button(index: int, pressed: bool) -> void:
+	var button := InputEventJoypadButton.new()
+	button.button_index = index
+	button.pressed = pressed
+	Input.parse_input_event(button)
+
+
 ## 5. The end of the whole design: point at the map, press A, get a stop.
 func _stage_a_click_plants_a_stop() -> void:
 	if _first_time():
@@ -187,7 +265,7 @@ func _stage_a_click_plants_a_stop() -> void:
 		_expect(not Route.is_empty(),
 			"a click in the middle of the map planted no stop")
 	_panel.close()
-	_stage = 5
+	_stage = 7
 
 
 func _settled(condition: bool) -> bool:

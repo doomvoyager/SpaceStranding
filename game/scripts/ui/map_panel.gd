@@ -268,9 +268,8 @@ func _process(delta: float) -> void:
 			pitch_min, pitch_max)
 	# Pan is on the d-pad, not the left stick: the left stick drives the pointer
 	# now (see PadCursor), and placing a stop matters more than sweeping the
-	# camera. `ui_*` is free to use for this because the panel's own controls
-	# take no focus — see `_drop_focus()`.
-	var pan := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	# camera.
+	var pan := _dpad()
 	if pan.length_squared() > 0.0001:
 		# _pan already scales by zoom, so this only has to turn a held direction
 		# into the pixels-per-second a drag would have produced.
@@ -283,6 +282,31 @@ func _process(delta: float) -> void:
 	_place_camera()
 	_draw_route()
 	_update_live_markers()
+
+
+## The d-pad, read off the pad rather than through `ui_left`/`ui_right`.
+##
+## **`ui_*` is not the d-pad.** Godot's built-in UI actions are absent from
+## `project.godot` unless they have been overridden, so nothing here was ever
+## written down and nothing here was ever read — and their engine defaults carry
+## **the left stick as well as** the d-pad. `Input.get_vector("ui_left", …)` was
+## therefore returning a full-magnitude pan for the same stick deflection
+## `PadCursor` was turning into a pointer step, so aiming the cursor swept the
+## map out from under it. The comment above claimed pan was on the d-pad from
+## the day it was written; it never was. Measured by
+## `tests/probe_pad_bindings.tscn`.
+##
+## Same reasoning as `PadCursor._stick()`, and now the same remedy: a *pad*
+## feature asks the pad. An InputMap action carries bindings you did not write.
+func _dpad() -> Vector2:
+	if Input.get_connected_joypads().is_empty():
+		return Vector2.ZERO
+	var pad: int = Input.get_connected_joypads()[0]
+	var x := (1.0 if Input.is_joy_button_pressed(pad, JOY_BUTTON_DPAD_RIGHT) else 0.0) \
+		- (1.0 if Input.is_joy_button_pressed(pad, JOY_BUTTON_DPAD_LEFT) else 0.0)
+	var y := (1.0 if Input.is_joy_button_pressed(pad, JOY_BUTTON_DPAD_DOWN) else 0.0) \
+		- (1.0 if Input.is_joy_button_pressed(pad, JOY_BUTTON_DPAD_UP) else 0.0)
+	return Vector2(x, y)
 
 
 # --- Markers -------------------------------------------------------------

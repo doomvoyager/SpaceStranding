@@ -134,23 +134,51 @@ func _stick() -> Vector2:
 		Input.get_joy_axis(pad, JOY_AXIS_LEFT_Y))
 
 
-## `ui_accept` is A on a pad, and Enter and Space on a keyboard.
+## Enter and Space on a keyboard, and the pad's bottom action button.
+##
+## **`ui_accept` is not A.** It was written here as though it were, and measured
+## in 4.7.1 it carries Enter, KP Enter and Space and *no* joypad binding at all —
+## so for as long as this file has existed, pressing A in a panel did nothing.
+## The one test that would have caught it is the one that cannot run: a
+## synthesised click never reaches the GUI under `--headless`, so the assertion
+## is skipped there. Measured by `tests/probe_pad_bindings.tscn`.
+##
+## The button is read off the pad rather than bound into `ui_accept`, for the
+## reason the next paragraph gives: a global binding would make A press a
+## *focused* control as well as clicking under the pointer. The map panel drops
+## focus so it would survive that; the order board grabs focus and would fire
+## twice. Keeping this local means neither panel has to know.
 ##
 ## Handled here, in `_input`, and marked handled: the event is turned into a
-## mouse click and must not *also* reach Godot's focus system, or a focused
-## button would fire at the same time as whatever the pointer is over. The map
-## panel takes focus off its controls for the same reason.
+## mouse click and must not *also* reach the astronaut, which carries `interact`
+## on the same physical button.
 func _input(event: InputEvent) -> void:
 	if not _active:
 		return
-	if event.is_action_pressed("ui_accept") and not _pressed:
+	if _is_click(event) and not _pressed:
 		_pressed = true
 		_send_click(true)
 		get_viewport().set_input_as_handled()
-	elif event.is_action_released("ui_accept") and _pressed:
+	elif _is_click_release(event) and _pressed:
 		_pressed = false
 		_send_click(false)
 		get_viewport().set_input_as_handled()
+
+
+func _is_click(event: InputEvent) -> bool:
+	if event.is_action_pressed("ui_accept"):
+		return true
+	var button := event as InputEventJoypadButton
+	return button != null and button.pressed \
+		and button.button_index == JOY_BUTTON_A
+
+
+func _is_click_release(event: InputEvent) -> bool:
+	if event.is_action_released("ui_accept"):
+		return true
+	var button := event as InputEventJoypadButton
+	return button != null and not button.pressed \
+		and button.button_index == JOY_BUTTON_A
 
 
 func _send_click(pressed: bool) -> void:
