@@ -205,6 +205,33 @@ engine/Godot_v4.7.1-stable_win64_console.exe --headless --path game res://tests/
 `probe_world_placement` reports where every spawned thing sits relative to the
 ground. It is the fastest way to catch a terrain change having buried something.
 
+## float32 does not stand in the way of 12 km
+
+**Measured 2026-09-03**, before any tiling, because a failure here would have
+meant a floating origin and that touches every system in the project.
+
+| from origin | float step | rest jitter | round trip | render |
+|---|---|---|---|---|
+| 0 m | 0.00000012 m | 0 | exact | mean luma 0.2005 |
+| 8,700 m *(centred 3x3 corner)* | 0.00048828 m | 0 | exact | 0.1983 |
+| 40,000 m | 0.00195313 m | 0 | exact | 0.1985 |
+
+The render row is the whole world translated and shot with the same framing -
+terrain, lights, props and camera together, so it stays a precision test rather
+than a test of a scene pulled apart. The frames are indistinguishable: no shadow
+acne, no depth fighting, no vertex swim. `previews/2026-09-03/farrender-*.png`.
+
+**So 3x3 needs no floating origin.** Worth stating plainly because the
+arithmetic bound on its own predicts trouble that Jolt and the renderer do not
+actually have.
+
+Two false starts, both worth keeping. The first version dropped its test body on
+procedural relief and measured **1.8 m** of jitter at the origin - a box sliding
+downhill. The second flattened the ground and got exactly `0.0` everywhere
+including 40 km, which is not a clean result but Jolt **sleeping** the body and
+zeroing its velocity. Rest jitter is only measurable on a body that is awake and
+on ground with no slope to slide down.
+
 ## The world-space seam
 
 **Added 2026-09-03**, before any tiling work, because nine tiles break the

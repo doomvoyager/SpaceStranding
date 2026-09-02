@@ -274,6 +274,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/speedo_capture.tsc
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_sign_size.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_far_render.tscn
+```
+
 **Every rendered image that gets looked at is kept, in `previews/`.** A capture
 scene writes to Godot's `user://` first, because that is where a running game
 can write without touching the project; the shots are then copied into
@@ -313,6 +317,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_h
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_pad_bindings.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_float_precision.tscn
 ```
 
 Tests that touch project scripts must run **as a scene**, like the rover test
@@ -423,6 +431,26 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   untestable headless, and `test_scanner.gd` switched its tag separation *off*
   on that assumption rather than measuring. Screen-space declutter is testable;
   `tests/probe_headless_unproject.gd`.
+- **A resting `RigidBody3D` reports exactly zero velocity, because Jolt has
+  put it to sleep.** So a probe measuring rest jitter measures *whether the
+  body is asleep* - it read a flat `0.0` at every distance out to 40 km, which
+  looked like a clean result and was no result at all. `can_sleep = false` is
+  what makes a resting contact keep being solved and therefore keep being
+  measurable. The neighbouring trap is the opposite: the first version of the
+  same probe dropped its body on procedural relief and read **1.8 m** of
+  jitter at the origin - a box sliding down a slope, with a 2.4 m/s rest speed
+  saying so. Measure resting contact on flat ground, awake.
+  `tests/probe_float_precision.tscn`.
+- **float32 is not the constraint on a 12 km world.** Measured across 0 to
+  40 km from the origin: one float step is **0.49 mm** at 8.7 km (a centred
+  3x3 corner) and 2 mm at 40 km, the `to_local`/`to_global` round trip is
+  **exact**, an awake resting body shows **zero** jitter at every distance,
+  and the whole world translated out and re-rendered is visually identical -
+  no shadow acne, no depth fighting, mean luma 0.2005 against 0.1983. So a
+  3x3 grid of 4096 m tiles needs **no floating origin**, which was the one
+  result that could have invalidated the plan. Do not re-derive this from
+  first principles; the arithmetic bound alone predicts trouble that Jolt and
+  the renderer do not actually have. `tests/probe_far_render.tscn`.
 - **A 5-degree sun makes Lambert useless, and no ambient setting rescues it.**
   Vesper c is tidally locked and the star sits ~5 deg above the horizon, so
   `N.L` on flat ground is about **0.09** - the terrain renders essentially
