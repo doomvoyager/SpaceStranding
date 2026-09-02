@@ -73,13 +73,13 @@ signal pinged(origin: Vector3)
 
 @export_group("Grid")
 ## Metres between dots.
-@export_range(0.2, 8.0, 0.05) var dot_spacing := 1.1:
+@export_range(0.2, 8.0, 0.05) var dot_spacing := 0.6134:
 	set(v):
 		dot_spacing = v
 		_push()
 
 ## Dot radius as a fraction of the spacing.
-@export_range(0.02, 0.5, 0.01) var dot_size := 0.17:
+@export_range(0.02, 0.5, 0.01) var dot_size := 0.06704:
 	set(v):
 		dot_size = v
 		_push()
@@ -92,7 +92,7 @@ signal pinged(origin: Vector3)
 ## Measured by `tests/probe_scan_glow.tscn`, which renders the same frame at a
 ## range of values so the point where green stops being green is visible rather
 ## than argued about.
-@export_range(0.05, 3.0, 0.05) var glow := 0.55:
+@export_range(0.05, 3.0, 0.05) var glow := 1.94095:
 	set(v):
 		glow = v
 		_push()
