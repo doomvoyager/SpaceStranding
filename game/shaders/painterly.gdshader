@@ -105,6 +105,27 @@ uniform vec4 slope_color : source_color = vec4(0.46, 0.30, 0.26, 1.0);
 uniform float slope_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float slope_sharpness : hint_range(0.5, 8.0) = 2.5;
 
+group_uniforms coverage;
+// Lattice coverage, painted on the ground. The mask is built by CoverageMap
+// and spans the patch, so it is sampled through UV2 exactly like the macro
+// albedo — which also means the terrain's world offset is handled for free.
+//
+// The mask stores 1 well inside coverage falling to 0 at the limit, so the
+// boundary is wherever it crosses 0.5.
+uniform bool coverage_enabled = false;
+uniform sampler2D coverage_mask : hint_default_black;
+uniform float coverage_intensity : hint_range(0.0, 1.0) = 1.0;
+// Faint, and applied to ALBEDO rather than EMISSION so the ground inside
+// coverage still lights and shades like ground. Owning the pixel over a region
+// this large would flatten the whole area into a coloured card.
+uniform vec4 coverage_fill_color : source_color = vec4(0.36, 0.78, 0.84, 1.0);
+uniform float coverage_fill_strength : hint_range(0.0, 1.0) = 0.10;
+// The edge does own its pixels — see the note where it is applied.
+uniform vec4 coverage_edge_color : source_color = vec4(0.55, 0.95, 1.0, 1.0);
+uniform float coverage_edge_glow : hint_range(0.0, 4.0) = 1.5;
+// Half-width of the boundary band, in mask units either side of 0.5.
+uniform float coverage_edge_width : hint_range(0.01, 0.45) = 0.10;
+
 group_uniforms scan;
 
 // The pulse is a GLOBAL uniform set: one scanner drives every surface in the
@@ -239,6 +260,22 @@ void fragment() {
 
 	ALBEDO = base;
 
+	// --- Lattice coverage: the fill half -------------------------------
+	//
+	// Done here, before the ambient and rim terms below read ALBEDO, so the
+	// tint carries into them and the ground inside coverage is tinted rather
+	// than having a tinted wash laid over an untinted ambient.
+	float coverage_edge_amount = 0.0;
+	if (coverage_enabled && coverage_intensity > 0.0) {
+		float cov = texture(coverage_mask, UV2).r;
+		float inside = smoothstep(0.5 - coverage_edge_width,
+			0.5 + coverage_edge_width, cov);
+		coverage_edge_amount = (1.0 - smoothstep(0.0, coverage_edge_width,
+			abs(cov - 0.5))) * coverage_intensity;
+		ALBEDO = mix(ALBEDO, coverage_fill_color.rgb,
+			inside * coverage_fill_strength * coverage_intensity);
+	}
+
 	// No specular anywhere. There is not one highlight in any of the paintings.
 	METALLIC = 0.0;
 	SPECULAR = 0.0;
@@ -249,6 +286,22 @@ void fragment() {
 
 	float rim = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), rim_power);
 	EMISSION += rim_color.rgb * rim * rim_strength;
+
+	// --- Lattice coverage: the boundary --------------------------------
+	//
+	// **Owns both channels rather than adding to either**, the same rule the
+	// scan dot below had to learn: adding a saturated colour over bright ground
+	// comes out white, because ACES clamps saturation hardest where it is
+	// brightest — and darkening ALBEDO alone is not enough, because the fill
+	// and rim terms above have already written EMISSION using the old albedo.
+	//
+	// Placed before the scan block so a scanner pulse paints over the boundary
+	// rather than under it: the pulse is the transient, and it should win.
+	if (coverage_edge_amount > 0.001) {
+		ALBEDO = mix(ALBEDO, vec3(0.0), coverage_edge_amount);
+		EMISSION = mix(EMISSION,
+			coverage_edge_color.rgb * coverage_edge_glow, coverage_edge_amount);
+	}
 
 	// --- Scan overlay ---------------------------------------------------
 	//

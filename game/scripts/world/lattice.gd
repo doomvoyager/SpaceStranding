@@ -53,6 +53,17 @@ signal coverage_changed
 ## kept honest by test_mast_survey, which fails if the two ever disagree.
 @export_range(1.0, 40.0, 0.5) var survey_mast_height := 11.0
 
+@export_group("Coverage")
+## The site coverage is measured outward from. Ground is covered when some
+## site that chains back to this one can see it.
+##
+## Without an anchor, a mast raised 400 m from anything would light up its own
+## patch of ground as though it were useful — and the boundary would stop
+## meaning "connected", which is the only thing it is worth drawing. With one,
+## extending the network is what makes the coverage grow, which is the whole
+## loop. See CoverageMap.
+@export var anchor_id := "hearth"
+
 ## id -> site node.
 var _sites: Dictionary = {}
 ## id -> Array[String] of ids it links to directly.
@@ -328,3 +339,46 @@ func unique_site_id(prefix: String) -> String:
 	while _sites.has("%s-%d" % [prefix, n]):
 		n += 1
 	return "%s-%d" % [prefix, n]
+
+
+## Every site that chains back to the anchor, the anchor included.
+##
+## Empty when the anchor is not registered at all — which is the honest answer
+## for a scene with no home facility in it, and keeps a test world from
+## painting coverage out of nowhere.
+func covering_sites() -> Array:
+	var out: Array = []
+	var root: Node = site(anchor_id)
+	if root == null:
+		return out
+	out.append(root)
+	for id in reachable_from(anchor_id):
+		var node := site(String(id))
+		if node != null:
+			out.append(node)
+	return out
+
+
+## The terrain the network is solved against, or null.
+##
+## Public because CoverageMap needs the same one, and the lookup is not
+## trivial — the node is not in a group in every scene, so there is a tree walk
+## behind this. Two copies of that would be two things to get wrong.
+func terrain() -> ProceduralTerrain:
+	return _terrain()
+
+
+## How covered a world point is, 0 to 1, or 0 with no coverage map in the
+## scene. Delegated to the mask rather than recomputed, so what the ground
+## shows and what the game believes are the same numbers.
+func coverage_at(world_x: float, world_z: float) -> float:
+	var map := get_tree().get_first_node_in_group("coverage_map")
+	if map == null:
+		return 0.0
+	return float(map.call("coverage_at", world_x, world_z))
+
+
+## Whether a world point is inside the boundary the ground draws. The 0.5 is
+## the same threshold the shader treats as the edge.
+func is_covered(world_x: float, world_z: float) -> bool:
+	return coverage_at(world_x, world_z) >= 0.5

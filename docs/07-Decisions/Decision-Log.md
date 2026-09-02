@@ -9,6 +9,38 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - Coverage is drawn as sight lines, not as a ring
+
+Mac asked for relay range shown on the ground, like Death Stranding's chiral
+network borders. Built - with one change of shape argued for first and agreed.
+
+**It is not a radius.** A ring is the obvious reading of the request and the
+wrong one here: [[The-Lattice]]'s founding claim is that a radius check makes
+the network a question of distance, which the map cannot argue with, while a
+sight line makes it a question of where the high ground is. Circles on the
+ground would have contradicted that permanently, on screen, in the one place
+the player looks. The mask is range **and** line of sight, so ridges take bites
+out of it - measured at about 82% of the disc on generated terrain.
+
+**Only sites chained to an anchor paint.** `Lattice.anchor_id`, defaulting to
+"hearth". A mast raised out of reach of everything lights nothing, so the
+boundary means *connected* rather than *there is a mast here*, and extending
+the network is what makes the ground grow. The rejected alternative - every
+registered site paints - needs no anchor concept and makes a lone mast 400 m
+out glow as if it were useful.
+
+**The mask is the authority for gameplay, not just for the picture.**
+`is_covered()` samples it rather than recomputing, so a flare warning and the
+line on the ground cannot disagree about where the edge is. This is also the
+first code to implement the coverage promises the note has carried since it was
+written; nothing consumes it yet.
+
+Bright edge with a faint fill, always on, intensity on the F1 panel - all three
+Mac's picks over the alternatives offered. Setting intensity to 0 removes it
+completely, verified against a paired capture, which is what look-dev shots
+need.
+
+
 ## 2026-09-02 - Raising a mast: reversible, warned not refused, its own key
 
 Three calls made while building the raise verb. Mac was asked and said go, so

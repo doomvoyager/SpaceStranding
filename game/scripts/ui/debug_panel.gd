@@ -243,6 +243,19 @@ func _discover() -> Array[Target]:
 		t.deferred = true
 		out.append(t)
 
+	var coverage: Array = []
+	_collect(tree.current_scene if tree.current_scene != null else tree.root,
+		"CoverageMap", coverage)
+	if not coverage.is_empty():
+		var t := Target.new()
+		t.title = "Coverage — the boundary on the ground"
+		t.sample = coverage[0]
+		t.nodes = coverage
+		# Changing the mask resolution reallocates and repaints it, which is not
+		# something to do on every pixel of a slider drag.
+		t.deferred = true
+		out.append(t)
+
 	var scanners: Array = []
 	_collect(tree.current_scene if tree.current_scene != null else tree.root,
 		"Scanner", scanners)

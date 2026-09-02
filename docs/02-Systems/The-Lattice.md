@@ -99,6 +99,8 @@ async multiplayer hooks all at once. Extending the Lattice **is** the campaign.
 | Sites, linking, line of sight, coverage | `res://scripts/world/lattice.gd` |
 | A mast | `res://scripts/world/relay.gd` |
 | Surveying a prospective site | `res://scripts/world/lattice.gd` |
+| The boundary on the ground | `res://scripts/world/coverage_map.gd` |
+| Drawing it | `res://shaders/painterly.gdshader`, `coverage_*` uniforms |
 | What a survey answers | `res://scripts/world/site_survey.gd` |
 | The carried readout | `res://scripts/ui/hud.gd` |
 | Transfers in flight | `res://scripts/orders/order_book.gd` |
@@ -143,6 +145,20 @@ site out of the graph, that dark ground is allowed, and that an authored relay
 cannot be lowered. It also raises **two** masts, which is the only way to catch
 them sharing a name - and did, the first time it ran.
 
+`res://tests/test_coverage_map.tscn` covers the mask, and its first assertion
+is the one the feature lives or dies on: that the covered region is **strictly
+smaller** than the disc it sits in. A clean circle would look perfectly fine on
+screen while quietly contradicting the mechanic. It also checks that a mast
+connected to nothing paints nothing, that bridging to a dark facility lights
+its ground, and that `is_covered()` agrees with the mask.
+
+`res://tests/coverage_capture.tscn` is the other half, and must run
+**windowed**: `--headless` is the dummy renderer and never builds a shader, so
+every assertion above can pass with the overlay failing to compile. It shoots
+the Hearth from three heights and then repeats two of them with the overlay
+off, because a pair is the only honest way to tell a coverage artefact from one
+the terrain already had.
+
 `res://tests/probe_relay_site.gd` is how the test world's relay site was chosen.
 It scans ground that is in range of both facilities and can see both, and scores
 each candidate on its **weakest** margin. Ranking on sight-line clearance alone
@@ -169,9 +185,9 @@ relay went to (-12, 14) with 8.2 m of clearance and 9.0 m of range to spare.
       gizmo ring in [[Placement]] is the editor half of the same gap. #next
 - [ ] TODO: do relays need maintenance, or are they fire-and-forget? Maintenance
       creates return-trip content but risks becoming a chore. #question
-- [ ] TODO: what does the coverage map actually look like on screen? The Network
-      tab is a list, which answers "what can I reach" but not "where is the
-      hole". #question
+- [x] What does the coverage map look like on screen? **A boundary drawn on the
+      ground**, range intersected with line of sight, not a ring. Answered and
+      built 2026-09-02 - see below.
 - [ ] TODO: transfer speed and dispatch delay are guesses (2.5 m/s, 20 s). They
       only become judgeable once facilities are a real distance apart. #playtest
 
@@ -238,6 +254,44 @@ Every raised mast gets its own id from `Lattice.unique_site_id()`, assigned
 unconditionally rather than only when blank: `relay.tscn` carries an authored
 id, so a blank check gives every raised mast the same name and the second
 silently replaces the first in the graph.
+
+## The boundary on the ground
+
+**Built 2026-09-02.** Coverage is painted on the terrain as a bright edge with
+a faint tint inside it - the chiral network read, and the answer to the
+question this note carried for two days.
+
+**It is not a ring, and that is the entire point.** A circle would contradict
+the system it is drawing: the claim above is that a radius check makes the
+network a question of distance, which the map cannot argue with. So the mask is
+range **and** line of sight, and a ridge takes a bite out of a site's coverage.
+Measured on generated terrain by `test_coverage_map`: a site sitting on the
+ground covers about **82%** of the disc it sits in, and the missing fifth is
+the shape of the land.
+
+**Only sites that chain back to `anchor_id` paint.** A mast raised out of reach
+of everything lights nothing - otherwise the boundary would stop meaning
+"connected" and start meaning "there is a mast here", which is the one thing it
+must not mean. Extending the network is what makes the ground grow, which is
+the loop the whole feature exists to show.
+
+`CoverageMap` builds an R8 mask spanning the patch, rebuilt on the same
+`coverage_changed` the graph emits and coalesced the same way - never per
+frame. Only ground within a site's reach can be covered, so each site
+rasterises its own box: about 2,000 texels and 45,000 height lookups per site
+at 2 m per texel, once, when the network changes. The terrain shader samples it
+through the UV2 the macro albedo already uses, so the patch's 1.3 km world
+offset is handled for free.
+
+The **mask is the authority for gameplay too**. `Lattice.is_covered()` reads it
+rather than recomputing, so a flare warning and the line on the ground can
+never disagree about where the edge is. This is the first thing to implement
+the coverage promises at the top of this note; nothing consumes it yet.
+
+The edge owns both channels it draws into and the fill only tints `ALBEDO` -
+an overlay that adds to `EMISSION` over bright ground comes out white. The
+scan pulse is drawn after it, so a ping paints over the boundary rather than
+under it.
 
 ## Siting a relay
 
