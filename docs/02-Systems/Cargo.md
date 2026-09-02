@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-09-01
+verified: 2026-09-02
 godot: res://scripts/cargo/cargo_rack.gd
 tags: [system, core-loop]
 ---
@@ -31,7 +31,7 @@ Every item carries:
   [[Flares]]), pressure-sensitive, live samples, unstable. *Not built.*
 
 Placement on the rover matters. High loads raise the centre of mass; uneven
-loads pull the vehicle in turns. In 0.34 g a badly balanced rover does not
+loads pull the vehicle in turns. In 0.55 g a badly balanced rover does not
 skid - it *tips*, slowly, with plenty of time to watch it happen.
 
 Delivery pays on **condition**, not just arrival. *Built - see "Delivery".*

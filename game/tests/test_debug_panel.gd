@@ -16,7 +16,7 @@ extends Node3D
 const WORLD := preload("res://scenes/world/test_world.tscn")
 const SETTLE := 90
 const FALL_FRAMES := 40
-## Gravity to retune to mid-test, well away from the authored 3.34.
+## Gravity to retune to mid-test, well away from the authored 5.39.
 const TEST_GRAVITY := 12.0
 
 var _failures: Array[String] = []

@@ -1,6 +1,6 @@
 ---
 status: reference
-verified: 2026-08-31
+verified: 2026-09-02
 godot: res://scripts/core/world_constants.gd
 tags: [system, setting, reference]
 ---
@@ -30,12 +30,17 @@ is the whole basis of [[Flares]].
 | Property | Value | Consequence for play |
 |---|---|---|
 | Radius | ~3,300 km (0.52 R⊕) | Tight horizon. High ground genuinely matters. |
-| Surface gravity | **3.34 m/s² (0.34 g)** | Long jumps, floaty falls, slow rollovers, huge stopping distances. |
+| Surface gravity | **5.39 m/s² (0.55 g)** | Still low-g — long jumps, floaty falls, huge stopping distances — but well above Mars, and a fall now costs cargo. |
 | Atmosphere | ~18 kPa, N₂ / CO₂ / Ar | Unbreathable - suit required. But: wind, dust, weather, and sound. |
 | Rotation | Tidally locked, 19.7-day orbit | **The star never moves.** See [[Visual-Direction]]. |
 | Surface temp | +90 °C substellar → −140 °C antistellar | The map has a thermal axis. |
 
-Project gravity in `project.godot` is set to 3.34, so every rigid body and
+Radius and gravity together imply a bulk density around 5.8 g/cm³ - a dense,
+iron-rich little world, close to Mercury's 5.43. Vesper c is small *and* heavy
+for its size, which is why 0.52 R⊕ does not buy the floaty gravity it looks
+like it should.
+
+Project gravity in `project.godot` is set to 5.39, so every rigid body and
 character is low-g by default rather than by per-script correction.
 
 ## The map: the Verge

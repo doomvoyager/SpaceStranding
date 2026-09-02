@@ -9,6 +9,41 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - The planet is 0.55 g, not 0.34 g
+
+Mac played at 0.55 g on the F1 slider and it felt better. Made permanent:
+`surface_gravity` 3.34 -> **5.39 m/s^2**, mirrored into `project.godot`.
+This revises the gravity figure in the Vesper c entry below; nothing else in
+that entry moves.
+
+**The fiction got better, not worse.** At the unchanged 3,300 km radius,
+0.55 g implies a bulk density around 5.8 g/cm^3 - a dense, iron-rich small
+body, squarely Mercury-like (5.43). The old 0.34 g implied about 3.6, which was
+light for a rocky world. The planet is now meaningfully *above* Mars rather
+than just below it, so "low gravity" stays true while "floaty" softens.
+
+**What it broke: the rover, badly, and silently.** Grip scales with weight, so
+the corners improved - but rolling resistance and climbing out of undulations
+scale with weight too, and on broken ground they win. Ten seconds of full
+throttle went from 4.7 m/s and 29 m to **1.9 m/s and 7 m**. All fifteen
+regression tests passed throughout; only `probe_carrier_jolt` saw it, because
+it is the only thing that drives. `max_engine_force` re-seated 900 -> **1170**
+by bisection, which restores the 29 m with the load still pristine. See
+[[Rover]] for the table.
+
+**What it did not break: the damage thresholds.** `jolt_floor` (12) and
+`jolt_ruin` (45) stay. They are absolute m/s^2 of proper acceleration, and a
+heavier planet making a fall more expensive is the physics working, not a
+calibration going stale. Re-measured: a full-throttle run over the worst
+ground still leaves cargo pristine, while a 7 m drop of the loaded rover went
+from costing a tenth of the load's condition to costing 0.22. Falls hurt about
+twice as much and that is the intended reading. Revisit only if it plays mean.
+
+**Still un-instrumented:** brakes. `max_brake_force` has been 26 across both
+planets and no probe stops the rover. Suspension stiffness likewise carries
+62% more weight than it was set for.
+
+
 ## 2026-09-01 - F1 tweaks go home to the file they came from
 
 Mac asked for a way to save panel tweaks straight into the project. That
@@ -704,6 +739,9 @@ them. If switching comes up again, the deciding question is whether Mac still
 wants Claude authoring content directly.
 
 ## 2026-08-30 - Vesper c: tidally locked, red dwarf, 0.34 g
+
+> **Gravity revised to 0.55 g on 2026-09-02** - see the entry at the top of
+> this log. Everything else here stands.
 
 Chosen from four options (Europa-like ice moon, Titan, Mars, free-invention
 exoplanet). Mac picked far-future exoplanet and left the specifics to Claude.

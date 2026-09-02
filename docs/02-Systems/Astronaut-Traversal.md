@@ -1,13 +1,13 @@
 ---
 status: built
-verified: 2026-08-31
+verified: 2026-09-02
 godot: res://scripts/player/astronaut.gd
 tags: [system, traversal, core-loop]
 ---
 
 # Astronaut traversal
 
-On-foot movement in 0.34 g. Complete for the traversal slice.
+On-foot movement in 0.55 g. Complete for the traversal slice.
 
 ## Behaviour
 

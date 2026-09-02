@@ -30,14 +30,14 @@ const EARTH_GRAVITY := 9.80665
 ## for the authored value, and pushed to the physics server when changed at
 ## runtime — setting the project setting alone does nothing to a running space.
 ## Measured: tests/probe_runtime_gravity.tscn.
-@export_range(0.1, 25.0, 0.01) var surface_gravity := 3.34:
+@export_range(0.1, 25.0, 0.01) var surface_gravity := 5.39:
 	set(v):
 		surface_gravity = maxf(v, 0.001)
 		_push_gravity()
 		changed.emit()
 
 
-## ~0.34 g. A function rather than a stored ratio, so it cannot go stale.
+## ~0.55 g. A function rather than a stored ratio, so it cannot go stale.
 func gravity_ratio() -> float:
 	return surface_gravity / EARTH_GRAVITY
 

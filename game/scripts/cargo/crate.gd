@@ -57,12 +57,13 @@ enum Owner {
 ## Jolt (m/s^2 of proper acceleration) the contents shrug off entirely.
 ##
 ## Not guessed. tests/probe_carrier_jolt.tscn drives the loaded rover over the
-## real terrain and reports the distribution: a parked rover idles at 3.96,
-## ten seconds of full throttle over broken ground peaks at 7.44, and a crate
-## resting on the ground jitters at 6.32. Impacts start an order of magnitude
-## higher — a 7 m drop runs 33 at p99. Twelve sits clear of everything ordinary
-## with real headroom, which matters because the shipping terrain and a retuned
-## engine will both push the driving numbers up.
+## real terrain and reports the distribution. Re-measured at 0.55 g, because
+## every one of these numbers scales with the planet: a parked rover idles at
+## 5.44 and tops out at 7.37, and ten seconds of full throttle over broken
+## ground peaks at 6.94. Impacts still start an order of magnitude higher — a
+## 7 m drop runs 54.6 at p99. Twelve still sits clear of everything ordinary,
+## with less headroom than it had at 0.34 g but enough that a full-throttle
+## run over the worst ground leaves the load pristine — verified, not assumed.
 @export var jolt_floor := 12.0
 
 ## The jolt that would destroy a fragility-1 crate in one second of sustained
@@ -71,8 +72,11 @@ enum Owner {
 ## hard landing matter more than a long rough drive.
 ##
 ## Impacts last a tenth of a second, not a second, so nothing survivable gets
-## close to a full second of this. Calibrated so a 7 m drop of the loaded rover
-## costs roughly a tenth of the load's condition.
+## close to a full second of this. Left where it was when gravity went from
+## 0.34 g to 0.55 g: the threshold is in absolute m/s^2, and a heavier planet
+## making a drop more expensive is the physics doing its job rather than a
+## calibration going stale. The same 7 m drop of the loaded rover went from
+## costing roughly a tenth of the load's condition to costing 0.22.
 @export var jolt_ruin := 45.0
 
 @export_group("Placement")
@@ -230,7 +234,7 @@ func release(world: Node, at: Transform3D) -> void:
 	collision_layer = _loose_layer
 	collision_mask = _loose_mask
 	freeze = false
-	# In 0.34 g a dropped crate drifts down slowly. Give it nothing extra.
+	# In 0.55 g a dropped crate still falls softly. Give it nothing extra.
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 	_meter.reset()

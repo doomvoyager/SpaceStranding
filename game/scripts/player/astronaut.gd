@@ -1,6 +1,6 @@
 extends CharacterBody3D
 class_name Astronaut
-## Third-person suited-astronaut controller tuned for 0.34 g.
+## Third-person suited-astronaut controller tuned for 0.55 g.
 ##
 ## The low-gravity feel comes from three things, in order of importance:
 ##   1. Almost no air control. A jump is a commitment, not a steering input.

@@ -3,7 +3,7 @@ class_name Rover
 ## Six-wheel pressurised hauler.
 ##
 ## Low gravity is unkind to vehicles. Tyre grip scales with normal force, so at
-## 0.34 g the rover has roughly a third of the traction its mass suggests: it
+## 0.55 g the rover has roughly half the traction its mass suggests: it
 ## accelerates poorly, brakes worse, and would rather tip than skid. We lean into
 ## that rather than fighting it, and only compensate enough to keep it drivable.
 
@@ -16,14 +16,28 @@ const ENGINE_FORCE_SIGN := -1.0
 
 @export_group("Drivetrain")
 ## Newtons at the wheels. Modest — this is a work vehicle, not a car.
-@export var max_engine_force := 900.0
-@export var max_reverse_force := 450.0
+##
+## Was 900 when the planet was 0.34 g. It does not survive the move to 0.55 g:
+## the extra weight costs more in rolling resistance and in climbing out of
+## undulations than the extra grip gives back, and ten seconds of full throttle
+## over broken ground fell from 4.7 m/s and 29 m to **1.9 m/s and 7 m** — a
+## hauler that can no longer haul. Bisected against the old figures with
+## tests/probe_carrier_jolt.tscn: 1170 restores the same 29 m with the load
+## still pristine, while 1450 covers 37 m and starts scuffing cargo on an
+## ordinary drive. Peak speed comes out livelier than it was (6.5 against 4.7)
+## because the added grip pays off on the clear stretches.
+@export var max_engine_force := 1170.0
+## Scaled with the engine by the same 1.3, so the drivetrain keeps its shape.
+## Unlike the forward figure this one is reasoned, not measured — no probe
+## drives the rover backwards.
+@export var max_reverse_force := 585.0
 @export var max_brake_force := 26.0
 ## Passive drag when the throttle is released, in brake units.
 @export var engine_braking := 2.5
 ## Below this forward speed (m/s), the decelerate input stops braking and starts
 ## reversing. Above it, holding LT or S slows you down instead of fighting the
-## wheels with reverse torque - which at a third of Earth's grip just spins them.
+## wheels with reverse torque - which at just over half Earth's grip still
+## spins them.
 @export var reverse_threshold := 0.6
 
 @export_group("Steering")
@@ -217,7 +231,7 @@ func _apply_steering(steer_input: float, delta: float) -> void:
 
 ## Fraction of full lock available at the current speed. Full below
 ## steer_falloff_start, ramping to steer_falloff_floor by steer_falloff_speed.
-## At speed, full lock in 0.34 g puts you on your roof - but manoeuvring speed
+## At speed, full lock in 0.55 g puts you on your roof - but manoeuvring speed
 ## has to keep the lock, or parking and turning around feel broken.
 func steer_authority() -> float:
 	var speed := linear_velocity.length()
@@ -264,7 +278,7 @@ func cargo_rack() -> CargoRack:
 ##
 ## Six crates is roughly +22% mass, and because they sit on the roof the centre
 ## of mass climbs toward them. Load one side only and it moves sideways too,
-## which at 0.34 g is the difference between a corner and a slow roll.
+## which at 0.55 g is the difference between a corner and a slow roll.
 func refresh_load() -> void:
 	var cargo := _rack.load_mass()
 	mass = _empty_mass + cargo

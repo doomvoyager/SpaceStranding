@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-08-31
+verified: 2026-09-02
 godot: res://scripts/vehicle/rover.gd
 tags: [system, traversal, core-loop]
 ---
@@ -16,8 +16,8 @@ everything else that makes it a *cargo* vehicle is not.
 
 - Throttle, reverse, brake, engine braking
 - **Speed-sensitive steering with a dead band** - full lock below 5 m/s, falling
-  to 35% by 14 m/s. At a third of Earth's grip, full lock at speed puts you on
-  your roof; but the ramp has to *start* above manoeuvring speed. See below
+  to 35% by 14 m/s. At just over half Earth's grip, full lock at speed puts you
+  on your roof; but the ramp has to *start* above manoeuvring speed. See below
 - Slow hydraulic steering rate (1.6 rad/s), so it never darts
 - Centre of mass dropped to −0.35 to resist rolling on side slopes
 - Enter/exit with `E` / gamepad `A`, camera and input handover to and from the
@@ -44,7 +44,7 @@ both true at once, and `test_rover_controls.tscn` asserts that holding
 
 The decelerate pedal is a brake above `reverse_threshold` (0.6 m/s forward) and
 reverse below it. Applying reverse torque to wheels that are still rolling
-forward at a third of Earth's grip does not stop you - it just spins them.
+forward at just over half Earth's grip does not stop you - it just spins them.
 
 ## The steering dead band
 
@@ -150,15 +150,51 @@ rover and asserts both axes. Re-run them rather than reasoning about it. See [[D
 
 [[Astronaut-Traversal]] · [[Cargo]] · [[Flares]] · [[Progression]]
 
+## Drivetrain, and what 0.55 g cost it
+
+Grip scales with normal force, so a heavier planet is *kinder* to a vehicle in
+the corners - but the same weight costs more in rolling resistance and in
+climbing out of every undulation, and on broken ground the second effect wins.
+
+Moving the planet from 0.34 g to 0.55 g on 2026-09-02 took ten seconds of
+full throttle over broken ground from **4.7 m/s and 29 m** to **1.9 m/s and
+7 m**, at an unchanged 900 N. That is not a feel regression, it is a hauler
+that can no longer haul, and no test caught it - every one of the fifteen
+passed at 900 N on the heavier planet. `probe_carrier_jolt` caught it, because
+it is the one thing that drives.
+
+Re-seated by bisection against the old figures:
+
+| `max_engine_force` | Top speed | Distance / 10 s | Load after |
+|---|---|---|---|
+| 900 (unchanged) | 1.9 m/s | 7 m | pristine |
+| 1050 | 4.4 m/s | 17 m | pristine |
+| **1170** | **6.5 m/s** | **29 m** | **pristine** |
+| 1450 | 7.6 m/s | 37 m | scuffed |
+| *900 at 0.34 g* | *4.7 m/s* | *29 m* | *pristine* |
+
+**1170 restores the ground covered, not the top speed.** Distance over ten
+seconds is the honest measure - top speed is one sample - and the peak comes
+out livelier than it was because the added grip pays off on the clear
+stretches. 1450 was rejected for scuffing cargo on an ordinary drive, which is
+the line between rough terrain and bad driving.
+
+`max_reverse_force` was scaled by the same 1.3 so the drivetrain keeps its
+shape. **Brakes were not touched and are not measured** - no probe stops the
+rover, and `max_brake_force` has been at 26 across both planets. Worth an
+instrument before anyone trusts it. #playtest
+
 ## Known issues
 
-- [ ] Suspension stiffness, friction slip and engine force were tuned by
-      reasoning, never against a human driving. All still provisional - but
-      they are now all on sliders in the F1 panel ([[Debug-Panel]]), including
-      the six wheels' built-in suspension and grip, so this is an evening of
-      driving rather than a code change per guess. #playtest
+- [ ] Suspension stiffness and friction slip were tuned by reasoning, never
+      against a human driving. Still provisional - but they are on sliders in
+      the F1 panel ([[Debug-Panel]]), including the six wheels' built-in
+      suspension and grip, so this is an evening of driving rather than a code
+      change per guess. **Engine force is no longer in this list**: the move to
+      0.55 g on 2026-09-02 broke it outright and it was re-seated against
+      `probe_carrier_jolt`, 900 -> 1170. See below. #playtest
 - [ ] Wheels do not visually spin or steer - the meshes are static children.
-- [ ] No rollover recovery. In 0.34 g a flipped rover is currently permanent -
+- [ ] No rollover recovery. In 0.55 g a flipped rover is currently permanent -
       and a loaded roof rack makes flipping considerably easier. #next
 - [ ] Nobody has driven it loaded. The centre-of-mass shift is arithmetically
       correct and completely untested against a human. #playtest
