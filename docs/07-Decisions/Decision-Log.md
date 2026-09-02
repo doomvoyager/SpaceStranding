@@ -9,6 +9,40 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-03 - The world is 3x3 tiles of 4096 m; art direction is frozen
+
+Mac, after the terrain options were laid out.
+
+**3x3, not 4x4.** 12,288 m across, nine tiles of 4096 m. The odd grid is not
+incidental: it puts the world origin in the **middle of a centre tile** rather
+than on the corner junction of four, which is the worst place for both float
+precision and authoring. 4x4 would have wanted a half-tile offset to avoid it.
+
+**Tiles render up to 16k.** Mac can author each tile at 16384 px, so a 4096 m
+tile reaches **0.25 m/texel** - four times the current 1 m/texel macro albedo,
+which [[Terrain]] already lists as visibly soft underfoot. The albedo sharpness
+problem solves itself at this tile size; it does not need a detail layer.
+
+**The masters do not cover it yet.** The two 8193x8193 Gaea exports are 8192 m
+of source at native 1 m/px - exactly 2x2. 3x3 is a Gaea authoring job before it
+is a code job, and that ordering is deliberate: the art has to exist before the
+streaming has anything to stream.
+
+**Art direction is frozen.** Mac is still developing the style and does not want
+the project spending on it. `docs/04-Art/Visual-Direction.md` moved to
+`99-Archive/`, out of every Dataview table and out of the task queue. The star
+not moving is *not* frozen with it - that is a pillar carrying navigation and
+the performance budget, and it lives here.
+
+**Rejected: colour as a mask now.** Mac wants the colour texture to become a
+mask that assigns and blends procedural materials, and said it could wait. It
+should: this is precisely a terrain engine's native model - a control map of
+material ids plus blend weights over a texture array - so building it by hand
+first would be work thrown away. It is queued in [[Terrain]] against whatever
+engine wins.
+
+---
+
 ## 2026-09-02 - The scanner arbitrates the signs, and the sign asks
 
 Mast signs wrote their names through one another - three sites 60 m apart, seen

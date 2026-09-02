@@ -762,7 +762,10 @@ Do not relitigate without Mac raising them first. Reasoning is in
 - **No combat.** The environment is the antagonist, and there is no BT
   analogue. Pressure is environmental; the pull is the `Science` mystery.
 - **The star never moves.** Tidal locking is load-bearing for the look, the
-  navigation, and the performance budget. See `docs/04-Art/Visual-Direction.md`.
+  navigation, and the performance budget. The art-direction note is **frozen**
+  as of 2026-09-03 - `docs/99-Archive/Visual-Direction.md`, moved out of the
+  build tables at Mac's request while the style is still being developed. Do
+  not build against anything in it, and do not spend on look work unasked.
 - **Flares replace timefall. The Lattice replaces the chiral network.** Both are
   deliberate structural analogues, rewritten to be ours.
 - **The Lander is a commitment, not a fast-travel button.** If hopping ever

@@ -1,11 +1,27 @@
 ---
-status: partial
-verified: 2026-08-31
-godot: res://shaders/painterly.gdshader
-tags: [art]
+status: parked
+verified: 2026-09-03
+godot:
+tags: [art, frozen]
 ---
 
 # Visual direction
+
+> [!warning] Frozen 2026-09-03, at Mac's request.
+> Moved out of `04-Art/` so it drops out of every Dataview table and the task
+> queue. Mac is still developing the art style and does not want the project
+> spending on it: *"at this point we don't need to bother about that at all."*
+>
+> **Nothing here is settled and nothing here should be built against.** Unfreeze
+> by moving the file back to `docs/04-Art/`; the wikilinks follow it either way.
+>
+> Two things that used to live here have moved out rather than frozen with it,
+> because they are not art decisions:
+> - **The star does not move.** Tidal locking is load-bearing for navigation and
+>   the performance budget as well as the look. It is a pillar, and it is in
+>   [[Decision-Log]].
+> - **`painterly.gdshader`.** See [[Terrain]] - the art half is being deleted,
+>   the coverage overlay and scan pulse inside it are gameplay and are not.
 
 ## The star does not move
 

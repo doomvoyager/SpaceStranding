@@ -6,7 +6,8 @@ Entry point. Everything else hangs off this.
 - [[Decision-Log]] - settled arguments and rejected ideas. **Check before
   re-proposing anything.**
 - [[The-Planet]] - the world spec every constant derives from
-- [[Visual-Direction]] - the look, and the one decision it all hangs off
+- *(frozen 2026-09-03)* [[Visual-Direction]] - art style is on hold; the note
+  is in `99-Archive/` and out of every table below
 - [[Debug-Panel]] - F1 in game. Every tunable on a slider
 - [[Placement]] - spawn markers and the ground snap. Drag things, don't type
   coordinates
