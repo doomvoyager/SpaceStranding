@@ -48,6 +48,15 @@ class_name Astronaut
 ## the case this was built for, while the same crate at 30 degrees still wins.
 @export_range(0.0, 8.0, 0.1) var aim_bias := 3.0
 
+## Seconds `interact` must be held, facing a rolled-over rover, before the
+## recovery commits.
+##
+## A hold rather than a press because this is the one verb that undoes a
+## mistake, and a press would make a flip cost a keystroke. It is also the only
+## hold in the game, which is why the prompt fills in as you hold it - a verb
+## that silently ignores a tap is a verb that looks broken.
+@export_range(0.1, 5.0, 0.1) var recovery_hold_time := 1.2
+
 @onready var _cam_pivot: Node3D = $CamPivot
 @onready var _spring_arm: SpringArm3D = $CamPivot/SpringArm3D
 @onready var _camera: Camera3D = $CamPivot/SpringArm3D/Camera3D
@@ -64,6 +73,8 @@ var _driving := false
 ## movement and both cargo verbs — but not gravity, because standing at a
 ## terminal on a slope should not make you hover.
 var _menu_open := false
+## Seconds `interact` has been held with a rolled-over rover in front of us.
+var _recovery_held := 0.0
 
 
 func _ready() -> void:
@@ -144,6 +155,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = sqrt(2.0 * World.surface_gravity * jump_height)
 		_time_since_grounded = coyote_time + 1.0  # consume the coyote window
 
+	_tick_recovery(delta)
 	_apply_horizontal_movement(delta, grounded)
 	move_and_slide()
 	_face_travel_direction(delta)
@@ -237,6 +249,9 @@ const KIND_STORAGE := 4
 ## A mast raised from a crate, and therefore one that can come back down.
 const KIND_MAST := 5
 
+## Cells in the hold meter drawn into the interact prompt.
+const RECOVERY_BAR_CELLS := 10
+
 
 ## One interactable in reach, and how well it is lined up. `score` is
 ## lower-is-better, so picking a target is a min.
@@ -266,7 +281,12 @@ func _interact() -> void:
 		KIND_TERMINAL:
 			_open_board(target.node as FacilityTerminal)
 		KIND_ROVER:
-			(target.node as Rover).enter(self)
+			# A rolled rover is not something to climb into. E is still the
+			# right key for it - see _tick_recovery - but it is a hold there,
+			# so the press does nothing and the prompt says why.
+			var rover := target.node as Rover
+			if not rover.is_rolled_over():
+				rover.enter(self)
 
 
 func _move_cargo() -> void:
@@ -596,8 +616,24 @@ func interact_prompt() -> String:
 		KIND_TERMINAL:
 			return (target.node as FacilityTerminal).interact_prompt()
 		KIND_ROVER:
+			var rover := target.node as Rover
+			if rover.is_rolled_over():
+				return _recovery_prompt(rover)
 			return "Board the rover"
 	return ""
+
+
+## What E says at a wreck. Fills in as you hold, because this is the only hold
+## in the game and a verb that ignores a tap in silence looks broken.
+func _recovery_prompt(rover: Rover) -> String:
+	if not rover.can_right():
+		return "Wait for the rover to settle"
+	var filled := int(round(recovery_progress() * RECOVERY_BAR_CELLS))
+	if filled <= 0:
+		return "Hold to right the rover"
+	return "Righting the rover  %s%s" % [
+		"|".repeat(filled), ".".repeat(RECOVERY_BAR_CELLS - filled)
+	]
 
 
 func cargo_prompt() -> String:
@@ -631,6 +667,58 @@ func raise_prompt() -> String:
 	if mast_target() != null:
 		return "Lower the mast"
 	return ""
+
+
+# --- Rollover recovery --------------------------------------------------
+#
+# A flipped rover is righted from outside, by hand: you climb out, walk round
+# and heave it over. It lives on the astronaut rather than on the rover because
+# that is what makes it a job rather than a key - you are out of the cab and
+# standing in the weather for the length of it.
+#
+# **On `interact`, held, rather than on a binding of its own.** [[Decision-Log]]
+# gave the mast its own key because "the nearest thing" is the exact ambiguity
+# `interact` has already had a bug in - but that was ambiguity between two
+# different objects, and this is one object in two states. An upside-down rover
+# cannot be boarded, so E facing one has exactly one possible meaning, and the
+# aim scoring already picks the rover out from whatever else is lying beside it.
+# A verb used once an hour is not worth a top-level binding.
+
+
+## The rolled-over rover in front of us that would accept being righted, or
+## null. Runs the same target selection `interact` does, not a copy of it.
+func recovery_target() -> Rover:
+	if _driving or _menu_open:
+		return null
+	var target := interact_target()
+	if target == null or target.kind != KIND_ROVER:
+		return null
+	var rover := target.node as Rover
+	return rover if rover.can_right() else null
+
+
+## How far through the hold we are, 0 to 1. Drives the prompt.
+func recovery_progress() -> float:
+	return clampf(_recovery_held / maxf(recovery_hold_time, 0.001), 0.0, 1.0)
+
+
+func _tick_recovery(delta: float) -> void:
+	# The key first, because recovery_target() walks the interact zone and the
+	# HUD is already paying for one of those every frame.
+	if not Input.is_action_pressed("interact"):
+		_recovery_held = 0.0
+		return
+	# Looked away, walked off, or it is already coming over: the hold starts
+	# again from nothing. It is a heave, not a tally.
+	var rover := recovery_target()
+	if rover == null:
+		_recovery_held = 0.0
+		return
+	_recovery_held += delta
+	if _recovery_held < recovery_hold_time:
+		return
+	_recovery_held = 0.0
+	rover.begin_righting()
 
 
 # --- The order board ----------------------------------------------------

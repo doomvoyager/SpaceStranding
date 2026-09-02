@@ -202,6 +202,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_pa
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_brake_light.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_rollover_recovery.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -247,6 +251,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/route_marks_captur
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/brake_light_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/rollover_capture.tscn
 ```
 
 Time where the frame goes during a scan pulse, with and without the map. Also
@@ -468,6 +476,21 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   group's heading with it. The engine puts subgroups in the list too, so
   handling them surfaces built-in ones like `VehicleWheel3D`'s "Suspension".
   Used by the F1 panel; see [[Debug-Panel]].
+- **A `FREEZE_MODE_KINEMATIC` body moved by writing `global_transform` reports
+  a derived `linear_velocity`.** So anything watching a carrier's velocity -
+  the `CargoRack` measures its load's jolt that way - sees a hand-driven motion
+  as real acceleration, exactly as if physics had produced it. That is what
+  makes the rollover recovery's duration load-bearing rather than cosmetic:
+  measured, the same righting peaks at **9.14 m/s^2** over 2.4 s and
+  **30.96** over 0.25, against a `jolt_floor` of 12. Had the frozen body
+  reported zero, the cargo would have been trivially safe at any speed and the
+  slow version would have been theatre. `tests/test_rollover_recovery.tscn`.
+- **A function returning `Variant` poisons `:=` at every call site.** The same
+  family as the untyped `const Array` below, and it reads worse: the parse
+  error is "The variable type is being inferred from a Variant value" pointing
+  at the *caller's* variable, with nothing naming the function that caused it.
+  A `-> Variant` used to mean "or null" is the usual way in. Take the fallback
+  as a parameter and return the real type instead - `Rover.ground_below()`.
 - **Correcting a child node's global basis every frame compounds, because the
   correction lands back in the basis it was read from.** The rover camera hangs
   off the chassis and has to have the body's roll clamped out of it; writing a

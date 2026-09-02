@@ -25,6 +25,7 @@ everything else that makes it a *cargo* vehicle is not.
   as an event, because a stick reports a held position and not a delta
 - **A six-slot roof rack that changes how it drives** - see below
 - **A brake light that follows the pedals, not the brake force** - see below
+- **Rollover recovery** - you climb out and heave it over. See below
 
 Not built: flare shield, power, damage, [[Progression]] upgrades.
 
@@ -249,6 +250,87 @@ This did not exist before 2026-09-02. The order board is only reachable on
 foot at a terminal, so nothing could be opened while driving until [[The-Map]]
 got its own key.
 
+## Rollover recovery
+
+In 0.55 g a flipped rover used to be permanent, and a loaded roof rack makes
+flipping considerably easier - the load lifts the centre of mass from −0.35 to
+about −0.10, which is exactly the margin the low mass was buying. The job was
+to stop a flip ending a run without turning it into a keypress.
+
+**The astronaut rights it from outside, by hand.** Climb out, walk round, hold
+`E` / `A` for 1.2 s and the rover rolls back onto its wheels over 2.4 s. The
+verb lives on the astronaut, not the rover, because that is what makes it a job
+rather than a key - you are out of the cab and standing in the weather for the
+length of it. Mac's call, over righting it from the driver's seat.
+
+**On `interact`, held, rather than on a binding of its own.** [[Decision-Log]]
+gave the mast its own key because "the nearest thing" is the exact ambiguity
+`interact` has already had a bug in - but that was ambiguity between two
+*different objects*, and this is one object in two states. An upside-down rover
+cannot be boarded, so `E` facing one has exactly one possible meaning, and the
+aim scoring already picks the rover out from whatever is lying beside it. A
+verb used once an hour is not worth a top-level binding. The press path is
+guarded too: `E` on a wreck does not climb into it.
+
+The prompt fills in as you hold - `Righting the rover ||||||....`. This is the
+only hold in the game, and a verb that ignores a tap in silence looks broken.
+
+### It is driven, not thrown
+
+The obvious implementation is an angular impulse, and it is the wrong one: a
+950 kg body in low gravity needs a large one to turn over at all, the amount
+depends on how it happens to be lying, and everything it does to the load is an
+accident.
+
+So the body is frozen `FREEZE_MODE_KINEMATIC` and its transform is interpolated
+by hand over `righting_duration`, eased at both ends with a `smoothstep`.
+Heading is kept - you flipped going somewhere. The landing height is *solved*:
+a ray finds the ground below, and the chassis is placed so the lowest wheel's
+contact point clears it by `righting_clearance` (0.08 m), with the wheel drop
+read off the wheels themselves rather than typed in.
+
+### A recovery costs time and nothing else
+
+Mac's choice, and it is measured rather than asserted. Six crates on the roof,
+rover on its back, righted:
+
+| | |
+|---|---|
+| Peak jolt through the recovery | **9.14 m/s²** |
+| `jolt_floor` (below which nothing is damaged) | 12.0 m/s² |
+| Condition lost | **0.0000** |
+
+`righting_duration` is what buys that, and the test proves it by breaking it:
+at 0.25 s instead of 2.4 the same recovery peaks at **30.96 m/s²** and starts
+taking the load apart. A flip already cost you the crash; the recovery does not
+bill you twice.
+
+**A kinematic body moved by writing `global_transform` does report a derived
+`linear_velocity`**, which is why the duration matters at all - the rack
+watches the carrier, so a driven motion is measured as real acceleration just
+like a physical one. Had it reported zero the cargo would have been trivially
+safe at any speed, and the 0.25 s run shows it is not.
+
+`res://tests/test_rollover_recovery.tscn` asserts the whole path - rolled-over
+detection, that `E` refuses to board a wreck, that the hold does not fire early,
+upright afterwards, on the ground, six crates, no condition lost.
+`res://tests/rollover_capture.tscn` writes the sequence, which is the half no
+headless test judges.
+
+### Climbing out of a wreck
+
+`exit()` used to hand `_exit_point.global_position` straight to `disembark()`,
+and the marker sits at (−2.1, −0.5, 0) in **body** space - so it followed every
+degree of roll the rover had. Upside down that is half a metre *up* on the
+wrong side; on its flank it is 2.1 m straight down, inside the terrain.
+
+That was survivable while nothing needed you outside a wrecked rover. It is
+load-bearing now, because on foot is the only place the verb that rights it
+exists. `exit_position()` takes the marker's offset in a **levelled** frame and
+solves the height against the ground - the same rule the crates already
+followed and nothing else had been given. Asserted in the recovery test, which
+checks the exit point is above ground with the rover inverted.
+
 ## Known issues
 
 - [ ] Suspension stiffness and friction slip were tuned by reasoning, never
@@ -259,8 +341,16 @@ got its own key.
       0.55 g on 2026-09-02 broke it outright and it was re-seated against
       `probe_carrier_jolt`, 900 -> 1170. See below. #playtest
 - [ ] Wheels do not visually spin or steer - the meshes are static children.
-- [ ] No rollover recovery. In 0.55 g a flipped rover is currently permanent -
-      and a loaded roof rack makes flipping considerably easier. #next
+- [x] ~~No rollover recovery.~~ Built 2026-09-02 - see above.
+- [ ] The righting pivots about the chassis origin, so mid-roll the rover
+      clips through the ground rather than levering up off its contact edge.
+      It is kinematic through that, so nothing collides and nothing breaks -
+      it just reads as a rotation rather than as a heave. Rotating about the
+      ground contact line would fix it. Judge it from
+      `rollover_capture.tscn` before spending anything on it. #next
+- [ ] A rover flipped *against* a rock is righted straight through the rock.
+      The landing height is solved against the ground below and nothing
+      checks the space it sweeps. #next
 - [ ] Nobody has driven it loaded. The centre-of-mass shift is arithmetically
       correct and completely untested against a human. #playtest
 

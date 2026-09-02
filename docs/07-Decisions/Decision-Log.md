@@ -9,6 +9,85 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - A flipped rover is righted on foot, and costs time only
+
+In 0.55 g a flipped rover was permanent, and a loaded roof rack makes flipping
+considerably easier - the load lifts the centre of mass from -0.35 to about
+-0.10, which is exactly the margin the low mass was buying. That is a
+run-ending bug wearing a difficulty setting.
+
+**The astronaut rights it from outside, Mac's call over righting it from the
+driver's seat.** Climb out, walk round, hold the key. The verb lives on the
+astronaut because that is what makes it a job rather than a key: you are out of
+the cab and standing in the weather for the length of it. Righting it from the
+seat was the cheaper build - no exit-point problem, one input - and was
+rejected as too close to an undo button.
+
+**On `interact`, held, not on a binding of its own.** This looks like it
+reopens the mast decision below, and it does not. That one rejected overloading
+`interact` because "the nearest thing" is the exact ambiguity `interact` has
+had a bug in - ambiguity between two *different objects*. This is one object in
+two states: an upside-down rover cannot be boarded, so `E` facing one has
+exactly one meaning, and the aim scoring already picks the rover out of
+whatever else is lying beside it. A verb used once an hour does not earn a
+top-level binding. The press path is guarded so `E` on a wreck cannot climb in,
+and the prompt fills in as you hold, because this is the only hold in the game.
+
+**Driven, not thrown.** The obvious implementation is an angular impulse and it
+is the wrong one: a 950 kg body in low gravity needs a large one to turn over
+at all, the amount depends on how it happens to be lying, and everything it
+does to the load is an accident. The body is frozen kinematic and its transform
+interpolated by hand over 2.4 s, eased at both ends, onto a landing height
+solved from a ray and the wheels' own radius.
+
+**A recovery costs time and nothing else - Mac's call, and measured.** Six
+crates on the roof, righted: peak jolt **9.14 m/s^2** against a `jolt_floor` of
+12.0, and **zero** condition lost. The duration is what buys that, proved by
+breaking it: at 0.25 s the same recovery peaks at **30.96 m/s^2** and starts
+taking the load apart. A flip already cost you the crash. Rejected: billing the
+cargo for the recovery as well, which punishes the same mistake twice and makes
+the safe play *not recovering*.
+
+**What it exposed: you could not reliably get out of a wreck to reach the
+verb.** `exit()` handed the exit marker's body-space position straight to
+`disembark()`, so it followed every degree of roll the rover had - upside down
+half a metre up on the wrong side, on its flank 2.1 m straight down and inside
+the terrain. Harmless while nothing needed you outside a wrecked rover, and
+load-bearing the moment something did. Now the offset is taken in a levelled
+frame and the height solved against the ground: the same author-the-XZ,
+solve-the-height rule the crates already had and nothing else had been given.
+
+See [[Rover]].
+
+
+## 2026-09-02 - The brake light follows the pedals, not the brake force
+
+Mac asked for `BrakeLightBar` to light red under braking. The interesting part
+is what it must *not* respond to: `brake` is non-zero whenever the throttle is
+closed, because engine braking applies 2.5 units of it, so a light wired to the
+force is on almost permanently - and a brake light that is always on is
+indistinguishable, in a screenshot, from one that works. Only the two
+deliberate inputs count.
+
+**Reverse lights it too.** The decelerate pedal is a brake above
+`reverse_threshold` and reverse below it; both are the driver asking not to go
+forward, so the bar follows the pedal rather than the force it produces and
+does not blink off at the instant the rover comes to rest under it. A road
+vehicle would show white there. `brake_light_on_reverse` turns it off.
+
+**Colour is authored on the material, brightness is driven by the script.** Two
+places, one question each, and the F1 panel gets the brightness for free
+because the rover is already a discovered target.
+
+**Energy 0.9, which is low and has to be.** ACES desaturates hardest where the
+image is brightest, so the first attempt at 5.0 rendered an orange-white smear
+that glowed over the whole hull. Swept against the real scene at twilight: 0.5
+reads as paint, 0.9 is red with just enough bloom to read as lit, 1.4 starts
+washing out, 5.0 is gone. Same trap as the [[Visual-Direction]] overlays.
+
+See [[Rover]].
+
+
 ## 2026-09-02 - Route lines are rebuilt on a movement threshold, not per frame
 
 Mac reported a large frame-rate drop while scanning, worse with the map open.

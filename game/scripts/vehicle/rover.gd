@@ -97,6 +97,33 @@ const ENGINE_FORCE_SIGN := -1.0
 ## here instead; this is one bar.
 @export var brake_light_on_reverse := true
 
+@export_group("Rollover recovery")
+## Degrees away from upright past which the rover counts as rolled over.
+##
+## Comfortably past anything driving produces: the speed-sensitive steering
+## exists to stop you reaching this, and a side slope steep enough to matter is
+## still well under it. It is a wreck, not a lean.
+@export_range(30.0, 179.0, 1.0) var rollover_angle_deg := 70.0
+## Speed, m/s, below which a rolled rover will accept being righted. A rover
+## still tumbling is not something you can get a shoulder under.
+@export_range(0.0, 5.0, 0.1) var recovery_max_speed := 1.0
+## Seconds the righting takes once it commits.
+##
+## Slow on purpose. The rover is moved by hand through this rather than by
+## physics, so the number is a straight statement of how long a flip costs you
+## - and it is the whole reason a full rack survives the recovery. See
+## [[Rover]] for the measured jolt.
+@export_range(0.2, 10.0, 0.1) var righting_duration := 2.4
+## How far above solved ground the wheels are set down, in metres. Small: the
+## rover is let go from here, and the drop is the only part of a recovery
+## physics sees.
+@export_range(0.0, 1.0, 0.01) var righting_clearance := 0.08
+## How far up and down to look for the ground the rover is being set on.
+@export_range(1.0, 40.0, 0.5) var righting_probe_reach := 12.0
+## How far above solved ground the driver is put down when they climb out. The
+## astronaut's origin is at its feet, so this is a small number.
+@export_range(0.0, 1.0, 0.01) var exit_clearance := 0.1
+
 @export_group("Camera")
 @export var mouse_sensitivity := 0.0022
 ## Right-stick turn rate, radians/sec.
@@ -144,6 +171,12 @@ var _mount_offset := Vector3(0.0, 1.2, 0.0)
 var _brake_material: StandardMaterial3D
 ## Whether the bar is lit right now. Read by `brake_light_on()`.
 var _brake_lit := false
+## Whether a righting is in progress. While it is, the body is kinematic and
+## this script is driving its transform - physics is not.
+var _righting := false
+var _righting_elapsed := 0.0
+var _righting_from := Transform3D.IDENTITY
+var _righting_to := Transform3D.IDENTITY
 var _steer_target := 0.0
 ## Kerb mass, captured from the inspector value before any cargo is counted.
 var _empty_mass := 950.0
@@ -259,6 +292,12 @@ func _clamped_up() -> Vector3:
 
 
 func _physics_process(delta: float) -> void:
+	# Ahead of the driver check on purpose: a recovery happens with nobody
+	# aboard, and this is the one thing the rover does for itself.
+	if _righting:
+		_advance_righting(delta)
+		return
+
 	if driver == null:
 		return
 
@@ -324,6 +363,165 @@ func _apply_drivetrain(throttle: float, braking: bool) -> void:
 ## Speed along the rover's own forward axis. Negative while reversing.
 func forward_speed() -> float:
 	return linear_velocity.dot(-global_transform.basis.z)
+
+
+# --- Rollover recovery --------------------------------------------------
+#
+# In 0.55 g a flipped rover used to be permanent, and a loaded roof rack makes
+# flipping considerably easier - the load lifts the centre of mass from -0.35 to
+# about -0.10, which is exactly the margin the low mass was buying. So a flip
+# had to stop being a run-ending event without becoming a keypress.
+#
+# **The astronaut rights it from outside, by hand.** It is a job you climb out
+# and do, which is why the verb is a hold rather than a press and why it lives
+# on the astronaut. Nothing here starts itself.
+#
+# **The righting is driven, not thrown.** The obvious implementation is an
+# angular impulse, and it is the wrong one: a 950 kg body in low gravity needs a
+# large one to turn over at all, the amount depends on how it happens to be
+# lying, and everything it does to the load is an accident. So the body is
+# frozen kinematic and its transform is interpolated by hand over
+# `righting_duration`, easing at both ends. The load rides through it feeling
+# almost nothing, which is the point - a flip already cost you the crash.
+
+
+## How far from upright the chassis is, as a dot product: 1 is level, 0 is on
+## its side, -1 is on its roof.
+func upright_dot() -> float:
+	return global_basis.y.dot(Vector3.UP)
+
+
+## Whether the rover is lying past `rollover_angle_deg`.
+func is_rolled_over() -> bool:
+	return upright_dot() < cos(deg_to_rad(rollover_angle_deg))
+
+
+## Whether a recovery would be accepted right now. False mid-tumble, and false
+## while one is already running.
+func can_right() -> bool:
+	if _righting:
+		return false
+	if not is_rolled_over():
+		return false
+	return linear_velocity.length() <= recovery_max_speed
+
+
+## Whether a recovery is running.
+func is_righting() -> bool:
+	return _righting
+
+
+## Start rolling the rover back onto its wheels. False if it will not accept
+## one, so a caller never has to ask twice.
+func begin_righting() -> bool:
+	if not can_right():
+		return false
+	_righting = true
+	_righting_elapsed = 0.0
+	linear_velocity = Vector3.ZERO
+	angular_velocity = Vector3.ZERO
+	# Kinematic rather than static: the body still pushes what it meets on the
+	# way over instead of passing through it.
+	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	freeze = true
+	_righting_from = global_transform
+	_righting_to = Transform3D(_upright_basis(), _righting_landing())
+	# The driver check below would otherwise leave this unticked with nobody
+	# aboard, which is precisely when a recovery happens.
+	set_physics_process(true)
+	return true
+
+
+func _advance_righting(delta: float) -> void:
+	_righting_elapsed += delta
+	var t := clampf(_righting_elapsed / maxf(righting_duration, 0.001), 0.0, 1.0)
+	# Eased at both ends. A linear ramp starts and stops with a step change in
+	# angular rate, and a step change is exactly what the load measures.
+	var s := smoothstep(0.0, 1.0, t)
+	global_transform = Transform3D(
+		_righting_from.basis.slerp(_righting_to.basis, s),
+		_righting_from.origin.lerp(_righting_to.origin, s)
+	)
+	if t < 1.0:
+		return
+
+	_righting = false
+	freeze = false
+	linear_velocity = Vector3.ZERO
+	angular_velocity = Vector3.ZERO
+	# The documented thing to do after moving a carrier by hand. Measured to
+	# change nothing here, because the velocities are zeroed two lines above
+	# and there is no step left for the rack to read - kept because that is an
+	# accident of the order, not a property of the recovery.
+	_rack.reset_jolt()
+	set_physics_process(driver != null)
+
+
+## Level, facing wherever the rover was already pointing.
+##
+## Heading is kept rather than reset because it is the one thing about a wreck
+## the player still has an opinion on - you flipped going somewhere.
+func _upright_basis() -> Basis:
+	var fwd := -global_basis.z
+	fwd.y = 0.0
+	if fwd.length_squared() < 1e-6:
+		# Nose straight up or down, so the forward axis says nothing about
+		# heading: the roof is the only direction left to read one from.
+		fwd = global_basis.y
+		fwd.y = 0.0
+	if fwd.length_squared() < 1e-6:
+		fwd = Vector3.FORWARD
+	fwd = fwd.normalized()
+	return Basis(fwd.cross(Vector3.UP).normalized(), Vector3.UP, -fwd)
+
+
+## Where the chassis origin has to sit for the wheels to be just clear of the
+## ground below it.
+func _righting_landing() -> Vector3:
+	# The sentinel is the rover's own position: nothing under it means it is
+	# over a drop, or the probe was too short. Leave the origin where it is and
+	# let physics sort the fall out - turning it the right way up is still
+	# worth doing.
+	var lift := Vector3.UP * (_wheel_drop() + righting_clearance)
+	var ground := ground_below(global_position, global_position - lift)
+	return ground + lift
+
+
+## How far the lowest wheel's contact point sits below the chassis origin.
+##
+## Solved from the wheels rather than typed in, so moving a wheel or changing
+## its radius cannot leave the rover set down buried or dropped from a height.
+func _wheel_drop() -> float:
+	var lowest := 0.0
+	for child in get_children():
+		var wheel := child as VehicleWheel3D
+		if wheel == null:
+			continue
+		lowest = minf(lowest, wheel.position.y - wheel.wheel_radius)
+	return -lowest
+
+
+## The ground under `from`, or `fallback` if the probe finds none.
+##
+## The fallback is a parameter rather than a null return because a function
+## returning `Variant` poisons `:=` at every call site - the inferred type
+## becomes Variant and the parse fails two lines later, pointing at the
+## variable rather than at this. Public because climbing out needs the same
+## answer as setting the rover down - see `exit_position()`.
+func ground_below(from: Vector3, fallback: Vector3) -> Vector3:
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return fallback
+	var top := from + Vector3.UP * righting_probe_reach
+	var query := PhysicsRayQueryParameters3D.create(
+		top, top + Vector3.DOWN * (righting_probe_reach * 2.0)
+	)
+	# The rover is not the ground, and neither is anything riding on it.
+	query.exclude = [get_rid()]
+	var hit := space.intersect_ray(query)
+	if hit.is_empty():
+		return fallback
+	return hit["position"] as Vector3
 
 
 # --- Brake light --------------------------------------------------------
@@ -420,6 +618,36 @@ func refresh_load() -> void:
 
 # --- Boarding -----------------------------------------------------------
 
+## Where the driver climbs out to.
+##
+## The marker gives the offset; the ground gives the height. Read straight off
+## the marker in body space it follows every degree of roll the rover has: at
+## (-2.1, -0.5, 0) an upside-down rover puts you half a metre *up* on the wrong
+## side, and one lying on its flank puts you 2.1 m straight down, which is
+## inside the terrain.
+##
+## Climbing out of a wreck is exactly the case that has to work, because on
+## foot is the only place the verb that rights it exists. Same rule the crates
+## already followed and nothing else had been given: author the X and Z, solve
+## the height.
+func exit_position() -> Vector3:
+	var offset := _exit_point.position
+	var fwd := -global_basis.z
+	fwd.y = 0.0
+	if fwd.length_squared() < 1e-6:
+		# Nose straight up or down. Any heading will do; the offset is sideways.
+		fwd = Vector3.FORWARD
+	fwd = fwd.normalized()
+	var beside := (
+		global_position
+		+ fwd.cross(Vector3.UP).normalized() * offset.x
+		+ fwd * -offset.z
+	)
+	var lift := Vector3.UP * exit_clearance
+	return ground_below(beside, beside - lift) + lift
+
+
+
 func enter(astronaut: Astronaut) -> void:
 	if driver != null:
 		return
@@ -445,4 +673,4 @@ func exit() -> void:
 	# with its brake light burning would be reporting a driver that has gone.
 	_set_brake_light(false)
 	_camera.current = false
-	astronaut.disembark(_exit_point.global_position)
+	astronaut.disembark(exit_position())

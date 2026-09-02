@@ -114,6 +114,27 @@ the rule to drift.
 with the mouse or the right stick; it is public so a test can aim before
 pressing a key, which is now part of what a key press means.
 
+### The one hold
+
+`E` is a press everywhere except at a rolled-over [[Rover]], where it is held
+for `recovery_hold_time` (1.2 s) to heave the wreck back onto its wheels.
+
+That is not the "nearest thing" ambiguity [[Decision-Log]] gave the mast its
+own key to avoid. That was ambiguity between two *different objects*; this is
+one object in two states, and an upside-down rover cannot be boarded - so `E`
+facing one has exactly one possible meaning, and the aim scoring already picks
+the rover out of whatever else is lying beside it. The press path is guarded so
+it cannot climb into a wreck.
+
+`_tick_recovery()` checks the key *before* resolving a target, because
+`recovery_target()` walks the interact zone and the HUD is already paying for
+one of those every frame. The hold resets on release, on looking away and on
+walking off: it is a heave, not a tally.
+
+The prompt fills in as it goes - `Righting the rover ||||||....` - because this
+is the only hold in the game and a verb that ignores a tap in silence looks
+broken.
+
 ## Input handover
 
 **`vantage()` is where the player actually is** — the [[Rover]] while driving
