@@ -40,6 +40,7 @@ class_name HUD
 @onready var _delivery_label: Label = $Prompts/Delivery
 @onready var _load_label: Label = $Prompts/Load
 @onready var _manifest_label: Label = $Prompts/Manifest
+@onready var _raise_label: Label = $Prompts/Raise
 @onready var _survey_label: Label = $Prompts/Survey
 @onready var _controls_card: Control = $Controls
 
@@ -98,13 +99,14 @@ func _process(delta: float) -> void:
 ## whatever state the player put it in.
 func _hide_all() -> void:
 	for label in [_interact_label, _cargo_label, _delivery_label, _load_label,
-			_manifest_label, _survey_label]:
+			_manifest_label, _survey_label, _raise_label]:
 		label.visible = false
 
 
 func _draw() -> void:
 	_show_prompt(_interact_label, "E / A", _astronaut.interact_prompt())
 	_show_prompt(_cargo_label, "F / X", _astronaut.cargo_prompt())
+	_show_prompt(_raise_label, "R / Y", _astronaut.raise_prompt())
 	_load_label.visible = true
 	_load_label.text = _load_text()
 	var manifest := _manifest_text()

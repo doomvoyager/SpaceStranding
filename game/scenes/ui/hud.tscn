@@ -234,6 +234,23 @@ text = "Tuning panel"
 theme_override_font_sizes/font_size = 14
 theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
 
+[node name="R9C0" type="Label" parent="Controls/List/Grid"]
+custom_minimum_size = Vector2(68, 0)
+text = "R"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(1, 0.74, 0.52, 1)
+
+[node name="R9C1" type="Label" parent="Controls/List/Grid"]
+custom_minimum_size = Vector2(68, 0)
+text = "Y"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.72, 0.62, 0.58, 0.75)
+
+[node name="R9C2" type="Label" parent="Controls/List/Grid"]
+text = "Raise / lower a mast"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.87, 0.85, 0.83, 0.82)
+
 [node name="Prompts" type="VBoxContainer" parent="."]
 anchor_top = 1.0
 anchor_right = 1.0
@@ -258,6 +275,15 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_prompt")
 visible = false
 size_flags_horizontal = 4
 text = "Cargo"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.55, 0.92, 0.88, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_prompt")
+
+[node name="Raise" type="Label" parent="Prompts"]
+visible = false
+size_flags_horizontal = 4
+text = "Raise"
 horizontal_alignment = 1
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(0.55, 0.92, 0.88, 1)

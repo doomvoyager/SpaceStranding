@@ -123,8 +123,15 @@ entry in [[Decision-Log]].
 `Crate.is_deployable()` is the query; `Astronaut.carried_deployable()` answers
 for the back rack specifically, because a mast riding on the rover is still
 freight and a mast on your back is a thing you are looking for somewhere to
-put. **Raising one is not built yet** - the property currently only drives the
-readout.
+put.
+
+`Crate.raise_into()` is the other half, added the same day: the crate becomes
+the structure, and **is not consumed**. It is stowed inside it and hidden, the
+same freeze-and-reparent a rack does, so lowering the mast later hands back this
+exact node with its damage and its owner intact. `is_stowed()` counts a crate
+riding inside a structure as stowed, not just one in a rack - otherwise it
+reports itself loose and goes on measuring its own jolt from inside a static
+mast. See [[The-Lattice]] for the verb.
 
 ## Delivery
 

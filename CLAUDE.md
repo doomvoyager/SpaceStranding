@@ -178,6 +178,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ma
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_mast_readout.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_mast_raise.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.

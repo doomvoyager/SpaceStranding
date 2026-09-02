@@ -31,6 +31,12 @@ var range_spare := 0.0
 ## Smallest gap between the sight line and the ground beneath it, in metres.
 var clearance := 0.0
 
+## Where the mast's foot would sit — the solved ground under the surveyor.
+##
+## Raising a mast uses this, so the verb and the readout can never disagree
+## about where the thing would stand: they are the same solve, not two.
+var ground_point := Vector3.ZERO
+
 ## Where the antenna would end up standing. Ground height plus the mast.
 var mast_point := Vector3.ZERO
 

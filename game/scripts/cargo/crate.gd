@@ -144,9 +144,17 @@ func _physics_process(delta: float) -> void:
 	apply_jolt(_meter.sample(linear_velocity, delta), delta)
 
 
-## True while riding in a rack rather than lying in the world.
+## The structure this crate was raised into, or null. A crate inside a mast is
+## as inert as one strapped to a rack, and nothing that walks racks would ever
+## find it — so without this it would report itself loose and go on measuring
+## its own jolt from inside a static mast.
+var _raised_into: Node3D = null
+
+
+## True while riding in a rack, or inside something it was raised into,
+## rather than lying loose in the world.
 func is_stowed() -> bool:
-	return rack() != null
+	return rack() != null or _raised_into != null
 
 
 ## The rack this crate is riding in, or null if it is loose.
@@ -242,6 +250,7 @@ func stow(slot: Node3D) -> void:
 
 ## Go back into the world at `at`, simulating again.
 func release(world: Node, at: Transform3D) -> void:
+	_raised_into = null
 	_move_to(world)
 	global_transform = at
 	_shape.disabled = false
@@ -267,3 +276,41 @@ func _move_to(new_parent: Node) -> void:
 ## off. See `deploys_as`.
 func is_deployable() -> bool:
 	return deploys_as != null
+
+
+## Become what `deploys_as` says, standing at `at`, parented under `parent`.
+## Returns the new structure, or null if this crate does not deploy into
+## anything.
+##
+## The crate is not consumed. It is stowed inside the structure and hidden, the
+## same freeze-and-reparent a rack does, so lowering the mast later hands back
+## this exact node with its damage and its owner intact.
+func raise_into(parent: Node, at: Vector3) -> Node3D:
+	if deploys_as == null or parent == null:
+		return null
+	var structure := deploys_as.instantiate() as Node3D
+	if structure == null:
+		return null
+	# Named *before* it enters the tree. _ready() runs on add_child, and a Relay
+	# with no id refuses to register — it would stand there looking like a mast
+	# and be absent from the graph.
+	#
+	# Named *unconditionally*, not just when the id is blank. relay.tscn carries
+	# "relay" as its authored default, so a blank check never fires and every
+	# mast anyone raised would come out sharing one id — the second silently
+	# replacing the first in the graph. A raised mast is never the scene's
+	# relay, so it never wants the scene's name.
+	if structure is Relay:
+		(structure as Relay).relay_id = Lattice.unique_site_id("mast")
+	structure.position = at
+	parent.add_child(structure)
+	# Authoritative, in case `parent` carries a transform of its own. The graph
+	# rebuild is deferred, so it still solves against this and not against the
+	# origin the node briefly sat at.
+	structure.global_position = at
+	_raised_into = structure
+	if structure is Relay:
+		(structure as Relay).raised_from = self
+	stow(structure)
+	visible = false
+	return structure

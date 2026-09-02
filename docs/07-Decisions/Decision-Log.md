@@ -9,6 +9,41 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - Raising a mast: reversible, warned not refused, its own key
+
+Three calls made while building the raise verb. Mac was asked and said go, so
+these were Claude's; all three are the looser option, which is easier to
+tighten later than to loosen.
+
+**Raising is reversible.** A raised mast can be lowered back into the crate it
+came from - the same node, with its accumulated damage and its order ownership
+intact. The crate is stowed inside the relay and hidden rather than consumed,
+which is the same freeze-and-reparent a rack already does. Nothing else in the
+game destroys and respawns a crate and a mast was not the place to start. The
+design reason is stronger than the tidiness one: siting has to be something you
+can be *wrong* about, or people will look the answer up instead of surveying
+for it, which is the opposite of the point.
+
+**A dark site is allowed, with a warning.** The survey is an instrument, not a
+gate. Dark zones being genuinely dark is a pillar, and a mast raised as a step
+toward a further one is a legitimate move. Refusing would also make the survey
+authoritative when it is advisory. The readout says "no link from here" and the
+verb goes ahead.
+
+**Its own key (`R` / `Y`), not an overload of `interact`.** "The nearest thing"
+is the exact ambiguity `interact` has already had a bug in, and raising a mast
+when you meant to board the rover is not worth one saved binding. Masts are
+excluded from both other verbs so `E` and `F` are unchanged.
+
+**Rejected: naming a raised mast only when its id is blank.** `relay.tscn`
+carries an authored id, so the blank check never fires and every raised mast
+comes out called "relay" - the second silently replacing the first in the
+graph, leaving a mast standing in the world that coverage cannot see. Raised
+masts are named unconditionally from `Lattice.unique_site_id()`. This shipped
+and passed its test; what caught it was raising a *second* mast, and the test
+now does.
+
+
 ## 2026-09-02 - The planet is 0.55 g, not 0.34 g
 
 Mac played at 0.55 g on the F1 slider and it felt better. Made permanent:

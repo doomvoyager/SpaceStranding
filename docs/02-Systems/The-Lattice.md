@@ -136,6 +136,13 @@ ordinary freight there and checks it does not. Correct-and-invisible is this
 project's most repeated failure, and it has never once been caught by testing
 the arithmetic.
 
+`res://tests/test_mast_raise.tscn` covers the verb: that a mast raised between
+two dark facilities links them, that it stands exactly where the survey said,
+that lowering hands back the *same* crate at the same condition and takes the
+site out of the graph, that dark ground is allowed, and that an authored relay
+cannot be lowered. It also raises **two** masts, which is the only way to catch
+them sharing a name - and did, the first time it ran.
+
 `res://tests/probe_relay_site.gd` is how the test world's relay site was chosen.
 It scans ground that is in range of both facilities and can see both, and scores
 each candidate on its **weakest** margin. Ranking on sight-line clearance alone
@@ -146,12 +153,20 @@ relay went to (-12, 14) with 8.2 m of clearance and 9.0 m of range to spare.
 
 - [x] LOS solve - cache or live? **Cached**, rebuilt on `Terrain.rebuilt` and on
       any site registering. Answered 2026-08-31.
-- [ ] TODO: **relays are authored, not placed.** Making one haulable is the
-      campaign: the mast becomes cargo, and choosing where it goes becomes the
-      survey. Order 105 already puts a downed mast in the world waiting for it.
-      **The survey half is built** as of 2026-09-02 - see below. What remains is
-      the mast as cargo you can actually raise: a verb, and the planted relay
-      registering itself. #now
+- [x] **Relays can be placed.** The mast is cargo, siting it is surveyed, and
+      `R` / `Y` raises it where you stand or takes it back down. Done
+      2026-09-02. What it opens rather than closes is below.
+- [ ] TODO: **masts are unlimited.** Nothing consumes one, nothing costs
+      anything, and a crate that deploys is otherwise ordinary cargo. Where
+      masts come from is the whole economy of extending the network and it is
+      currently "the one in order 105". #question
+- [ ] TODO: **order 105 says bring the mast in; you can now stand it up in the
+      field instead.** The order and the verb want different things from the
+      same crate. Either the order becomes "raise it somewhere useful" or
+      raising order-owned cargo is refused. Mac's call. #question
+- [ ] TODO: nothing shows where coverage *would* reach from a prospective site
+      - the readout answers "does this link", not "what does this buy". The
+      gizmo ring in [[Placement]] is the editor half of the same gap. #next
 - [ ] TODO: do relays need maintenance, or are they fire-and-forget? Maintenance
       creates return-trip content but risks becoming a chore. #question
 - [ ] TODO: what does the coverage map actually look like on screen? The Network
@@ -193,6 +208,36 @@ absurd. `test_mast_survey` fails if the two ever disagree.
 What the survey deliberately does **not** do: refuse anything. It is an
 instrument, not a gate. Whether a bad site is forbidden or merely a bad idea is
 open, and is a question for when raising a mast exists.
+
+## Raising one
+
+**Built 2026-09-02.** `R` / gamepad `Y` raises the mast on your back where you
+stand, or takes down one you raised earlier and are looking at.
+
+Its own key, not an overload of `interact`. "The nearest thing" is exactly the
+ambiguity that verb has already had a bug in, and raising a mast when you meant
+to board the rover is not worth one saved binding. A mast is also excluded from
+both other verbs, so `E` and `F` behave exactly as they did.
+
+**The mast lands where the readout said**, because both go through the same
+`survey_at` - there is one ground solve, not two that could drift.
+
+**Raising is reversible, and the crate is never destroyed.** The crate is stowed
+inside the relay and hidden, the same freeze-and-reparent a rack does, so
+lowering hands back that exact node with its accumulated damage and its owner
+intact. Siting is meant to be something you can be wrong about: a mast planted
+on the wrong ridge that could never be recovered would push people to look the
+answer up rather than survey for it, which is the opposite of the point.
+Authored relays have no crate inside them and cannot be lowered.
+
+**A dark site is allowed.** The survey warns and does not refuse - dark ground
+is a real place, and a mast raised as a step toward a further one is a
+legitimate thing to do.
+
+Every raised mast gets its own id from `Lattice.unique_site_id()`, assigned
+unconditionally rather than only when blank: `relay.tscn` carries an authored
+id, so a blank check gives every raised mast the same name and the second
+silently replaces the first in the graph.
 
 ## Siting a relay
 

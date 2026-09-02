@@ -30,6 +30,16 @@ class_name Relay
 ## on at runtime, and draws the tether down to the contact point.
 @export var ground_clearance := 0.0
 
+## The crate this mast was raised from, or null for one authored in the scene.
+##
+## Runtime only, and deliberately not exported: it is an object identity, not a
+## value, and a scene has no business storing it. Holding the crate rather than
+## its numbers is what lets a mast be lowered back into the *same* crate —
+## same accumulated damage, same order ownership, same node. Crates are never
+## destroyed and respawned anywhere else in the game and this is not the place
+## to start.
+var raised_from: Crate = null
+
 @onready var _antenna: Node3D = get_node_or_null("Antenna")
 
 
@@ -63,3 +73,29 @@ func link_range() -> float:
 ## is deliberately the top of the mast and not the node's origin.
 func mast_point() -> Vector3:
 	return _antenna.global_position if _antenna != null else global_position
+
+
+
+## Whether this mast can be taken back down. False for an authored relay: there
+## is no crate inside it to hand back, and inventing one would be a crate the
+## player never carried.
+func can_lower() -> bool:
+	return raised_from != null
+
+
+## Take the mast down, returning the crate it was raised from to the world.
+##
+## Siting is meant to be something you can be wrong about. A mast planted on
+## the wrong ridge that could never be recovered would push people to look the
+## answer up rather than survey for it, which is the opposite of the point.
+func lower() -> Crate:
+	if raised_from == null:
+		return null
+	var crate := raised_from
+	raised_from = null
+	# Out of this node before it is freed, or the crate goes with it.
+	crate.visible = true
+	crate.release(get_parent(), Transform3D(Basis.IDENTITY, global_position))
+	# _exit_tree() unregisters us from the graph, which queues the rebuild.
+	queue_free()
+	return crate

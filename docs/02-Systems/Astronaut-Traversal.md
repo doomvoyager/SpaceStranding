@@ -45,7 +45,7 @@ two contexts without either script inspecting the input's source.
 
 ## Interaction
 
-Two verbs, and they never compete for the same press:
+Three verbs in reach, and they never compete for the same press:
 
 - **`E` / `A`** - deal with the world: a loose crate, a facility terminal, or
   the [[Rover]].
@@ -55,6 +55,13 @@ Two verbs, and they never compete for the same press:
 
   An intake **takes and never gives**. Handing something in needs no choosing;
   taking one of forty things out is what the terminal's list is for.
+
+- **`R` / `Y`** - raise the mast on your back where you stand, or lower one you
+  raised earlier and are looking at. Its own key rather than an overload of
+  `E`, because "the nearest thing" is the ambiguity that verb has already had a
+  bug in, and raising a mast when you meant to board the rover is not worth one
+  saved binding. A mast is excluded from the other two verbs, so `E` and `F`
+  behave exactly as they did. See [[The-Lattice]].
 
 Boarding therefore never competes with unloading. The alternative - one key,
 priority-ordered - hands you a crate when you walk up to a loaded rover meaning

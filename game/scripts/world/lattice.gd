@@ -261,6 +261,7 @@ func survey_at(x: float, z: float) -> SiteSurvey:
 		return out
 
 	var ground := terrain.world_height_at(x, z)
+	out.ground_point = Vector3(x, ground, z)
 	out.mast_point = Vector3(x, ground + survey_mast_height, z)
 	if _sites.is_empty():
 		out.unknown = true
@@ -314,3 +315,16 @@ func line_clearance(from: Vector3, to: Vector3) -> float:
 		var point := from.lerp(to, float(i) / float(steps))
 		worst = minf(worst, point.y - terrain.world_height_at(point.x, point.z))
 	return worst
+
+
+## A site id nothing is using yet, as `<prefix>-<n>`.
+##
+## Authored sites name themselves in the scene; one raised in the field has
+## nobody to name it, and two masts sharing an id would silently collapse into
+## one entry in the graph — `register_site` warns, but the second mast would
+## still be invisible to coverage.
+func unique_site_id(prefix: String) -> String:
+	var n := 1
+	while _sites.has("%s-%d" % [prefix, n]):
+		n += 1
+	return "%s-%d" % [prefix, n]

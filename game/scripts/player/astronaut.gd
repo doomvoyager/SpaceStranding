@@ -110,6 +110,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_move_cargo()
 		get_viewport().set_input_as_handled()
 
+	if event.is_action_pressed("raise_mast"):
+		_raise_or_lower()
+		get_viewport().set_input_as_handled()
+
 
 func _process(delta: float) -> void:
 	if _driving or _menu_open:
@@ -184,12 +188,18 @@ func _face_travel_direction(delta: float) -> void:
 
 # --- Interaction --------------------------------------------------------
 ##
-## Two verbs, and they never overlap:
+## Three verbs, and they never overlap:
 ##
 ##   interact (E / A) — deal with the world. A loose crate, a facility terminal,
 ##                      or the rover.
 ##   drop_cargo (F / X) — move cargo. Carrying: onto a rack with room, else on
 ##                      the ground. Empty-handed: off a rack that has something.
+##   raise_mast (R / Y) — raise the mast you are carrying, here; or take one
+##                      you raised earlier back down. Its own key rather than
+##                      an overload of interact, because "the nearest thing"
+##                      is exactly the ambiguity that verb already had a bug
+##                      in — raising a mast when you meant to board the rover
+##                      is not a mistake worth risking for one saved binding.
 ##
 ## Boarding never competes with unloading, so walking up to a loaded rover to
 ## drive it always just drives it. That was settled 2026-08-30.
@@ -224,6 +234,8 @@ const KIND_TERMINAL := 1
 const KIND_ROVER := 2
 const KIND_DOCK := 3
 const KIND_STORAGE := 4
+## A mast raised from a crate, and therefore one that can come back down.
+const KIND_MAST := 5
 
 
 ## One interactable in reach, and how well it is lined up. `score` is
@@ -332,6 +344,12 @@ func _kind_of(body: Node3D) -> int:
 		return KIND_ROVER
 	if body.is_in_group("dock_deck"):
 		return KIND_DOCK
+	# Only a mast someone raised. An authored relay has no crate inside it, so
+	# it stays scenery — which also keeps this from changing what E does in
+	# every scene that already had a relay standing in it.
+	var relay := _relay_above(body)
+	if relay != null and relay.can_lower():
+		return KIND_MAST
 	if body.is_in_group("storage_intake"):
 		return KIND_STORAGE
 	return -1
@@ -341,12 +359,23 @@ func _kind_of(body: Node3D) -> int:
 ## deck you are standing next to, and for an intake it is the facility whose
 ## shelf it leads to.
 func _node_for(body: Node3D, kind: int) -> Node3D:
+	if kind == KIND_MAST:
+		return _relay_above(body)
 	if kind != KIND_DOCK and kind != KIND_STORAGE:
 		return body
 	var facility := _facility_above(body)
 	if facility == null:
 		return null
 	return facility.dock() if kind == KIND_DOCK else facility
+
+
+func _relay_above(node: Node) -> Relay:
+	while node != null:
+		var relay := node as Relay
+		if relay != null:
+			return relay
+		node = node.get_parent()
+	return null
 
 
 func _facility_above(node: Node) -> Facility:
@@ -375,6 +404,8 @@ func _rack_of(target: Reachable) -> CargoRack:
 func interact_target() -> Reachable:
 	var best: Reachable = null
 	for r in reachable():
+		if r.kind == KIND_MAST:
+			continue
 		if r.kind == KIND_DOCK:
 			continue
 		if r.kind == KIND_CRATE and _back_rack.is_full():
@@ -392,6 +423,8 @@ func cargo_target() -> Reachable:
 	var taking := _back_rack.is_empty()
 	var best: Reachable = null
 	for r in reachable():
+		if r.kind == KIND_MAST:
+			continue
 		if not _can_serve(r, taking):
 			continue
 		if best == null or r.score < best.score:
@@ -497,6 +530,52 @@ func carried_deployable() -> Crate:
 	return null
 
 
+# --- Masts --------------------------------------------------------------
+
+## Raise the carried mast where you stand, or lower one you are looking at.
+##
+## Carrying wins over lowering. Standing at your own mast with another on your
+## back, the thing you came to do is raise the one you carried here.
+func _raise_or_lower() -> void:
+	if _driving or _menu_open:
+		return
+	var mast := carried_deployable()
+	if mast != null:
+		_raise(mast)
+		return
+	var target := mast_target()
+	if target != null:
+		(target.node as Relay).lower()
+
+
+## Stand `mast` up at the surveyed ground under our feet.
+##
+## The position comes from the same `survey_at` the HUD readout draws, so the
+## mast lands exactly where the readout said it would — they cannot disagree,
+## because there is only one solve. Falling back to our own feet if there is no
+## terrain to ask keeps this working in a bare test scene.
+##
+## A site with no link is **allowed**. The survey is an instrument, not a gate:
+## dark ground is a real place, and a mast planted as a step toward a further
+## one is a legitimate thing to do. The readout says so; it does not refuse.
+func _raise(mast: Crate) -> void:
+	var survey := Lattice.survey_at(global_position.x, global_position.z)
+	var at := survey.ground_point if not survey.unknown else global_position
+	mast.raise_into(get_parent(), at)
+
+
+## The raised mast `raise_mast` would take down, or null. Aimed like every
+## other verb — see `reachable()`.
+func mast_target() -> Reachable:
+	var best: Reachable = null
+	for r in reachable():
+		if r.kind != KIND_MAST:
+			continue
+		if best == null or r.score < best.score:
+			best = r
+	return best
+
+
 # --- Prompts ------------------------------------------------------------
 ##
 ## The HUD asks what each key *would* do rather than describing the rules, so a
@@ -537,6 +616,21 @@ func cargo_prompt() -> String:
 		KIND_STORAGE:
 			return "Put it in %s storage" % (target.node as Facility).display_name
 	return "Set it on the dock"
+
+
+## What `raise_mast` would do right now, or "".
+##
+## Says nothing about whether the site is any good — that is the survey line's
+## job, and saying it twice would be two things to keep in step.
+func raise_prompt() -> String:
+	if _driving or _menu_open:
+		return ""
+	var mast := carried_deployable()
+	if mast != null:
+		return "Raise the mast here"
+	if mast_target() != null:
+		return "Lower the mast"
+	return ""
 
 
 # --- The order board ----------------------------------------------------
