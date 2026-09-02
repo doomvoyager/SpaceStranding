@@ -198,6 +198,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ro
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_pad_cursor.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_brake_light.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -239,6 +243,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/map_capture.tscn
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/route_marks_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/brake_light_capture.tscn
 ```
 
 Time where the frame goes during a scan pulse, with and without the map. Also

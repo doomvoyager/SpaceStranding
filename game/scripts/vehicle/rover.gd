@@ -59,6 +59,44 @@ const ENGINE_FORCE_SIGN := -1.0
 ## fight against.
 @export var empty_center_of_mass := Vector3(0.0, -0.35, 0.0)
 
+@export_group("Brake light")
+## The bar that lights up when the driver asks the rover to slow down.
+##
+## A path rather than a hardcoded `$BrakeLightBar` so the bar can be moved,
+## renamed or replaced with better geometry without touching this script. The
+## *colour* of the light lives on the mesh's own material, in the inspector,
+## where the person choosing it can see it; this script drives only its
+## brightness.
+@export var brake_light_path: NodePath = ^"BrakeLightBar"
+## Emission energy while the light is on.
+##
+## **Low, and it has to be.** ACES tonemapping desaturates hardest where the
+## image is brightest, so past about 1.2 a saturated red stops being red and
+## becomes an orange-white smear that spills over the whole hull - the same
+## trap the [[Visual-Direction]] overlays hit. Swept against the real scene at
+## twilight, which is the brightest ambient this planet ever has:
+##
+## | energy | reads as |
+## |---|---|
+## | 0.5 | red, but flat - paint, not a lamp |
+## | **0.9** | **red, with just enough bloom to read as lit** |
+## | 1.4 | washing out through the middle of the bar |
+## | 5.0 | orange-white, and the hull glows with it |
+##
+## Re-run `tests/brake_light_capture.tscn` rather than reasoning about it.
+@export_range(0.0, 4.0, 0.05) var brake_light_energy := 0.9
+## Emission energy the rest of the time. 0 is a dead lens; a small value gives
+## the rover a permanent tail light instead.
+@export_range(0.0, 4.0, 0.05) var brake_light_idle_energy := 0.0
+## Whether the decelerate pedal lights the bar once it has become reverse.
+##
+## That pedal is a brake above `reverse_threshold` and reverse below it, and
+## both are the driver asking not to go forward - so by default the bar follows
+## the pedal rather than the force it produces, and does not blink off at the
+## moment the rover comes to rest under it. A road vehicle would show white
+## here instead; this is one bar.
+@export var brake_light_on_reverse := true
+
 @export_group("Camera")
 @export var mouse_sensitivity := 0.0022
 ## Right-stick turn rate, radians/sec.
@@ -101,6 +139,11 @@ var _cam_up := Vector3.UP
 ## pivot's position is driven every frame and the authored value would
 ## otherwise be overwritten on the first one.
 var _mount_offset := Vector3(0.0, 1.2, 0.0)
+## The bar's own material, duplicated in _ready so that two rovers cannot light
+## each other's bar. Null if the bar is missing or is not standard-shaded.
+var _brake_material: StandardMaterial3D
+## Whether the bar is lit right now. Read by `brake_light_on()`.
+var _brake_lit := false
 var _steer_target := 0.0
 ## Kerb mass, captured from the inspector value before any cargo is counted.
 var _empty_mass := 950.0
@@ -117,6 +160,7 @@ func _ready() -> void:
 	# `mass` in the inspector is the *empty* rover; cargo is added on top.
 	_empty_mass = mass
 	refresh_load()
+	_setup_brake_light()
 	set_physics_process(false)
 
 
@@ -255,6 +299,8 @@ func steer_authority() -> float:
 
 
 func _apply_drivetrain(throttle: float, braking: bool) -> void:
+	_set_brake_light(_wants_brake_light(throttle, braking))
+
 	if braking:
 		engine_force = 0.0
 		brake = max_brake_force
@@ -278,6 +324,74 @@ func _apply_drivetrain(throttle: float, braking: bool) -> void:
 ## Speed along the rover's own forward axis. Negative while reversing.
 func forward_speed() -> float:
 	return linear_velocity.dot(-global_transform.basis.z)
+
+
+# --- Brake light --------------------------------------------------------
+
+## Take a private copy of the bar's material, so writing to it lights this
+## rover and not every rover.
+##
+## A sub-resource in a scene is shared by every instance of that scene unless
+## it is marked local, and a material is exactly the sort of thing nobody
+## notices sharing until there are two of something.
+func _setup_brake_light() -> void:
+	var bar := get_node_or_null(brake_light_path) as MeshInstance3D
+	if bar == null:
+		push_warning("Rover: no brake light mesh at '%s'." % brake_light_path)
+		return
+	var authored := bar.get_active_material(0) as StandardMaterial3D
+	if authored == null:
+		push_warning(
+			"Rover: brake light '%s' has no StandardMaterial3D to drive." % bar.name
+		)
+		return
+	_brake_material = authored.duplicate() as StandardMaterial3D
+	_brake_material.emission_enabled = true
+	bar.set_surface_override_material(0, _brake_material)
+	_set_brake_light(false)
+
+
+## Whether the pedals are asking the rover to slow down.
+##
+## **Engine braking is deliberately not in here.** It is what happens when you
+## stop asking for anything, and a bar that is lit whenever the throttle is
+## closed is not a brake light - it is a light that is on. Only the two
+## deliberate inputs count: the full brake, and the decelerate pedal.
+func _wants_brake_light(throttle: float, braking: bool) -> bool:
+	if braking:
+		return true
+	if throttle >= 0.0:
+		return false
+	# Below reverse_threshold the same pedal is applying reverse torque rather
+	# than brake, which is a separate question - see brake_light_on_reverse.
+	return brake_light_on_reverse or forward_speed() > reverse_threshold
+
+
+## Written every frame rather than only on a change. It is one float on one
+## material, and rewriting it means a slider moved in the F1 panel takes effect
+## while you are holding the pedal down rather than on the next press.
+func _set_brake_light(lit: bool) -> void:
+	_brake_lit = lit
+	if _brake_material == null:
+		return
+	_brake_material.emission_energy_multiplier = (
+		brake_light_energy if lit else brake_light_idle_energy
+	)
+
+
+## Whether the bar is lit.
+func brake_light_on() -> bool:
+	return _brake_lit
+
+
+## The bar's emission energy as the player would actually see it, or -1 if
+## there is no material to drive. For tests: a light whose *state* is right and
+## whose material never moves is the failure this project keeps meeting, and a
+## missing material must not read as a convincing zero.
+func brake_light_output() -> float:
+	if _brake_material == null:
+		return -1.0
+	return _brake_material.emission_energy_multiplier
 
 
 # --- Load ---------------------------------------------------------------
@@ -327,5 +441,8 @@ func exit() -> void:
 	engine_force = 0.0
 	brake = max_brake_force
 	steering = 0.0
+	# The parking brake is on, but nobody is on the pedal: a rover left parked
+	# with its brake light burning would be reporting a driver that has gone.
+	_set_brake_light(false)
 	_camera.current = false
 	astronaut.disembark(_exit_point.global_position)

@@ -15,9 +15,29 @@ metallic = 0.45
 roughness = 0.48
 
 [sub_resource type="BoxMesh" id="BoxMesh_ia0rk"]
-size = Vector3(1.7382813, 0.68847656, 2.1208007)
+size = Vector3(1.7382813, 1.0029297, 2.1208007)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h58rc"]
+albedo_color = Color(0.76, 0.74, 0.68, 1)
+metallic = 0.45
+roughness = 0.48
+
+[sub_resource type="BoxMesh" id="BoxMesh_h58rc"]
+size = Vector3(1.7382813, 0.18603516, 0.106787086)
+
+[sub_resource type="StandardMaterial3D" id="Material_brake"]
+resource_name = "Brake light"
+albedo_color = Color(0.24, 0.03, 0.035, 1)
+metallic = 0.0
+roughness = 0.28
+emission_enabled = true
+emission = Color(1, 0.09, 0.06, 1)
+emission_energy_multiplier = 0.0
+
+[sub_resource type="BoxMesh" id="BoxMesh_bx5wg"]
+size = Vector3(1.7382813, 1.0029297, 0.9677612)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1jo25"]
 albedo_color = Color(0.76, 0.74, 0.68, 1)
 metallic = 0.45
 roughness = 0.48
@@ -51,9 +71,24 @@ mesh = SubResource("BoxMesh_hull")
 surface_material_override/0 = SubResource("Material_hull")
 
 [node name="Hull2" type="MeshInstance3D" parent="." unique_id=1822455313]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5600066, -1.2394692)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7172332, -1.2394692)
 mesh = SubResource("BoxMesh_ia0rk")
 surface_material_override/0 = SubResource("StandardMaterial3D_h58rc")
+
+[node name="BrakeLightBar" type="MeshInstance3D" parent="." unique_id=427897615]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2389617, 2.2554994)
+mesh = SubResource("BoxMesh_h58rc")
+surface_material_override/0 = SubResource("Material_brake")
+
+[node name="Hull3" type="MeshInstance3D" parent="." unique_id=2074141529]
+transform = Transform3D(1, 0, 0, 0, 0.71775717, 0.69629353, 0, -0.69629353, 0.71775717, 0, 0.5606702, -2.2472591)
+mesh = SubResource("BoxMesh_bx5wg")
+surface_material_override/0 = SubResource("StandardMaterial3D_1jo25")
+
+[node name="Hull4" type="MeshInstance3D" parent="." unique_id=1260673101]
+transform = Transform3D(1, 0, 0, 0, -0.6972233, 0.71685416, 0, -0.71685416, -0.6972233, 0, 0.4603893, -2.3253756)
+mesh = SubResource("BoxMesh_bx5wg")
+surface_material_override/0 = SubResource("StandardMaterial3D_1jo25")
 
 [node name="RackDeck" type="MeshInstance3D" parent="." unique_id=850585101]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.56, 1.15)

@@ -24,6 +24,7 @@ everything else that makes it a *cargo* vehicle is not.
   astronaut. Right stick looks; it is polled in `_process` rather than handled
   as an event, because a stick reports a held position and not a delta
 - **A six-slot roof rack that changes how it drives** - see below
+- **A brake light that follows the pedals, not the brake force** - see below
 
 Not built: flare shield, power, damage, [[Progression]] upgrades.
 
@@ -120,6 +121,59 @@ the view turns around it.
 Both are asserted in `test_camera_levelling.tscn`, and both were checked by
 breaking them again afterwards - a test that passes before and after the fix is
 worth nothing.
+
+## The brake light
+
+`BrakeLightBar` on the back of the hull, lit by driving the emission energy of
+its own `StandardMaterial3D`. Colour is authored on the material in the
+inspector; `rover.gd` drives only the brightness, so there is one place to
+change the red and one place to change the behaviour.
+
+**It follows the pedals, not `brake`.** Engine braking applies 2.5 brake units
+whenever the throttle is closed, so a light wired to the brake *force* is lit
+almost permanently - and a brake light that is always on is indistinguishable,
+in a screenshot, from a brake light that works. Only the two deliberate inputs
+count:
+
+| | Lit |
+|---|---|
+| Full brake (`Space` / `B`) | yes |
+| Decelerate pedal (`S` / `LT`), rolling forward | yes |
+| Decelerate pedal, once it has become reverse | yes, unless `brake_light_on_reverse` is cleared |
+| Throttle | no |
+| Coasting, under engine braking | **no** |
+| Parked, nobody driving | no |
+
+The reverse case is a deliberate choice rather than an accident of the
+threshold. That pedal is a brake above `reverse_threshold` and reverse below
+it, and both are the driver asking not to go forward - so the bar follows the
+pedal and does not blink off at the instant the rover comes to rest under it.
+A road vehicle would show white here; this is one bar. `brake_light_on_reverse`
+turns it off for anyone who disagrees.
+
+**The energy is low, and it has to be.** ACES tonemapping desaturates hardest
+where the image is brightest, so a saturated red past about 1.2 stops being red
+and becomes an orange-white smear that spills over the whole hull. Swept
+against the real scene at twilight, which is the brightest ambient this planet
+ever has:
+
+| `brake_light_energy` | Reads as |
+|---|---|
+| 0.5 | red, but flat - paint, not a lamp |
+| **0.9** | **red, with just enough bloom to read as lit** |
+| 1.4 | washing out through the middle of the bar |
+| 5.0 | orange-white, and the hull glows with it |
+
+`res://tests/brake_light_capture.tscn` writes the off/on pair; re-run it after
+touching the material or the energies, because this is the half a headless test
+cannot judge. `res://tests/test_brake_light.tscn` asserts the material's
+emission energy - not just the boolean - through throttle, coast, brake,
+decelerate, reverse and exit. It was checked by wiring the light to `brake > 0`
+and confirming the coasting assertion fires.
+
+The bar's material is `duplicate()`d in `_ready()`, because a sub-resource in a
+scene is shared by every instance of that scene and a second rover would
+otherwise light this one's bar.
 
 ## The load
 
