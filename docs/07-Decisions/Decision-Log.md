@@ -9,6 +9,43 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-01 - F1 tweaks go home to the file they came from
+
+Mac asked for a way to save panel tweaks straight into the project. That
+reopens [[Debug-Panel]]'s "explicitly not a second source of truth", which Mac
+is entitled to do - and on inspection it did not have to be overturned. That
+decision's premise was *the editor stays where values are authored, and the
+panel tells you what to transcribe*. Automating the transcription leaves the
+premise intact. What would have broken it is a side-car tuning file the
+inspector knows nothing about, which is the option that was rejected here.
+
+**A value goes home to where it already is.** If a scene carries a line for it,
+that line is updated; if nothing does, it is the script's `@export` default and
+the `.gd` is updated; a shader uniform goes to its material. Nothing is ever
+*inserted*, so no instance override is ever invented and every file keeps the
+shape it had with one number different. The cost accepted: a value that is a
+script default but wanted for one instance only cannot be promoted from the
+panel. Make the override once in the inspector and the panel maintains it after.
+
+**Most tunables turned out to be script defaults, not scene values**, which is
+the opposite of what the panel looks like from the front. `rover.tscn`'s root
+carries exactly one override - `mass` - and `World`, `Lattice` and `Orders` are
+script autoloads with no scene at all. So the common path rewrites a line of
+GDScript and the `.tscn` writer is the exception. `Terrain` shows both: `size`
+is overridden in the world scene, `height_span` is not.
+
+**Two clicks, and a plan that can go stale.** The first resolves every change to
+a file and line and shows the diff; the second writes. Any slider throws the
+plan away, and `apply()` re-checks that each line still says what the plan read,
+so a plan left sitting while the editor saved underneath cannot write to a line
+that has moved. Rejected: writing on one click with a git-clean check instead,
+which is faster but makes the review optional.
+
+**Rejected: handing off to an editor plugin.** Applying values to the open scene
+through undo/redo would have been the safest thing for `.tscn` files, but it
+reaches nothing outside the open scene - and since the majority of tunables are
+script defaults and autoloads, it could not have stood on its own.
+
 ## 2026-09-01 - X and Z are authored; height is always solved
 
 Mac asked for gizmos to position the things scripts were spawning, now that

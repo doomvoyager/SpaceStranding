@@ -166,6 +166,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_he
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_spawn_points.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_tuning_writer.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -489,6 +493,27 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   unbuilt-state code path leaks it, and the report arrives at exit as RID and
   ObjectDB leak errors naming engine internals rather than the test. `free()` it
   by hand; a teardown walking `get_children()` will not reach it.
+- **`res://` is fully writable from a running debug build**, existing `.tscn`
+  and `.gd` files included - `FileAccess.open(path, WRITE)` succeeds and
+  `ProjectSettings.globalize_path` points at the real project folder. Only an
+  *exported* build has it sealed inside the pack, and `OS.has_feature("editor")`
+  is what tells the two apart. This is what makes the F1 panel's "Save to
+  project" possible at all; see [[Debug-Panel]].
+- **`Script.get_property_default_value(name)` works at runtime** and returns the
+  value the script authored, which is the only reliable way to ask whether a
+  property was overridden in a scene or left at its default. `property_can_revert()`
+  looks like the right question and is not: it returns **false** for every
+  property tested, script variables and built-ins alike, so the revert value is
+  never available.
+- **The project's files are CRLF on Windows, and `FileAccess.get_as_text()`
+  keeps the `\r`.** Any line-based rewrite has to split on and rejoin with the
+  separator the file already uses, or changing one number rewrites every line in
+  the file and the diff is useless.
+- **A `"""..."""` literal in a CRLF source file contains CRLF.** A test fixture
+  built by `TEXT.replace("\n", "\r\n")` therefore becomes `\r\r\n`, and the
+  "does this handle CRLF" assertion tests something that cannot occur. Normalise
+  a multi-line literal with `.replace("\r\n", "\n")` before relying on its
+  endings. Cost two false failures that looked like writer bugs.
 
 ---
 

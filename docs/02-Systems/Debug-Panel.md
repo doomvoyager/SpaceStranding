@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-08-31
+verified: 2026-09-01
 godot: res://scripts/ui/debug_panel.gd
 tags: [system, tooling]
 ---
@@ -37,17 +37,58 @@ authored value. When a guess feels wrong, the fix is to put a real
 Typed entry is deliberately **not** clamped to the range, so a guess that is
 too narrow never blocks a value worth trying.
 
-## What it does not do
+## Keeping a value
 
-**It is not a second source of truth.** Nothing here writes to a scene or to
-`project.godot`. The editor stays the place values are authored; the panel is
-where you find them.
+**The panel is still not a second source of truth.** It holds no values of its
+own and the game never boots from it; the editor remains where numbers are
+authored. What changed on 2026-09-01 is that you no longer transcribe them by
+hand — "Save to project" writes each tweak back into the file it came from.
 
-"Copy changes" puts only what differs from the authored values on the
-clipboard, in a form you can read straight across into the inspector - a short
-list to transcribe rather than fifty lines. "Save" and "Load" keep a session's
-tuning in `user://tuning.json` so a promising set survives a restart while you
-are still iterating. "Reset all" restores what the scenes were authored with.
+| Button | Does |
+|---|---|
+| Reset all | Back to the values the scenes and scripts were authored with |
+| Copy changes | The differing values to the clipboard, to read across by hand |
+| Save session / Load session | `user://tuning.json`, so a promising set survives a restart mid-iteration |
+| **Save to project** | Rewrites the `.gd`, `.tscn` or `.tres` each value lives in |
+
+### Where a value lives
+
+One rule: **a value goes home to where it already is.** If a scene carries a
+line for it, that line is updated. If nothing does, it is the script's own
+`@export` default and the `.gd` is updated. A shader uniform goes to its
+material. Nothing is ever *inserted*, so no new instance overrides are invented
+and every file keeps exactly the shape it had, one number different.
+
+The surprise when this was built is that **most tunables are script defaults,
+not scene values.** `rover.tscn`'s root node carries exactly one override —
+`mass` — and every other rover number is a `:=` in `rover.gd`. `World`,
+`Lattice` and `Orders` are script autoloads with no scene anywhere. So the
+common case is rewriting a line of GDScript, and patching a `.tscn` is the
+exception. `Terrain` is the clearest illustration of both at once: `size` is
+overridden in `test_world.tscn` and goes there, while `height_span` sits at its
+script default and goes to `terrain.gd`.
+
+Resolution order matches the engine's own: an instance override in the scene
+that *placed* a node beats the value inside the node's own scene. A wheel's
+`owner` is the Rover rather than the world, so wheel suspension resolves into
+`rover.tscn` and never into `test_world.tscn`.
+
+### Two clicks
+
+The first click resolves every changed value to an exact file and line and
+shows it — the full diff to the console, the first few lines in the panel. The
+second writes. Touching any slider throws the plan away, because a plan is line
+numbers and the values they were resolved against.
+
+`apply()` re-checks that each line still says what the plan read, so a plan left
+sitting while the editor saved the same file underneath cannot write to a line
+that has moved. Line endings are preserved rather than normalised: the project
+is CRLF on Windows, and a writer that rewrote them would turn a one-number tweak
+into a whole-file diff.
+
+This is the one system in the game that edits its own source, which is why
+`test_tuning_writer.tscn` exists and why it does its patching against fixtures
+in `user://` rather than against the real project.
 
 ## Targets
 
@@ -161,6 +202,15 @@ labels fit is not something the headless test can judge.
 
 ## Known issues
 
+- [ ] **"Save to project" cannot invent an override.** It updates lines that
+      exist. Tuning a value that is a script default but wanted for one instance
+      only writes the project-wide default, which is not what you meant — make
+      that override in the inspector once and the panel will keep it after that.
+- [ ] A declaration carrying a trailing `#` comment is refused rather than
+      rewritten, because the rewrite would eat the comment. Set those by hand.
+- [ ] Nothing coordinates with the editor. If Godot has the same file open with
+      unsaved changes, one of the two wins on next save. In practice running the
+      game saves first, so this only bites if you edit while it runs.
 - [ ] Only float, int, bool, Vector3 and Color are supported. Strings, node
       paths and resources are skipped, so `cargo_name` and `surface_material`
       do not appear.

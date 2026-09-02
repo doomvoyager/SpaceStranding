@@ -28,6 +28,12 @@ extends CanvasLayer
 
 const SAVE_PATH := "user://tuning.json"
 const PANEL_WIDTH := 500.0
+
+## Label on the write-to-project button when there is no plan pending.
+const PROJECT_IDLE_TEXT := "Save to project..."
+## Plan lines shown in the panel before the rest is left to the console. The
+## panel is 500 px of a running game, not a diff viewer.
+const PLAN_PREVIEW_LINES := 6
 ## Wheel suspension and grip are built-in VehicleWheel3D properties, not script
 ## variables, so they need naming explicitly. These are precisely the numbers
 ## [[Rover]] flags as tuned-by-reasoning-never-driven.
@@ -79,6 +85,13 @@ var _baseline: Dictionary = {}
 ## Controls to refresh when a value changes underneath them.
 var _sync: Array[Callable] = []
 var _restore_mouse := Input.MOUSE_MODE_CAPTURED
+
+var _project_button: Button
+var _plan_label: Label
+## The pending write-to-project plan. Non-empty means the next click on the
+## button commits it; any slider move throws it away, because a plan holds line
+## numbers and the value they were resolved against.
+var _plan: Array[TuningWriter.Edit] = []
 
 
 func _ready() -> void:
@@ -400,6 +413,10 @@ func _read(target: Target, prop: String, component := -1):
 
 
 func _write(target: Target, prop: String, value, component := -1) -> void:
+	# A plan is a set of line numbers and the values they were resolved against.
+	# Touching any slider makes it stale, and a stale plan is the one way this
+	# could write a number nobody is looking at.
+	_discard_plan()
 	for obj in target.writes():
 		if obj == null:
 			continue
@@ -492,13 +509,26 @@ func _build_shell() -> void:
 	column.add_child(buttons)
 	buttons.add_child(_button("Reset all", _reset_all))
 	buttons.add_child(_button("Copy changes", _copy_changes))
-	buttons.add_child(_button("Save", _save))
-	buttons.add_child(_button("Load", _load))
+	buttons.add_child(_button("Save session", _save))
+	buttons.add_child(_button("Load session", _load))
+
+	# Its own row: this one rewrites source files, and it should not sit in a
+	# line of buttons that only move numbers around in memory.
+	_project_button = _button(PROJECT_IDLE_TEXT, _save_to_project)
+	_project_button.add_theme_color_override("font_color", Color(1.0, 0.72, 0.4))
+	column.add_child(_project_button)
 
 	_status = Label.new()
 	_status.add_theme_font_size_override("font_size", 12)
 	_status.add_theme_color_override("font_color", Color(0.8, 0.82, 0.86, 0.7))
 	column.add_child(_status)
+
+	_plan_label = Label.new()
+	_plan_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_plan_label.add_theme_font_size_override("font_size", 11)
+	_plan_label.add_theme_color_override("font_color", Color(0.98, 0.86, 0.6, 0.9))
+	_plan_label.visible = false
+	column.add_child(_plan_label)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -511,7 +541,10 @@ func _build_shell() -> void:
 	scroll.add_child(_rows)
 
 	var footer := Label.new()
-	footer.text = "Values are not saved to the project. Copy changes, then set them in the inspector."
+	footer.text = ("\"Save session\" keeps values in user:// for this machine. "
+		+ "\"Save to project\" writes them back into the .gd, .tscn or .tres "
+		+ "they were authored in - shown for review first, then written on a "
+		+ "second click.")
 	footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	footer.add_theme_font_size_override("font_size", 11)
 	footer.add_theme_color_override("font_color", Color(0.8, 0.82, 0.86, 0.55))
@@ -777,6 +810,173 @@ func _copy_changes() -> void:
 	DisplayServer.clipboard_set("\n".join(lines))
 	print("\n".join(lines))
 	_status.text = "%d changed value(s) copied to the clipboard" % changes.size()
+
+
+# --- Writing back to the project ----------------------------------------
+##
+## Two clicks. The first resolves every changed value to the exact file and line
+## it will land on and shows it; the second writes. See [[Debug-Panel]] and
+## `tuning_writer.gd` for where a value is considered to live.
+
+func _save_to_project() -> void:
+	if _plan.is_empty():
+		_make_plan()
+	else:
+		_commit_plan()
+
+
+func _make_plan() -> void:
+	var entries := _project_entries()
+	if entries.is_empty():
+		_status.text = "nothing changed yet"
+		return
+
+	var writer := TuningWriter.new()
+	_plan = writer.plan(entries)
+
+	var writable := 0
+	var lines := PackedStringArray()
+	for edit in _plan:
+		if edit.ok():
+			writable += 1
+		lines.append(edit.describe())
+
+	print("\n--- Save to project: %d change(s) ---" % _plan.size())
+	print("\n".join(lines))
+
+	if writable == 0:
+		_status.text = "%d change(s), none of which can be written - see console" \
+			% _plan.size()
+		_show_plan(lines, false)
+		_plan.clear()
+		return
+
+	# Only the writable ones survive into the commit, so a value with nowhere to
+	# go never silently blocks the rest.
+	var keep: Array[TuningWriter.Edit] = []
+	for edit in _plan:
+		if edit.ok():
+			keep.append(edit)
+	_plan = keep
+
+	var files := {}
+	for edit in _plan:
+		files[edit.file] = true
+	_status.text = "%d value(s) into %d file(s) - click again to write" \
+		% [_plan.size(), files.size()]
+	_project_button.text = "Confirm: write %d value(s)" % _plan.size()
+	_show_plan(lines, true)
+
+
+func _commit_plan() -> void:
+	var writer := TuningWriter.new()
+	var result := writer.apply(_plan)
+	var failed: Array = result["failed"]
+
+	print("\n--- Save to project: wrote %d value(s) ---" % result["written"])
+	for f: String in result["files"]:
+		print("    ", f)
+	for f: String in failed:
+		print("    FAILED: ", f)
+
+	if result["written"] > 0:
+		# The files now say what the sliders say, so nothing is "changed" any
+		# more. Without this the next plan would offer to write it all again.
+		_rebaseline()
+	_discard_plan()
+
+	if failed.is_empty():
+		_status.text = "wrote %d value(s) to %d file(s)" \
+			% [result["written"], result["files"].size()]
+	else:
+		_status.text = "wrote %d, %d problem(s) - see console" \
+			% [result["written"], failed.size()]
+
+
+## Every changed property, once per object the panel actually writes to.
+##
+## Per object and not per target, because a target can broadcast: the six wheels
+## are six lines in `rover.tscn`, and tuning them together has to update all
+## six. The writer deduplicates whatever collapses onto the same line.
+func _project_entries() -> Array:
+	var out: Array = []
+	for target in _targets:
+		var short := _short_title(target)
+		for p in _properties_for(target):
+			if not _differs(target, p):
+				continue
+			var prop: String = p["name"]
+			for obj in target.writes():
+				if obj == null:
+					continue
+				out.append({
+					"obj": obj,
+					"prop": prop,
+					"label": "%s.%s" % [short, prop.trim_prefix("shader_parameter/")],
+				})
+	return out
+
+
+## True when any component of this property differs from the authored value.
+func _differs(target: Target, p: Dictionary) -> bool:
+	var prop: String = p["name"]
+	var components := [0, 1, 2] if int(p["type"]) == TYPE_VECTOR3 else [-1]
+	for component in components:
+		var k := _key(target, prop, component)
+		if not _baseline.has(k):
+			continue
+		var now = _read(target, prop, component)
+		var was = _baseline[k]
+		if typeof(now) == TYPE_FLOAT:
+			if not is_equal_approx(float(now), float(was)):
+				return true
+		elif now != was:
+			return true
+	return false
+
+
+## "Rover wheels - all 6" becomes "Rover wheels". Titles carry a note after a
+## dash for the panel's benefit, which is noise in a file report.
+func _short_title(target: Target) -> String:
+	var title := target.title
+	for marker: String in [" — ", " - "]:
+		var at := title.find(marker)
+		if at > 0:
+			title = title.substr(0, at)
+	return title
+
+
+func _show_plan(lines: PackedStringArray, pending: bool) -> void:
+	var shown := lines
+	if lines.size() > PLAN_PREVIEW_LINES:
+		shown = lines.slice(0, PLAN_PREVIEW_LINES)
+		shown.append("... and %d more, in the console"
+			% (lines.size() - PLAN_PREVIEW_LINES))
+	if pending:
+		shown.append("Any slider you touch cancels this.")
+	_plan_label.text = "\n".join(shown)
+	_plan_label.visible = true
+
+
+func _discard_plan() -> void:
+	if _plan.is_empty() and (_plan_label == null or not _plan_label.visible):
+		return
+	_plan.clear()
+	if _project_button != null:
+		_project_button.text = PROJECT_IDLE_TEXT
+	if _plan_label != null:
+		_plan_label.visible = false
+
+
+## Re-read every value as the new "authored" baseline, after the files on disk
+## have been made to agree with it.
+func _rebaseline() -> void:
+	for target in _targets:
+		for p in _properties_for(target):
+			var prop: String = p["name"]
+			var components := [0, 1, 2] if int(p["type"]) == TYPE_VECTOR3 else [-1]
+			for component in components:
+				_baseline[_key(target, prop, component)] = _read(target, prop, component)
 
 
 func _save() -> void:
