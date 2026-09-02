@@ -9,6 +9,39 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - The map shows dark ground, and other map calls
+
+Mac asked for a 3D minimap opened as a panel, to plan a trip on. Three
+branches were put up; Mac took all three picks.
+
+**Uncovered terrain is shown and marked, not hidden.** This is a knowing
+exception to [[The-Lattice]]'s "dark zones are genuinely dark - no map, no
+contracts, no warning", and it was raised as such before building. The
+alternative offered was terrain resolving only inside coverage, which would
+have made extending the network literally reveal the map. Mac chose
+usefulness: the whole patch is legible, and ground outside coverage is
+desaturated and dimmed with any stop there labelled `dark`. Recorded here
+because the pillar text still says otherwise, and the next person to read it
+deserves to know which way the argument went rather than finding a
+contradiction.
+
+**A multi-stop route, not a single waypoint.** Legs are ground distances, not
+straight lines: a leg over a ridge is longer than the flat picture of it, and
+that difference is the reason the route is worth planning rather than
+eyeballing. Measured at 816 m flat against 837 m climbing the massif.
+
+**M, and the world keeps running.** Not a pause - the project has none and
+adding one has knock-ons for physics and the jolt meters. The [[Rover]]
+instead lets go of its controls behind a panel, which is what taking your
+hands off actually does. That gate did not exist before: the order board is
+only reachable on foot, so the map is the first panel that can be opened at
+speed.
+
+**The map is its own mesh, not a camera on the world.** A map is a
+representation; the world is lit by a red dwarf on the horizon and photographs
+as a dark smear. Rejected before it was tried, on that reasoning.
+
+
 ## 2026-09-02 - Coverage is drawn as sight lines, not as a ring
 
 Mac asked for relay range shown on the ground, like Death Stranding's chiral

@@ -67,6 +67,11 @@ Boarding therefore never competes with unloading. The alternative - one key,
 priority-ordered - hands you a crate when you walk up to a loaded rover meaning
 to drive it.
 
+**`M` / `Start`** opens [[The-Map]]. Not a verb at all - it acts on nothing in
+the world - but it takes the screen through `set_menu_open()`, which is public
+for exactly this: the map is on its own key and works while driving, so it
+cannot go through a verb.
+
 **`Q` / `LB`** is the third verb and competes with neither: it acts on the
 world at a distance rather than on anything in reach. See [[Scanner]].
 

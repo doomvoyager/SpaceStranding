@@ -643,16 +643,24 @@ func _open_board(terminal: FacilityTerminal) -> void:
 	var panel := get_tree().get_first_node_in_group("order_panel") as OrderPanel
 	if panel == null:
 		return
-	_menu_open = true
-	_capture_mouse(false)
+	set_menu_open(true)
 	if not panel.closed.is_connected(_on_board_closed):
 		panel.closed.connect(_on_board_closed)
 	panel.open(terminal.facility())
 
 
 func _on_board_closed() -> void:
-	_menu_open = false
-	_capture_mouse(true)
+	set_menu_open(false)
+
+
+## Hand the screen to a full-screen panel, or take it back.
+##
+## Public because not every panel is opened by the astronaut: the map is on its
+## own key and works while driving, so it has to be able to say "I have the
+## controls" without going through a verb.
+func set_menu_open(open: bool) -> void:
+	_menu_open = open
+	_capture_mouse(not open)
 
 
 ## True while a panel has the screen. The HUD dims itself on this.

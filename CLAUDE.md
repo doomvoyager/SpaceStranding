@@ -186,6 +186,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ma
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_coverage_map.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_map_route.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -219,6 +223,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/terrain_capture.ts
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/coverage_capture.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/map_capture.tscn
 ```
 
 Run a standalone engine-behaviour probe. These build what they need from
@@ -264,6 +272,15 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
 - **Godot treats clockwise-wound triangles as front faces.** Wound the other
   way, generated terrain is backface-culled and the player falls through an
   invisible world.
+  **Wrong winding does not draw nothing, which is what makes it hard to see.**
+  It draws the faces pointing *away* from the camera — so a heightfield viewed
+  from above renders as a few bright slivers on the steepest far slopes and
+  everything else as void. That reads exactly like a colour or lighting bug,
+  and cost a long chase through elevation ramps, auto-ranging and gamma before
+  a flat-colour render showed **0.1% of the viewport drawn** and named it. When
+  a generated mesh looks too dark, render it one flat colour first: it
+  separates "wrong colour" from "not there" in one capture. Copy the winding
+  from `terrain.gd` rather than re-deriving it.
 - **Jolt rejects non-uniformly scaled `HeightMapShape3D`.** The height shape
   samples on a fixed 1-unit grid, so any sample spacing other than 1 m needs a
   scale Jolt won't take. `terrain.gd` uses a trimesh instead.

@@ -243,6 +243,27 @@ func _discover() -> Array[Target]:
 		t.deferred = true
 		out.append(t)
 
+	var maps: Array = []
+	_collect(tree.current_scene if tree.current_scene != null else tree.root,
+		"MapPanel", maps)
+	if not maps.is_empty():
+		var t := Target.new()
+		t.title = "Map — M to open while tuning"
+		t.sample = maps[0]
+		t.nodes = maps
+		out.append(t)
+
+	var map_terrain: Array = []
+	_collect(tree.current_scene if tree.current_scene != null else tree.root,
+		"MapTerrain", map_terrain)
+	if not map_terrain.is_empty():
+		var t := Target.new()
+		t.title = "Map relief — rebuilds on release"
+		t.sample = map_terrain[0]
+		t.nodes = map_terrain
+		t.deferred = true
+		out.append(t)
+
 	var coverage: Array = []
 	_collect(tree.current_scene if tree.current_scene != null else tree.root,
 		"CoverageMap", coverage)
@@ -275,6 +296,12 @@ func _discover() -> Array[Target]:
 	lattice.deferred = true
 	lattice.after_write = "rebuild"
 	out.append(lattice)
+
+	var route := Target.new()
+	route.title = "Route — the planned trip"
+	route.sample = Route
+	route.nodes = [Route]
+	out.append(route)
 
 	var orders := Target.new()
 	orders.title = "Orders — transfer timing"

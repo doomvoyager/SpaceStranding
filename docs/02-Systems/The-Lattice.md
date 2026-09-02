@@ -288,6 +288,12 @@ rather than recomputing, so a flare warning and the line on the ground can
 never disagree about where the edge is. This is the first thing to implement
 the coverage promises at the top of this note; nothing consumes it yet.
 
+[[The-Map]] draws the **same mask** through the same UV2, so the boundary on
+the map and the boundary on the ground are one texture and cannot disagree.
+Note the map shows terrain outside coverage rather than hiding it - a
+deliberate exception to "dark zones are genuinely dark", argued and decided on
+2026-09-02; see [[Decision-Log]].
+
 The edge owns both channels it draws into and the fill only tints `ALBEDO` -
 an overlay that adds to `EMISSION` over bright ground comes out white. The
 scan pulse is drawn after it, so a ping paints over the boundary rather than

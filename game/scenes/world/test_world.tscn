@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://d1rxyiogcibmy" path="res://scripts/world/rock_scatter.gd" id="9_m0ivj"]
 [ext_resource type="PackedScene" uid="uid://kgvmwms8r210" path="res://scenes/world/facility.tscn" id="10_facility"]
 [ext_resource type="PackedScene" path="res://scenes/ui/order_panel.tscn" id="11_panel"]
+[ext_resource type="PackedScene" path="res://scenes/ui/map_panel.tscn" id="16_map"]
 [ext_resource type="PackedScene" path="res://scenes/world/relay.tscn" id="12_relay"]
 [ext_resource type="Script" uid="uid://c4krw0ip6kg7x" path="res://scripts/world/scanner.gd" id="13_scanner"]
 [ext_resource type="Script" path="res://scripts/world/spawn_point.gd" id="14_spawn"]
@@ -194,6 +195,8 @@ cargo_owner = 3
 owner_id = "105"
 value = 200.0
 deploys_as = ExtResource("12_relay")
+
+[node name="MapPanel" parent="." instance=ExtResource("16_map")]
 
 [node name="RockScatter" type="Node3D" parent="." unique_id=1492972975]
 script = ExtResource("9_m0ivj")

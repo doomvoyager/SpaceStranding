@@ -124,6 +124,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if driver == null:
 		return
 
+	# Nothing the rover binds should fire from behind a full-screen panel — E
+	# would climb out of it while you were reading the map.
+	if driver.is_menu_open():
+		return
+
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_look_yaw -= event.relative.x * mouse_sensitivity
 		_pitch_by(-event.relative.y * mouse_sensitivity)
@@ -211,6 +216,15 @@ func _clamped_up() -> Vector3:
 
 func _physics_process(delta: float) -> void:
 	if driver == null:
+		return
+
+	# **Hands off while a panel has the screen.** The order board is only
+	# reachable on foot at a terminal, so this never came up until the map got
+	# its own key and could be opened at speed. The world keeps running — this
+	# is not a pause — so the rover coasts under engine braking and holds the
+	# steering it had, which is what letting go of the controls actually does.
+	if driver.is_menu_open():
+		_apply_drivetrain(0.0, false)
 		return
 
 	# Throttle is deliberately NOT move_forward/move_back: those carry the left

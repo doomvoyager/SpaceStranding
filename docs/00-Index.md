@@ -10,6 +10,7 @@ Entry point. Everything else hangs off this.
 - [[Debug-Panel]] - F1 in game. Every tunable on a slider
 - [[Placement]] - spawn markers and the ground snap. Drag things, don't type
   coordinates
+- [[The-Map]] - M in game. The relief map, and the trip you plan on it
 - `00-Inbox/` is the drop zone. Clear it at session start.
 
 ---

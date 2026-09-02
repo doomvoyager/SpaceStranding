@@ -1,0 +1,143 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/map_panel.gd" id="1_panel"]
+[ext_resource type="Script" path="res://scripts/ui/map_terrain.gd" id="2_mapterrain"]
+[ext_resource type="Material" path="res://materials/map_terrain.tres" id="3_mapmat"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_scrim"]
+bg_color = Color(0.03, 0.02, 0.02, 0.72)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
+bg_color = Color(0.07, 0.07, 0.09, 0.97)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.42, 0.86, 0.94, 0.85)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="MapPanel" type="CanvasLayer" groups=["map_panel"]]
+layer = 3
+script = ExtResource("1_panel")
+
+[node name="Root" type="PanelContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_scrim")
+
+[node name="Frame" type="PanelContainer" parent="Root"]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+custom_minimum_size = Vector2(1120, 660)
+theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
+
+[node name="Margin" type="MarginContainer" parent="Root/Frame"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="Rows" type="VBoxContainer" parent="Root/Frame/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="VBoxContainer" parent="Root/Frame/Margin/Rows"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Root/Frame/Margin/Rows/Header"]
+layout_mode = 2
+text = "MAP"
+theme_override_font_sizes/font_size = 26
+theme_override_colors/font_color = Color(0.42, 0.86, 0.94, 1)
+
+[node name="Subtitle" type="Label" parent="Root/Frame/Margin/Rows/Header"]
+layout_mode = 2
+text = "Click the ground to add a stop.  Drag to orbit, right-drag to pan, wheel to zoom."
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.78, 0.8, 0.84, 0.75)
+
+[node name="Rule" type="HSeparator" parent="Root/Frame/Margin/Rows"]
+layout_mode = 2
+
+[node name="Panes" type="HBoxContainer" parent="Root/Frame/Margin/Rows"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="View" type="SubViewportContainer" parent="Root/Frame/Margin/Rows/Panes"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="Viewport" type="SubViewport" parent="Root/Frame/Margin/Rows/Panes/View"]
+own_world_3d = true
+handle_input_locally = false
+size = Vector2i(820, 520)
+render_target_update_mode = 4
+
+[node name="Environment" type="WorldEnvironment" parent="Root/Frame/Margin/Rows/Panes/View/Viewport"]
+
+[node name="Camera" type="Camera3D" parent="Root/Frame/Margin/Rows/Panes/View/Viewport"]
+far = 12000.0
+
+[node name="Map" type="MeshInstance3D" parent="Root/Frame/Margin/Rows/Panes/View/Viewport"]
+material_override = ExtResource("3_mapmat")
+script = ExtResource("2_mapterrain")
+
+[node name="Markers" type="Node3D" parent="Root/Frame/Margin/Rows/Panes/View/Viewport"]
+
+[node name="RouteLine" type="MeshInstance3D" parent="Root/Frame/Margin/Rows/Panes/View/Viewport"]
+
+[node name="Side" type="VBoxContainer" parent="Root/Frame/Margin/Rows/Panes"]
+layout_mode = 2
+custom_minimum_size = Vector2(260, 0)
+theme_override_constants/separation = 8
+
+[node name="Legs" type="ItemList" parent="Root/Frame/Margin/Rows/Panes/Side"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 14
+
+[node name="Summary" type="Label" parent="Root/Frame/Margin/Rows/Panes/Side"]
+layout_mode = 2
+text = "No route planned."
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.86, 0.88, 0.92, 0.9)
+
+[node name="Actions" type="HBoxContainer" parent="Root/Frame/Margin/Rows/Panes/Side"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Up" type="Button" parent="Root/Frame/Margin/Rows/Panes/Side/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Up"
+
+[node name="Down" type="Button" parent="Root/Frame/Margin/Rows/Panes/Side/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Down"
+
+[node name="Drop" type="Button" parent="Root/Frame/Margin/Rows/Panes/Side/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Drop"
+
+[node name="Clear" type="Button" parent="Root/Frame/Margin/Rows/Panes/Side/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Clear"
+
+[node name="Status" type="Label" parent="Root/Frame/Margin/Rows"]
+layout_mode = 2
+text = "M or Esc to close."
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.72, 0.75, 0.8, 0.7)

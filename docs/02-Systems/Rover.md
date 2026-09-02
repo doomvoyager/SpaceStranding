@@ -184,6 +184,17 @@ shape. **Brakes were not touched and are not measured** - no probe stops the
 rover, and `max_brake_force` has been at 26 across both planets. Worth an
 instrument before anyone trusts it. #playtest
 
+## Behind a panel
+
+**The rover lets go of its controls while a full-screen panel is up**, rather
+than freezing: throttle released, engine braking on, steering held. The world
+is not paused, so a rover left rolling coasts instead of stopping dead in
+mid-air.
+
+This did not exist before 2026-09-02. The order board is only reachable on
+foot at a terminal, so nothing could be opened while driving until [[The-Map]]
+got its own key.
+
 ## Known issues
 
 - [ ] Suspension stiffness and friction slip were tuned by reasoning, never

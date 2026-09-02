@@ -41,6 +41,7 @@ class_name HUD
 @onready var _load_label: Label = $Prompts/Load
 @onready var _manifest_label: Label = $Prompts/Manifest
 @onready var _raise_label: Label = $Prompts/Raise
+@onready var _route_label: Label = $Prompts/Route
 @onready var _survey_label: Label = $Prompts/Survey
 @onready var _controls_card: Control = $Controls
 
@@ -99,7 +100,7 @@ func _process(delta: float) -> void:
 ## whatever state the player put it in.
 func _hide_all() -> void:
 	for label in [_interact_label, _cargo_label, _delivery_label, _load_label,
-			_manifest_label, _survey_label, _raise_label]:
+			_manifest_label, _survey_label, _raise_label, _route_label]:
 		label.visible = false
 
 
@@ -116,6 +117,11 @@ func _draw() -> void:
 	_survey_label.visible = _survey != null and _astronaut.carried_deployable() != null
 	if _survey_label.visible:
 		_survey_label.text = _survey.summary()
+
+	var route := _route_text()
+	_route_label.visible = route != ""
+	if _route_label.visible:
+		_route_label.text = route
 
 	var receipt := _recent_receipt()
 	_delivery_label.visible = receipt != ""
@@ -208,3 +214,40 @@ func _tick_survey(delta: float) -> void:
 	_since_survey = survey_interval
 	var at := _astronaut.global_position
 	_survey = Lattice.survey_at(at.x, at.z)
+
+
+## The next stop on the planned route, or "" with nothing planned.
+##
+## The point of planning a trip on the map is that you can then put the map
+## away, so this is what makes the route worth drawing: a bearing you can
+## follow without opening anything.
+##
+## Bearing is relative to where the camera is looking rather than to north,
+## because there is no north on a tidally locked planet worth speaking of and
+## "20 degrees left" is the instruction you can actually act on.
+func _route_text() -> String:
+	if Route.is_empty():
+		return ""
+	var here := _astronaut.global_position
+	var target := Route.point(0)
+	var to := Vector2(target.x - here.x, target.z - here.z)
+	var distance := to.length()
+	var text := "Stop 1/%d   %s" % [Route.count(), _metres(distance)]
+	if distance < 1.0:
+		return text
+	var facing := -_astronaut.global_transform.basis.z
+	var heading := Vector2(facing.x, facing.z)
+	if heading.length_squared() < 0.0001:
+		return text
+	# Signed angle, so the sign says which way to turn rather than only how far.
+	var offset := rad_to_deg(heading.angle_to(to))
+	if absf(offset) < 8.0:
+		return "%s   ahead" % text
+	return "%s   %.0f° %s" % [text, absf(offset),
+		"right" if offset > 0.0 else "left"]
+
+
+func _metres(value: float) -> String:
+	if value >= 1000.0:
+		return "%.2f km" % (value / 1000.0)
+	return "%.0f m" % value
