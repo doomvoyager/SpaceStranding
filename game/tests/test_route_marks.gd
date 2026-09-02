@@ -26,6 +26,14 @@ extends Node3D
 ##   5. **The reveal must cost a pulse.** A route line permanently painted over
 ##      the world is a different feature, and a strictly worse one.
 ##
+##   6. **And it must have a line in it.** The reveal is only rebuilt when the
+##      player has moved far enough to change it — it was four hundred height
+##      lookups a frame otherwise, see tests/probe_scan_cost.tscn — so
+##      `reveal_visible()` is now a claim about a mesh that some *earlier* frame
+##      built. A throttle that never lets go leaves a visible node with nothing
+##      in it, which is this project's favourite failure and is invisible to
+##      every assertion that only asks whether it is on screen.
+##
 ## Runs as a scene rather than via --script so autoloads exist.
 ## Run: engine/Godot_v4.7.1-stable_win64_console.exe --headless --path game \
 ##        res://tests/test_route_marks.tscn
@@ -237,6 +245,9 @@ func _stage_reveal_costs_a_pulse() -> void:
 		return
 	_expect(_marks.reveal_visible(), "a pulse did not reveal the route line")
 	_expect(_marks.pointer_visible(), "a pulse did not draw the pointer")
+	_expect(_marks.reveal_vertex_count() > 2,
+		"the revealed line is visible but holds %d vertices"
+			% _marks.reveal_vertex_count())
 	var heading := _marks.pointer_heading()
 	var want := (Vector2(120.0, 60.0)).normalized()
 	_expect(heading.dot(want) > 0.98,

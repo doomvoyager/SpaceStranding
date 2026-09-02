@@ -241,6 +241,13 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/map_capture.tscn
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/route_marks_capture.tscn
 ```
 
+Time where the frame goes during a scan pulse, with and without the map. Also
+windowed - `--headless` renders nothing and times nothing:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_scan_cost.tscn
+```
+
 Run a standalone engine-behaviour probe. These build what they need from
 scratch so they work under `--script`, where autoloads do not exist:
 
@@ -578,6 +585,32 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   keeps the `\r`.** Any line-based rewrite has to split on and rejoin with the
   separator the file already uses, or changing one number rewrites every line in
   the file and the diff is useless.
+- **A group-then-walk lookup is a walk if nothing ever joins the group.**
+  `Lattice._terrain()` checked the `terrain` group and fell back to a recursive
+  tree walk "for scenes where it is not in a group" - and `terrain.gd` never
+  called `add_to_group`, so the fallback *was* the implementation: 10.5 us over
+  9,524 nodes, on the one function every height query in the project goes
+  through. The route line called it four hundred times a frame and the scan
+  pulse cost 6 ms. Nothing errored and the fast path read as deliberate. **A
+  fallback that is never measured is the code you are running.** Fixed by
+  joining the group *and* holding the reference; `tests/probe_scan_cost.tscn`
+  reports the per-call cost and the node count behind it.
+- **`Performance.TIME_PROCESS` is a per-second peak, not a per-frame average.**
+  It refreshes once a second and holds the *worst* process step of that second -
+  measured, it changed four times in 600 frames - so it can legitimately read
+  higher than the frame time beside it, which is what makes it look broken. It
+  is a spike detector. For an average, time wall clock between two
+  `RenderingServer.frame_post_draw` yourself. `tests/probe_scan_cost.tscn`.
+- **A per-frame rebuild is worth pricing against what actually changed.** Both
+  route lines were hundreds of ground-height lookups a frame for a shape in
+  which only the *first* vertex - the one at the player's feet - ever moved.
+  Rebuilding on a movement threshold instead took `scan + map` from 8.67 ms to
+  1.38 ms, 115 fps to 725. The corollary is a new way to fail: `visible` is now
+  a claim about geometry an *earlier* frame built, so a throttle that never
+  releases leaves a visible node holding an empty mesh. Assert on the vertex
+  count, not on visibility. Note `ImmediateMesh` has no `surface_get_array_len`,
+  but `surface_get_arrays(0)` works and survives `--headless` - measured, not
+  assumed, because `MultiMesh` readback does not.
 - **A `"""..."""` literal in a CRLF source file contains CRLF.** A test fixture
   built by `TEXT.replace("\n", "\r\n")` therefore becomes `\r\r\n`, and the
   "does this handle CRLF" assertion tests something that cannot occur. Normalise

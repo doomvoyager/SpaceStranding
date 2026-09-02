@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-01
+verified: 2026-09-02
 godot: res://scripts/world/terrain.gd
 tags: [system, world, scaffolding]
 ---
@@ -163,6 +163,14 @@ The editor now solves the same height *while you drag* - see [[Placement]] - so
 the Y in the scene file is no longer a number nobody has checked since the last
 terrain it was tuned against. When that landed the Hearth's stored Y was still
 7 m out and the recovered mast 6 m, neither visible without pressing play.
+
+**It is in the `terrain` group now, and was not before.** Nothing had ever
+called `add_to_group("terrain")`, so every lookup that checked the group first —
+`Lattice._terrain()`, which is the project's one answer to "where is the ground"
+— missed and fell through to a recursive walk of all 9,524 nodes in the scene.
+Ten microseconds on a function the route line calls four hundred times a frame.
+Nothing errored, nothing looked wrong, and the group had been sitting in the
+code as a documented fast path the entire time. See [[Scanner]].
 
 **The scatter assumed the terrain was at the origin.** `rock_scatter.gd` drew
 positions from `-half..+half` in world space, which was the same thing only

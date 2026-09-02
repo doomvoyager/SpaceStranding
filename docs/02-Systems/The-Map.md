@@ -96,6 +96,26 @@ The line and the pointer **mix rather than add**. Adding a bright cyan over the
 terminator's pink ground comes out white; it is the same trap the scan dot had
 to learn, and the route line carries its colour for the same reason.
 
+**Neither line is rebuilt every frame.** Both of them — the reveal in the world
+and the map's own — are hundreds of vertices, and every one of those vertices is
+a height lookup. Only the *first* vertex ever moves, because it is at your feet;
+the rest is fixed geometry between waypoints that have not gone anywhere. So a
+line is redrawn only when the route changed, the terrain was rebuilt, or the
+player has moved far enough for the difference to be visible:
+
+| | threshold | why |
+|---|---|---|
+| `RouteMarks.reveal_rebuild_step` | 2 m | the line is lifted 1.2 m and starts behind the camera |
+| `MapPanel._line_step()` | 2 px, as metres at the current zoom | `_pan` already knows what a pixel is worth, and it has to stay sub-pixel at full zoom-in as well as zoomed out |
+
+The **fade** still runs every frame — it is `albedo_color.a` on a material the
+mesh already references, so it costs nothing to keep live while the geometry
+underneath stays put. The pointer follows you every frame too: it is three
+vertices and one height lookup.
+
+Between them these were **7.3 ms of an 8.7 ms frame** during a pulse with the
+map open. See [[Scanner]] and `res://tests/probe_scan_cost.tscn`.
+
 ## Arriving
 
 **Reaching a stop clears it and everything before it.** Arrive at the third
@@ -200,6 +220,19 @@ the route line costs a pulse rather than being painted on.
 same framing before and after a pulse: a reveal that faded and a reveal that
 never drew look identical in one picture.
 
+The reveal test also asserts the line has **vertices in it**, not just that the
+node is visible. Now that the mesh is only rebuilt when it would look different,
+`reveal_visible()` is a claim about geometry some *earlier* frame built, and a
+throttle that never released would leave a visible node holding an empty mesh —
+which is this project's favourite failure and is invisible to any assertion that
+only asks whether something is on screen.
+
+`res://tests/probe_scan_cost.tscn` is the cost half and must run **windowed**.
+It times the real world in configurations that each switch off one suspect, so
+the difference between two rows names a cost instead of suggesting one. If the
+`scan + map` row ever climbs back toward the idle row's several-fold, something
+has started rebuilding a route line every frame again.
+
 ## Open
 
 - [ ] **Markers pile up when zoomed out.** Five labels at the settlements
@@ -209,6 +242,10 @@ never drew look identical in one picture.
       up that", which is the question a traversal game's map should answer.
       Needs a slope threshold nobody has driven yet. #playtest
 - [ ] The route is not saved. Closing the game loses the trip.
+- [ ] A rebuild is still one 1.2 ms frame whenever it fires, so driving at
+      10 m/s spikes five times a second. Invisible at this size; if a route ever
+      spans the whole map, only the first leg actually needs redrawing and the
+      rest could be cached as its own surface.
 - [x] The route is drawn in the world — a light pillar on the next stop, and
       the whole line on a scan pulse. Done 2026-09-02.
 - [ ] TODO: should a stop snap to a facility or a mast when you click near one?

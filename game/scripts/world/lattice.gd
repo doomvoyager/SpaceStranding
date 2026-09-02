@@ -69,6 +69,11 @@ var _sites: Dictionary = {}
 ## id -> Array[String] of ids it links to directly.
 var _links: Dictionary = {}
 var _rebuild_queued := false
+## The terrain, once found. Held rather than looked up: every height query in
+## the game arrives through `_terrain()` — the route line asks four hundred
+## times a frame — and finding it was costing five times more than answering.
+## See tests/probe_scan_cost.tscn.
+var _ground: ProceduralTerrain
 
 
 func _ready() -> void:
@@ -79,7 +84,12 @@ func _ready() -> void:
 
 func _on_node_added(node: Node) -> void:
 	var terrain := node as ProceduralTerrain
-	if terrain != null and not terrain.rebuilt.is_connected(_queue_rebuild):
+	if terrain == null:
+		return
+	# Whichever terrain arrived last is the one queries should answer about,
+	# which is what swapping worlds in a test means.
+	_ground = terrain
+	if not terrain.rebuilt.is_connected(_queue_rebuild):
 		terrain.rebuilt.connect(_queue_rebuild)
 		_queue_rebuild()
 
@@ -172,12 +182,19 @@ func has_line_of_sight(from: Vector3, to: Vector3) -> bool:
 
 
 func _terrain() -> ProceduralTerrain:
+	if _ground != null and is_instance_valid(_ground) and _ground.is_inside_tree():
+		return _ground
 	for node in get_tree().get_nodes_in_group("terrain"):
 		var terrain := node as ProceduralTerrain
 		if terrain != null:
+			_ground = terrain
 			return terrain
-	# Not in a group in every scene, so fall back to a walk of the tree.
-	return _find_terrain(get_tree().root)
+	# A walk of every node in the scene, and the reason this function used to
+	# cost 10 us: nothing joined the group, so the fast path above missed every
+	# time. Anything entering the tree is caught by `_on_node_added` now, so
+	# this only runs before a terrain exists at all.
+	_ground = _find_terrain(get_tree().root)
+	return _ground
 
 
 func _find_terrain(node: Node) -> ProceduralTerrain:

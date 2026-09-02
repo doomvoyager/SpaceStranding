@@ -41,6 +41,18 @@ class_name RouteMarks
 ## Metres in front of the player the pointer sits.
 @export_range(0.0, 20.0, 0.5) var pointer_offset := 4.0
 
+## Metres the player can walk before the revealed line is rebuilt.
+##
+## **The line does not change while you stand still.** Every vertex of it is a
+## height lookup — four hundred of them for a route across the patch — and the
+## only thing that moves between one frame and the next is the first vertex,
+## which is at your feet. Rebuilding the lot every frame for that was 1.2 ms of
+## a pulse's frame; at two metres the difference is behind the camera.
+##
+## Zero rebuilds every frame, which is what this used to do. See
+## tests/probe_scan_cost.tscn.
+@export_range(0.0, 20.0, 0.5) var reveal_rebuild_step := 2.0
+
 var _pillar: MeshInstance3D
 var _beam_material: ShaderMaterial
 var _line: MeshInstance3D
@@ -51,8 +63,13 @@ var _pointer_material: StandardMaterial3D
 
 var _scanner: Node
 var _player: Astronaut
+var _terrain: ProceduralTerrain
 ## Seconds since the last pulse, or -1 when there has not been one.
 var _since_ping := -1.0
+## Where the player stood when the line was last built, and whether anything
+## has happened since that changes its shape rather than just where it starts.
+var _line_from := Vector2.ZERO
+var _line_stale := true
 
 
 func _ready() -> void:
@@ -137,6 +154,7 @@ func _push_beam_look() -> void:
 func _on_route_changed() -> void:
 	# Nothing cached about the route survives a change to it; the next frame
 	# rebuilds both readings from scratch.
+	_line_stale = true
 	if Route.is_empty():
 		_pillar.visible = false
 		_line.visible = false
@@ -169,12 +187,45 @@ func pointer_visible() -> bool:
 	return _pointer != null and _pointer.visible
 
 
+## Vertices in the revealed line. The line is only rebuilt when the player has
+## moved (see `reveal_rebuild_step`), so `reveal_visible()` on its own no longer
+## proves there is anything to see — a throttle that never released would leave
+## a visible node holding an empty mesh.
+func reveal_vertex_count() -> int:
+	if _line_mesh == null or _line_mesh.get_surface_count() == 0:
+		return 0
+	# ImmediateMesh has no surface_get_array_len; surface_get_arrays does work,
+	# and does so under --headless - measured, because a Mesh readback that
+	# quietly returns nothing on the dummy renderer is a trap this project has
+	# already met with MultiMesh.
+	var arrays := _line_mesh.surface_get_arrays(0)
+	return (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+
+
 ## Unit XZ direction the pointer is aiming, or zero when it is not drawn.
 func pointer_heading() -> Vector2:
 	if _pointer == null or not _pointer.visible:
 		return Vector2.ZERO
 	var nose := -_pointer.global_transform.basis.z
 	return Vector2(nose.x, nose.z).normalized()
+
+
+## A rebuilt terrain moves the ground the line is drawn on, so the line the
+## last build cached is no longer standing on it.
+##
+## Connected lazily for the same reason the scanner is: neither exists yet when
+## this node is ready, and a scene can be given a terrain later.
+func _watch_terrain() -> void:
+	if _terrain != null and is_instance_valid(_terrain):
+		return
+	_terrain = Lattice.terrain()
+	if _terrain != null and not _terrain.rebuilt.is_connected(_on_terrain_rebuilt):
+		_terrain.rebuilt.connect(_on_terrain_rebuilt)
+		_line_stale = true
+
+
+func _on_terrain_rebuilt() -> void:
+	_line_stale = true
 
 
 func _find_scanner() -> Node:
@@ -192,6 +243,7 @@ func _on_ping(_origin: Vector3) -> void:
 
 func _process(delta: float) -> void:
 	_find_scanner()
+	_watch_terrain()
 	if _player == null or not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("player") as Astronaut
 	if _player == null or Route.is_empty():
@@ -230,30 +282,19 @@ func _draw_reveal(from: Vector2) -> void:
 		_pointer.visible = false
 		return
 
+	# The fade is the material's, not the mesh's, so it costs nothing to run it
+	# every frame while the geometry underneath stays put.
 	var colour := Color(reveal_color.r, reveal_color.g, reveal_color.b, strength)
 	_line_material.albedo_color = colour
 	_pointer_material.albedo_color = colour
 
-	# The line follows the ground the same way the map's does and the leg
-	# lengths are measured, so all three agree about where the route runs.
-	_line_mesh.clear_surfaces()
-	_line_mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP, _line_material)
-	var chain: Array[Vector2] = [from]
-	for i in Route.count():
-		chain.append(Route.point_2d(i))
-	for leg in range(1, chain.size()):
-		var a := chain[leg - 1]
-		var b := chain[leg]
-		var steps := maxi(int(ceil(a.distance_to(b) / Route.SAMPLE_STEP)), 1)
-		var first := 0 if leg == 1 else 1
-		for step in range(first, steps + 1):
-			var p := a.lerp(b, float(step) / float(steps))
-			_line_mesh.surface_add_vertex(Vector3(
-				p.x, Route.ground_height(p.x, p.y) + reveal_lift, p.y))
-	_line_mesh.surface_end()
+	if _line_stale or from.distance_to(_line_from) > reveal_rebuild_step:
+		_rebuild_line(from)
 	_line.visible = true
 
 	# And the pointer, at your feet, aimed at the one the beam is standing on.
+	# Three vertices and one height lookup, so this one does follow you every
+	# frame - it is the line behind it that does not need to.
 	var i := Route.nearest_index(from)
 	if i < 0:
 		_pointer.visible = false
@@ -270,6 +311,30 @@ func _draw_reveal(from: Vector2) -> void:
 	# The triangle's nose is -Z, which is what look_at points at a target.
 	_pointer.look_at(Vector3(target.x, ground, target.y), Vector3.UP)
 	_pointer.visible = true
+
+
+## The whole route, from `from` to the last stop, hugging the ground.
+##
+## Follows the ground the same way the map's line does and the leg lengths are
+## measured, so all three agree about where the route runs.
+func _rebuild_line(from: Vector2) -> void:
+	_line_stale = false
+	_line_from = from
+	_line_mesh.clear_surfaces()
+	_line_mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP, _line_material)
+	var chain: Array[Vector2] = [from]
+	for i in Route.count():
+		chain.append(Route.point_2d(i))
+	for leg in range(1, chain.size()):
+		var a := chain[leg - 1]
+		var b := chain[leg]
+		var steps := maxi(int(ceil(a.distance_to(b) / Route.SAMPLE_STEP)), 1)
+		var first := 0 if leg == 1 else 1
+		for step in range(first, steps + 1):
+			var p := a.lerp(b, float(step) / float(steps))
+			_line_mesh.surface_add_vertex(Vector3(
+				p.x, Route.ground_height(p.x, p.y) + reveal_lift, p.y))
+	_line_mesh.surface_end()
 
 
 ## How strongly the reveal is showing, 0 to 1.

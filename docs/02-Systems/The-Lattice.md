@@ -110,6 +110,16 @@ Autoloaded as **`Lattice`**, alongside `World`, `Orders` and `Debug`. It has to
 be global for the same reason the ledger does: coverage is a property of the
 world, not of whichever scene happens to be loaded.
 
+**`Lattice.terrain()` is the project's one answer to "where is the ground",** so
+it is on more hot paths than anything else here: every line-of-sight walk, every
+survey, every waypoint height, every vertex of a route line. It used to check
+the `terrain` group and then fall back to a recursive walk of the whole tree —
+and since **nothing ever joined the group**, the walk ran every single time, at
+10.5 us over 9,524 nodes. It is a held reference now, set from `_on_node_added`,
+re-found only if that node leaves the tree. 0.49 us. `ProceduralTerrain` joins
+the group as well, so the fast path in between is real rather than decorative.
+See [[Scanner]] for how it was found and `res://tests/probe_scan_cost.tscn`.
+
 ## Verification
 
 `res://tests/test_lattice.tscn` builds two facilities too far apart to see each

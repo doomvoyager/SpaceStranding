@@ -131,6 +131,12 @@ var _map_hi := 1.0
 
 
 func _ready() -> void:
+	# The group is how everything else finds the ground. Nothing joined it
+	# until now, so Lattice._terrain()'s fast path missed every time and fell
+	# through to a recursive walk of the whole tree - 10 us a call, on a
+	# function the route line calls four hundred times a frame. See
+	# tests/probe_scan_cost.tscn.
+	add_to_group("terrain")
 	_build()
 
 

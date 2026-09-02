@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-08-31
+verified: 2026-09-02
 godot: res://scripts/world/scanner.gd
 tags: [system, traversal, ui]
 ---
@@ -151,10 +151,48 @@ of one another.
 a range of emission strengths rather than arguing about them. 0.55 is the knee:
 2.6% of dot pixels clipped, against 7.8% at 0.8 and 26% at 1.8.
 
+## What a pulse actually costs
+
+Mac reported a large drop while scanning, worse with the map up. **The scanner
+was not the cause.** Measured on the real world, 1600x900, with a three-stop
+route planted:
+
+| | before | after |
+|---|---|---|
+| idle | 1.11 ms — 899 fps | 1.10 ms — 906 fps |
+| map open | 2.47 ms — 405 fps | 1.19 ms — 841 fps |
+| scanning | 7.49 ms — 134 fps | 1.32 ms — 755 fps |
+| scanning, map open | 8.67 ms — 115 fps | 1.38 ms — 725 fps |
+
+Switching each suspect off in turn said where it went. The tags cost 0.09 ms
+for nineteen of them. The dot grid in the terrain shader cost **nothing
+measurable** — turning `scan_grid_enabled` off changed the frame not at all.
+What a pulse actually does is switch on [[The-Map]]'s route reveal, which was
+rebuilding its whole line every frame: 399 vertices, each a
+`Route.ground_height()`.
+
+And that call was 76% overhead. `Lattice._terrain()` checked the `terrain`
+group first and then fell back to a recursive walk of the tree — but
+**`terrain.gd` never joined the group**, so the fallback ran every time, over
+9,524 nodes, at 10.5 us a call. It is a field read now, and the group is
+actually populated:
+
+| | before | after |
+|---|---|---|
+| `Lattice.terrain()` | 10.5 us | 0.49 us |
+| `Route.ground_height()` | 13.8 us | 3.1 us |
+
+Every height query in the project goes through that function — the Lattice's
+own line-of-sight walks and the mast survey included — so the cache is worth
+more than the frame it was found in.
+
+`res://tests/probe_scan_cost.tscn`, windowed. Both halves of the fix are
+described under [[The-Map]], since the route line is where they live.
+
 ## Interactions
 
 [[Rover]] · [[Astronaut-Traversal]] · [[Terrain]] · [[Cargo]] · [[Orders]] ·
-[[The-Lattice]] · [[Visual-Direction]]
+[[The-Lattice]] · [[The-Map]] · [[Visual-Direction]]
 
 ## Verification
 
@@ -170,8 +208,9 @@ does not interleave those two clocks anything like realtime: one version asked
 for progress two physics frames after the ping and got exactly zero, the next
 waited 150 frames for a wave that had already finished.
 
-`res://tests/scan_capture.tscn` is the look pass, and
-`res://tests/probe_scan_glow.tscn` the tuning one.
+`res://tests/scan_capture.tscn` is the look pass,
+`res://tests/probe_scan_glow.tscn` the tuning one, and
+`res://tests/probe_scan_cost.tscn` the cost one. All three run **windowed**.
 
 ## Open
 

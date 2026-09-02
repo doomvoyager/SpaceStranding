@@ -70,6 +70,10 @@ var _panning := false
 var _drag_travel := 0.0
 var _line_mesh: ImmediateMesh
 var _astronaut: Astronaut
+## Where the player stood when the route line was last drawn, and whether
+## anything since would change its shape rather than just where it starts.
+var _line_from := Vector2.ZERO
+var _line_stale := true
 
 
 func _ready() -> void:
@@ -85,6 +89,8 @@ func _ready() -> void:
 	_clear_button.pressed.connect(func() -> void: Route.clear())
 	Route.changed.connect(_on_route_changed)
 	Lattice.coverage_changed.connect(_rebuild_markers)
+	# A rebuilt relief mesh moves the surface the line is laid on.
+	_map.rebuilt.connect(func() -> void: _line_stale = true)
 	_drop_focus()
 
 
@@ -359,19 +365,43 @@ func _add_marker(world: Vector3, text: String, colour: Color) -> Node3D:
 # --- The route -----------------------------------------------------------
 
 func _on_route_changed() -> void:
+	_line_stale = true
 	_rebuild_waypoint_markers()
 	_refresh()
+
+
+## Metres the player can move before the route line is redrawn.
+##
+## The line is hundreds of vertices and only its first one moves — it starts at
+## your feet — so redrawing it every frame was a millisecond a frame for a
+## picture that had not changed. Scaled by zoom, because a metre is a different
+## number of pixels at every altitude: `_pan` already knows what one pixel is
+## worth, and this is two of them, which is not a distance anybody can see.
+func _line_step() -> float:
+	return _distance * 0.0016 * 2.0
 
 
 ## Draw the route as a line that hugs the terrain, sampled the same way the leg
 ## lengths are measured. A straight line between two waypoints would cut through
 ## every ridge on the way and would disagree with the distance shown beside it.
-func _draw_route() -> void:
-	_line_mesh.clear_surfaces()
-	if Route.is_empty() or _player() == null:
+##
+## Only actually redrawn when it would look different — see `_line_step()`.
+## `force` is for a capture or a test, which wants the line the frame it asks
+## for it rather than after the player has walked two pixels.
+func _draw_route(force := false) -> void:
+	if _player() == null:
 		return
 	var here := _player().vantage()
-	var chain: Array[Vector2] = [Vector2(here.x, here.z)]
+	var start := Vector2(here.x, here.z)
+	var moved := start.distance_to(_line_from)
+	if not force and not _line_stale and moved <= _line_step():
+		return
+	_line_stale = false
+	_line_from = start
+	_line_mesh.clear_surfaces()
+	if Route.is_empty():
+		return
+	var chain: Array[Vector2] = [start]
 	for i in Route.count():
 		chain.append(Route.point_2d(i))
 

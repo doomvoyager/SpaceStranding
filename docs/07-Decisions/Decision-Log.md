@@ -9,6 +9,44 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-02 - Route lines are rebuilt on a movement threshold, not per frame
+
+Mac reported a large frame-rate drop while scanning, worse with the map open.
+`res://tests/probe_scan_cost.tscn` timed the real world with each suspect
+switched off in turn, and **the scanner was innocent**: the tags cost 0.09 ms
+and the dot grid in the terrain shader cost nothing measurable at all. What a
+pulse does is switch on the route reveal, and both route lines - the one in the
+world and the map's - were rebuilding hundreds of ground-height lookups every
+frame.
+
+Two fixes, in descending payoff.
+
+**`Lattice` holds the terrain instead of finding it.** Its lookup checked the
+`terrain` group and fell back to a recursive tree walk; nothing had ever joined
+the group, so the walk ran every time, over 9,524 nodes, at 10.5 us. That is the
+one function every height query in the project goes through. Now 0.49 us, and
+`ProceduralTerrain` joins the group so the middle path is real.
+
+**A route line is redrawn when it would look different**, not every frame: the
+route changed, the terrain was rebuilt, or the player moved past a threshold -
+2 m in the world, two pixels' worth at the map's current zoom. Only the first
+vertex ever moves, because it is at your feet. The fade keeps running every
+frame, since it is a material property on a mesh that is already there.
+
+| | before | after |
+|---|---|---|
+| scanning | 7.49 ms — 134 fps | 1.32 ms — 755 fps |
+| scanning, map open | 8.67 ms — 115 fps | 1.38 ms — 725 fps |
+
+**Rejected: throttling the scanner.** It was the obvious suspect and it was
+measured to be free. Changing it would have cost the pulse its per-frame
+distance readout for nothing. Also rejected: capping the reveal's sample count,
+which would have made a long route a coarser line rather than a cheaper one.
+
+The cost of this is a new failure mode, recorded in CLAUDE.md: `visible` is now
+a claim about geometry an earlier frame built, so `test_route_marks` asserts on
+the vertex count rather than on whether the node is on screen.
+
 ## 2026-09-02 - Pad support is an emulated pointer, not a focus rig
 
 Mac asked whether the map was controller-friendly. It was not: orbit and pan
