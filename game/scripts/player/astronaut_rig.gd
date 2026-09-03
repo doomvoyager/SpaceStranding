@@ -48,6 +48,27 @@ const RESTING_SPEED := 1.0
 ## crosses. Raise it and the feet drag; lower it and they skate.
 @export_range(0.5, 3.0, 0.05) var stride_scale := 1.5
 
+@export_group("Suit")
+## How much of the upper arm's roll to take out when the elbow is straight.
+##
+## The idle clip rolls the upper arms +14.9 and -27.0 degrees against a bind
+## pose of zero, which swings the elbow's hinge axis 43 to 47 degrees off where
+## the suit's elbow armour was modelled. Fine on a bare arm; on this one it puts
+## the armour on the side of the joint, and with the elbow also nearly straight
+## there is no bend left to say which way it folds. 1 restores the bind pose's
+## roll exactly, 0 is the animation as authored, and the sweep that settled 0.8
+## is in previews/2026-09-03/.
+@export_range(0.0, 1.0, 0.01) var arm_untwist := 0.8
+
+## The elbow fold, in degrees, at which the correction has faded to nothing.
+##
+## Roll only reads as wrong on a straight arm; once the joint is folded the bend
+## itself says which way the hinge runs, and rolling a folded arm is real motion
+## the run depends on. Below this the fix ramps in; above it the animation is
+## untouched. Measured fold: the idle sits at 1-6 degrees, the walk 4-27, the
+## run 59-125.
+@export_range(5.0, 120.0, 1.0) var untwist_fold_limit := 45.0
+
 @export_group("Blending")
 ## Seconds to cross from one locomotion speed to another. Only affects the
 ## blend space's own smoothing, not the state machine's transitions - those are
@@ -56,6 +77,14 @@ const RESTING_SPEED := 1.0
 
 @onready var _tree: AnimationTree = $AnimationTree
 @onready var _model: Node3D = $Model
+
+## Built here rather than saved into the scene, because it has to be a child of
+## the Skeleton3D and that lives inside the imported model. Putting it in the
+## scene file would mean turning on editable children for the model instance,
+## and an override inside an instanced scene is exactly what breaks when the
+## mesh is re-exported - which is meant to stay a drop-in. Every knob it has is
+## an `@export` up here, so nothing is hidden from the inspector or from F1.
+var _untwist: UpperArmUntwist
 
 ## The blend space, held rather than re-fetched: `drive` runs every physics
 ## frame and walking the tree for it would be a lookup per frame for a node
@@ -71,7 +100,24 @@ func _ready() -> void:
 	var ground := machine.get_node("Ground") as AnimationNodeBlendTree
 	_locomotion = ground.get_node("Locomotion") as AnimationNodeBlendSpace1D
 	_apply_cycle_speeds()
+	_install_untwist()
 	_tree.active = true
+
+
+func _install_untwist() -> void:
+	var skel := skeleton()
+	if skel == null:
+		push_warning("AstronautRig: no skeleton, arm untwist not installed")
+		return
+	_untwist = UpperArmUntwist.new()
+	_untwist.name = "UpperArmUntwist"
+	_untwist.rig = self
+	skel.add_child(_untwist)
+
+
+## The forearm correction, for tests and diagnostics.
+func untwist_modifier() -> UpperArmUntwist:
+	return _untwist
 
 
 ## Push the exported cycle speeds onto the blend space.

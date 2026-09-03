@@ -32,6 +32,7 @@ func _ready() -> void:
 	_check_facing()
 	await _check_locomotion()
 	await _check_air()
+	await _check_untwist()
 
 	if _failures.is_empty():
 		print("PASS: astronaut rig")
@@ -129,3 +130,57 @@ func _drive_for(frames: int, speed: float, grounded: bool, vertical: float) -> v
 	for i in frames:
 		_rig.drive(speed, grounded, vertical, TICK)
 		await get_tree().process_frame
+
+## The arm-roll correction, which exists because the idle clip rolls the upper
+## arms 15 and 27 degrees against a bind pose of zero and puts the suit's elbow
+## armour on the side of the joint. See [[Astronaut-Traversal]].
+##
+## **Asserted on the gate, not on the bones.** A SkeletonModifier3D writes into
+## the pose the renderer uses, but the skeleton restores the animated pose
+## afterwards - so `get_bone_pose_rotation` from outside the modifier reads what
+## the animation wrote, never the correction, and a test that asserted on it
+## would pass whatever the modifier did. That restore is also why this cannot
+## compound. What is checkable here is the decision: how much correction the
+## modifier asks for at a given elbow angle. The picture is in
+## previews/2026-09-03/untwist-*.
+func _check_untwist() -> void:
+	var mod := _rig.untwist_modifier()
+	if mod == null:
+		_fail("the arm untwist modifier was never installed")
+		return
+	if mod.get_skeleton() == null:
+		_fail("the untwist modifier is not parented to a Skeleton3D, so it will never run")
+		return
+
+	# Standing still: elbows nearly straight, so the correction should be close
+	# to fully applied.
+	await _drive_for(60, 0.0, true, 0.0)
+	for side: String in ["Left", "Right"]:
+		var fold := mod.fold_degrees(side)
+		if fold > 20.0:
+			_fail("idle %s elbow reads %.1f deg of fold; expected a near-straight arm"
+				% [side, fold])
+		if mod.correction(side) < _rig.arm_untwist * 0.5:
+			_fail("idle %s correction is %.2f of a possible %.2f - the fix is not reaching the pose it is for"
+				% [side, mod.correction(side), _rig.arm_untwist])
+
+	# Running: elbows folded past the limit, so the animation must be untouched.
+	# This is the half that protects the run from a fix aimed at the idle.
+	await _drive_for(120, 6.4, true, 0.0)
+	for side: String in ["Left", "Right"]:
+		var fold := mod.fold_degrees(side)
+		if fold < _rig.untwist_fold_limit:
+			_fail("run %s elbow only folds %.1f deg, under the %.1f limit - this test is not exercising the gate"
+				% [side, fold, _rig.untwist_fold_limit])
+		elif mod.correction(side) > 0.001:
+			_fail("run %s is folded %.1f deg but still taking %.2f of correction"
+				% [side, fold, mod.correction(side)])
+
+	# And zero means zero: the animation exactly as authored.
+	var was := _rig.arm_untwist
+	_rig.arm_untwist = 0.0
+	await _drive_for(30, 0.0, true, 0.0)
+	for side: String in ["Left", "Right"]:
+		if mod.correction(side) != 0.0:
+			_fail("%s still corrects %.3f with arm_untwist at 0" % [side, mod.correction(side)])
+	_rig.arm_untwist = was

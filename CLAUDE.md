@@ -344,6 +344,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_f
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_astronaut_clips.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_elbow_bend.tscn
+```
+
 Tests that touch project scripts must run **as a scene**, like the rover test
 above, because those scripts reach for `World`.
 
@@ -634,6 +638,33 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   at the *caller's* variable, with nothing naming the function that caused it.
   A `-> Variant` used to mean "or null" is the usual way in. Take the fallback
   as a parameter and return the real type instead - `Rover.ground_below()`.
+- **A `SkeletonModifier3D`'s writes never read back.** The skeleton restores the
+  animated pose after the modifier stack runs, so `get_bone_pose_rotation()` and
+  `get_bone_global_pose()` asked from *outside* a modifier return what the
+  animation wrote, not what the modifier produced - while the renderer shows the
+  modified result. Two consequences, one good and one a trap. It cannot compound
+  (measured: 120 ticks holding one frame leaves the result identical, and
+  turning the modifier off restores the authored pose exactly), which is the
+  opposite of the hand-written per-frame correction two entries down. And **a
+  test asserting on bone poses to check a modifier passes no matter what the
+  modifier does** - it is reading the input. Assert on the modifier's own
+  decision, or on a render: the arm-untwist sweep moved 3.1 to 4.2% of the frame
+  across its range while every bone read back unchanged.
+  `tests/test_astronaut_rig.gd`.
+- **A roll measured in global space blames the wrong bone.** `get_bone_global_pose`
+  accumulates every rotation above a bone in the chain, so the astronaut's idle
+  read as 31-33 degrees of *forearm* twist when the forearm's own roll is -0.3
+  and the rotation is entirely in the upper arm. Cost a first version of the fix
+  aimed at the wrong joint. When the question is "which bone is doing this",
+  `get_bone_pose_rotation` - local, relative to the parent - is the only one that
+  answers it. Same family as the seam test: the first instrument measured the
+  fixture.
+- **An `AnimationTree` takes its `AnimationPlayer` over and switches it off.**
+  It sets `active = false` on the player, so `play()` and `seek()` on that node
+  do nothing at all and the skeleton silently sits in its rest pose - which looks
+  exactly like an animation with no content. Setting `player.active = true` back
+  takes it, which is what lets a test hold one authored frame while toggling
+  something around it.
 - **`advance_mode = ENABLED` on a state machine transition means "only via
   `travel()`".** It reads like the opposite - the alternative is `DISABLED` - so
   an `advance_condition` set beside it looks armed and is not. The condition is

@@ -220,6 +220,54 @@ States are `Ground` (a blend tree: the 1D locomotion blend into a time scale),
 `Jump`, `Fall` and `Land`, with `Land` releasing to `Ground` automatically at the
 end of its clip.
 
+### The elbows, and why the fix is on the upper arm
+
+Mac's report was that the lower arm bends the wrong way in the idle. The joint
+turned out to be mechanically fine, and the fault two bones up.
+
+Measured with `tests/probe_elbow_bend.gd`, which fits the elbow's hinge plane
+from the clips that look right and tests the rest against it: **every clip folds
+positively, never past straight, and never more than 4 degrees out of its hinge
+plane.** Fold ranges are idle 1-7, walk 4-27, run 59-125, jump 20-70, land 16-98
+degrees - all inside normal elbow travel. So the animation curves are not the
+problem, which is worth knowing because that is the expensive fix.
+
+What is wrong is **roll**. Against a bind pose of zero, the idle clip rolls the
+upper arms +14.9 and -27.0 degrees, and that swings the elbow's **hinge axis 43
+to 47 degrees** away from where the suit's elbow armour was modelled. On a bare
+arm that is just how a relaxed arm hangs. On this one the armour ends up on the
+side of the joint - and with the elbow simultaneously held nearly straight,
+there is no visible bend left to say which way it really folds.
+
+`UpperArmUntwist` (`res://scripts/player/upper_arm_untwist.gd`) is a
+`SkeletonModifier3D` on the skeleton that pulls that roll back toward the bind
+pose. Two things about it are load-bearing:
+
+**It corrects the upper arm, not the forearm.** The forearm's own roll in idle
+is -0.3 and +1.5 degrees - nothing. A global-space measurement says 31 degrees
+and blames the forearm, because global pose accumulates the whole chain; only
+the bone-local one finds the bone actually doing it. That mistake cost a first
+version of this file.
+
+**The correction fades out as the elbow closes**, and that is the whole trick
+rather than a safety margin. Roll is only legible on a straight arm - once the
+joint is folded the bend itself says which way the hinge runs. And rolling a
+straight arm barely moves the hand, because the hand sits almost on the roll
+axis, so the fix is nearly invisible except for the thing it fixes. Fold the
+elbow and the same roll swings the forearm across the body, which is real motion
+the run depends on. `untwist_fold_limit` is 45 degrees: the idle sits at 1-6, the
+walk at 4-27, the run at 59-125, so the run is untouched by construction.
+
+`arm_untwist` is 0.8, settled against the sweep in `previews/2026-09-03/untwist-*`
+- 1.0 restores the bind pose's roll exactly, 0 is the animation as authored.
+Both are `@export`, so they are on the F1 panel.
+
+The modifier is built in `_ready()` rather than saved into the scene, because it
+has to be a child of the `Skeleton3D` inside the imported model, and putting it
+in the scene file would mean editable children on that instance - an override
+that breaks the moment the mesh is re-exported, which is meant to stay a
+drop-in. Every knob is an `@export` on the rig, so nothing is hidden.
+
 ### The model faces the wrong way, and that is handled once
 
 The mesh faces **+Z**; `_face_travel_direction` yaws the body so that **-Z** is
