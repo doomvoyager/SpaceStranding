@@ -4,7 +4,7 @@
 [ext_resource type="Script" uid="uid://dfpjydpesqij0" path="res://scripts/cargo/cargo_rack.gd" id="2_rack"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_chassis"]
-size = Vector3(2, 1, 4.4)
+size = Vector3(2, 1.0562134, 4.4)
 
 [sub_resource type="BoxMesh" id="BoxMesh_hull"]
 size = Vector3(2, 1, 4.4)
@@ -15,7 +15,7 @@ metallic = 0.45
 roughness = 0.48
 
 [sub_resource type="BoxMesh" id="BoxMesh_ia0rk"]
-size = Vector3(1.7382813, 1.0029297, 2.1208007)
+size = Vector3(1.7382813, 1.0546875, 2.057959)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h58rc"]
 albedo_color = Color(0.76, 0.74, 0.68, 1)
@@ -28,7 +28,6 @@ size = Vector3(1.7382813, 0.18603516, 0.106787086)
 [sub_resource type="StandardMaterial3D" id="Material_brake"]
 resource_name = "Brake light"
 albedo_color = Color(0.24, 0.03, 0.035, 1)
-metallic = 0.0
 roughness = 0.28
 emission_enabled = true
 emission = Color(1, 0.09, 0.06, 1)
@@ -64,6 +63,7 @@ mass = 950.0
 script = ExtResource("1_rover")
 
 [node name="Chassis" type="CollisionShape3D" parent="." unique_id=1683068347]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02810669, 0)
 shape = SubResource("BoxShape3D_chassis")
 
 [node name="Hull" type="MeshInstance3D" parent="." unique_id=2027012801]
@@ -71,7 +71,7 @@ mesh = SubResource("BoxMesh_hull")
 surface_material_override/0 = SubResource("Material_hull")
 
 [node name="Hull2" type="MeshInstance3D" parent="." unique_id=1822455313]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7172332, -1.2394692)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7431121, -1.2080483)
 mesh = SubResource("BoxMesh_ia0rk")
 surface_material_override/0 = SubResource("StandardMaterial3D_h58rc")
 
@@ -119,21 +119,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.36, 0.36, 0.64)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.36, 0.36, 0.64)
 
 [node name="HeadlightL" type="SpotLight3D" parent="." unique_id=822395706]
-transform = Transform3D(1, 0, 0, 0, 0.98620963, 0.16550122, 0, -0.16550122, 0.98620963, -0.7, 0.63633573, -2.4064505)
+transform = Transform3D(1, 0, 0, 0, 0.98620963, 0.16550122, 0, -0.16550122, 0.98620963, -0.7, 0.63633573, -3.0106986)
 light_color = Color(0.9, 0.94, 1, 1)
 light_energy = 4.0
 spot_range = 70.0
 spot_angle = 32.0
 
 [node name="HeadlightR" type="SpotLight3D" parent="." unique_id=1793659656]
-transform = Transform3D(1, 0, 0, 0, 0.98620963, 0.16550122, 0, -0.16550122, 0.98620963, 0.7, 0.63633573, -2.4064505)
+transform = Transform3D(1, 0, 0, 0, 0.98620963, 0.16550122, 0, -0.16550122, 0.98620963, 0.7, 0.63633573, -3.0106986)
 light_color = Color(0.9, 0.94, 1, 1)
 light_energy = 6.0
 spot_range = 70.0
 spot_angle = 43.72098
 
 [node name="WheelFL" type="VehicleWheel3D" parent="." unique_id=112114227]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.12, -0.4, -1.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4200001, -0.4, -2.001798)
 use_as_traction = true
 use_as_steering = true
 wheel_roll_influence = 0.15
@@ -151,7 +151,7 @@ mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
 [node name="WheelFR" type="VehicleWheel3D" parent="." unique_id=1596322292]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.12, -0.4, -1.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4200001, -0.4, -2.001798)
 use_as_traction = true
 use_as_steering = true
 wheel_roll_influence = 0.15
@@ -169,8 +169,9 @@ mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
 [node name="WheelML" type="VehicleWheel3D" parent="." unique_id=1112586127]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.12, -0.4, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4200001, -0.4, -0.8)
 use_as_traction = true
+use_as_steering = true
 wheel_roll_influence = 0.15
 wheel_rest_length = 0.25
 wheel_friction_slip = 6.0
@@ -186,8 +187,9 @@ mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
 [node name="WheelMR" type="VehicleWheel3D" parent="." unique_id=577145472]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.12, -0.4, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4200001, -0.4, -0.8)
 use_as_traction = true
+use_as_steering = true
 wheel_roll_influence = 0.15
 wheel_rest_length = 0.25
 wheel_friction_slip = 6.0
@@ -203,7 +205,7 @@ mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
 [node name="WheelRL" type="VehicleWheel3D" parent="." unique_id=994812611]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.12, -0.4, 1.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4200001, -0.4, 1.65)
 use_as_traction = true
 wheel_roll_influence = 0.15
 wheel_rest_length = 0.25
@@ -220,7 +222,7 @@ mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
 [node name="WheelRR" type="VehicleWheel3D" parent="." unique_id=911361218]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.12, -0.4, 1.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4200001, -0.4, 1.65)
 use_as_traction = true
 wheel_roll_influence = 0.15
 wheel_rest_length = 0.25
@@ -248,4 +250,4 @@ fov = 72.0
 far = 6000.0
 
 [node name="ExitPoint" type="Marker3D" parent="." unique_id=443693781]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, -0.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1668487, -0.5, -1.1470282)
