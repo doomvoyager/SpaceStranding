@@ -73,7 +73,7 @@ var _rebuild_queued := false
 ## the game arrives through `_terrain()` — the route line asks four hundred
 ## times a frame — and finding it was costing five times more than answering.
 ## See tests/probe_scan_cost.tscn.
-var _ground: ProceduralTerrain
+var _ground: TerrainSource
 
 
 func _ready() -> void:
@@ -83,8 +83,8 @@ func _ready() -> void:
 
 
 func _on_node_added(node: Node) -> void:
-	var terrain := node as ProceduralTerrain
-	if terrain == null:
+	var terrain := node as TerrainSource
+	if terrain == null or _is_tile(terrain):
 		return
 	# Whichever terrain arrived last is the one queries should answer about,
 	# which is what swapping worlds in a test means.
@@ -181,12 +181,12 @@ func has_line_of_sight(from: Vector3, to: Vector3) -> bool:
 	return true
 
 
-func _terrain() -> ProceduralTerrain:
+func _terrain() -> TerrainSource:
 	if _ground != null and is_instance_valid(_ground) and _ground.is_inside_tree():
 		return _ground
 	for node in get_tree().get_nodes_in_group("terrain"):
-		var terrain := node as ProceduralTerrain
-		if terrain != null:
+		var terrain := node as TerrainSource
+		if terrain != null and not _is_tile(terrain):
 			_ground = terrain
 			return terrain
 	# A walk of every node in the scene, and the reason this function used to
@@ -197,9 +197,26 @@ func _terrain() -> ProceduralTerrain:
 	return _ground
 
 
-func _find_terrain(node: Node) -> ProceduralTerrain:
-	var terrain := node as ProceduralTerrain
-	if terrain != null:
+## A terrain parented to another terrain is a **tile**, and the field it belongs
+## to speaks for it.
+##
+## Without this a `TerrainField` is shadowed by its own children: they are
+## `TerrainSource` too, they join the `terrain` group in their own `_ready`, and
+## `_on_node_added` keeps whichever arrived last — which is always a tile. Every
+## height query in the project would then be answered by one 4096 m corner of a
+## 12 km world, correctly, for points nowhere near it.
+func _is_tile(node: Node) -> bool:
+	var parent := node.get_parent()
+	while parent != null:
+		if parent is TerrainSource:
+			return true
+		parent = parent.get_parent()
+	return false
+
+
+func _find_terrain(node: Node) -> TerrainSource:
+	var terrain := node as TerrainSource
+	if terrain != null and not _is_tile(terrain):
 		return terrain
 	for child in node.get_children():
 		var found := _find_terrain(child)
@@ -381,7 +398,7 @@ func covering_sites() -> Array:
 ## Public because CoverageMap needs the same one, and the lookup is not
 ## trivial — the node is not in a group in every scene, so there is a tree walk
 ## behind this. Two copies of that would be two things to get wrong.
-func terrain() -> ProceduralTerrain:
+func terrain() -> TerrainSource:
 	return _terrain()
 
 

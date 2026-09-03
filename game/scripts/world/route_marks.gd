@@ -63,7 +63,7 @@ var _pointer_material: StandardMaterial3D
 
 var _scanner: Node
 var _player: Astronaut
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 ## Seconds since the last pulse, or -1 when there has not been one.
 var _since_ping := -1.0
 ## Where the player stood when the line was last built, and whether anything

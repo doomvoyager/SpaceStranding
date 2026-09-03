@@ -77,7 +77,7 @@ func snap_selection(selection: EditorSelection, undo_redo: EditorUndoRedoManager
 		return 0
 	var terrain := _find_terrain()
 	if terrain == null:
-		push_warning("Snap to ground: no ProceduralTerrain in the edited scene.")
+		push_warning("Snap to ground: no TerrainSource in the edited scene.")
 		return 0
 
 	var targets: Array[Node3D] = []
@@ -105,7 +105,7 @@ func snap_selection(selection: EditorSelection, undo_redo: EditorUndoRedoManager
 
 # --- The two branches ---------------------------------------------------
 
-func _resolve(terrain: ProceduralTerrain, n: Node3D, was: Vector3, now: Vector3) -> void:
+func _resolve(terrain: TerrainSource, n: Node3D, was: Vector3, now: Vector3) -> void:
 	var moved_flat := (absf(now.x - was.x) > EPSILON) or (absf(now.z - was.z) > EPSILON)
 	if moved_flat:
 		n.global_position = _grounded_position(terrain, n, now)
@@ -116,7 +116,7 @@ func _resolve(terrain: ProceduralTerrain, n: Node3D, was: Vector3, now: Vector3)
 	n.set(ANCHOR_PROPERTY, now.y - ground)
 
 
-func _grounded_position(terrain: ProceduralTerrain, n: Node3D, at: Vector3) -> Vector3:
+func _grounded_position(terrain: TerrainSource, n: Node3D, at: Vector3) -> Vector3:
 	var clearance := float(n.get(ANCHOR_PROPERTY))
 	return Vector3(at.x, terrain.world_height_at(at.x, at.z) + clearance, at.z)
 
@@ -132,7 +132,7 @@ func _is_anchored(n: Node3D) -> bool:
 ## Deliberately not cached across calls. The edited scene changes under this
 ## whenever a tab is switched, and a stale terrain would either be a freed
 ## object or — much worse — the wrong map to solve heights against.
-func _find_terrain() -> ProceduralTerrain:
+func _find_terrain() -> TerrainSource:
 	var root := EditorInterface.get_edited_scene_root()
 	if root == null:
 		return null
@@ -145,8 +145,8 @@ func _find_terrain() -> ProceduralTerrain:
 	return terrain
 
 
-func _first_terrain(node: Node) -> ProceduralTerrain:
-	var terrain := node as ProceduralTerrain
+func _first_terrain(node: Node) -> TerrainSource:
+	var terrain := node as TerrainSource
 	if terrain != null:
 		return terrain
 	for child in node.get_children():

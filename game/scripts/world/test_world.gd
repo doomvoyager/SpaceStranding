@@ -16,7 +16,7 @@ extends Node3D
 ## and the debug panel can retune the terrain mid-session. X/Z is authored;
 ## height is derived, always, from whatever the ground turned out to be.
 
-@onready var _terrain: ProceduralTerrain = $Terrain
+@onready var _terrain: TerrainSource = $Terrain
 @onready var _astronaut: Astronaut = $Astronaut
 @onready var _rover: Rover = $Rover
 @onready var _star: DirectionalLight3D = $Star

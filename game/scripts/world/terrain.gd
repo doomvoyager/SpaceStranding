@@ -1,5 +1,5 @@
 @tool
-extends Node3D
+extends TerrainSource
 class_name ProceduralTerrain
 ## Single-patch heightfield terrain, from either authored art or noise.
 ##
@@ -16,11 +16,6 @@ class_name ProceduralTerrain
 ##
 ## The class name predates the heightmap source and is now half a lie. Renaming
 ## it touches sixteen test files, so it is a deliberate TODO rather than drift.
-
-## Emitted after the mesh and collision are rebuilt. Anything that placed
-## objects on the surface — RockScatter — has to put them back, or a retune
-## leaves them hanging in the air over the new ground.
-signal rebuilt
 
 enum HeightSource {
 	PROCEDURAL, ## Layered FastNoiseLite. No asset dependency.
@@ -384,14 +379,6 @@ func height_at(local_x: float, local_z: float) -> float:
 func world_height_at(world_x: float, world_z: float) -> float:
 	var local := to_local(Vector3(world_x, 0.0, world_z))
 	return to_global(Vector3(local.x, height_at(local.x, local.z), local.z)).y
-
-
-## World-space surface point under (world_x, world_z). `world_height_at` with
-## the X and Z carried through, which is what most callers actually wanted —
-## four of them were building this by hand out of `to_local`, `height_at` and
-## `to_global`, each with its own copy of the warning above.
-func world_surface_at(world_x: float, world_z: float) -> Vector3:
-	return Vector3(world_x, world_height_at(world_x, world_z), world_z)
 
 
 ## Where the ground is, as a footprint in world X/Z.

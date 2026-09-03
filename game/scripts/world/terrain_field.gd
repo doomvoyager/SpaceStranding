@@ -1,5 +1,5 @@
 @tool
-extends Node3D
+extends TerrainSource
 class_name TerrainField
 ## A grid of `ProceduralTerrain` tiles that behaves like one piece of ground.
 ##
@@ -36,10 +36,6 @@ class_name TerrainField
 ## Nine copies of one mountain is obviously repetitive, and that is expected.
 ## This exists so the chunking, culling and streaming can be built and measured
 ## against nine real heightfields; it is thrown away when the art arrives.
-
-## Emitted once every tile has built. Mirrors `ProceduralTerrain.rebuilt` so
-## anything already listening to the ground keeps working.
-signal rebuilt
 
 @export_group("Layout")
 ## Tiles per side. 3 is the world; 1 makes this a single patch with extra steps.
@@ -104,12 +100,12 @@ var _pending := 0
 
 
 func _ready() -> void:
-	# **Deliberately not in the `terrain` group yet.** That group is how
-	# everything finds the ground, but `Lattice.terrain()` is typed
-	# `-> ProceduralTerrain`, so a field found there would fail the cast and
-	# hand back null - and every height query in the project would quietly
-	# answer zero rather than erroring. Wiring this in needs a shared base type
-	# for the seam, which is its own change; see [[Terrain]].
+	# The group is how everything else finds the ground. Safe to join now that
+	# `Lattice.terrain()` returns `TerrainSource` rather than the single-patch
+	# type - before that, a field found here failed the cast and handed back
+	# null, and every height query in the project would have quietly answered
+	# zero instead of erroring.
+	add_to_group("terrain")
 	_build()
 
 
@@ -186,10 +182,6 @@ func world_height_at(world_x: float, world_z: float) -> float:
 	if tile == null:
 		return 0.0
 	return tile.world_height_at(world_x, world_z)
-
-
-func world_surface_at(world_x: float, world_z: float) -> Vector3:
-	return Vector3(world_x, world_height_at(world_x, world_z), world_z)
 
 
 ## The whole field's footprint, world X/Z — the union of its tiles.

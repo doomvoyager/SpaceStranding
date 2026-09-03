@@ -56,6 +56,11 @@ func _ready() -> void:
 	_check_the_seam()
 	_check_tile_lookup()
 	_check_seams_are_continuous()
+	# Before the mirroring check, which adds a *second* field to the tree. Whose
+	# arrival correctly makes it the answer to "where is the ground" — and would
+	# make this check fail for a reason that is not a bug. `queue_free()` is
+	# deferred, so it is still there for the rest of this frame either way.
+	_check_the_lattice_finds_the_field()
 	_check_the_heightmap_mirrors()
 	_finish()
 
@@ -219,6 +224,45 @@ func _seam_vs_open(field: TerrainField, box: Rect2, reach: float) -> Array[float
 			open = maxf(open, absf(field.world_height_at(x, seam_z + TILE * 0.25 - reach)
 				- field.world_height_at(x, seam_z + TILE * 0.25 + reach)))
 	return [seam, open]
+
+
+## 5. The field has to be what `Lattice.terrain()` hands back.
+##
+## This is the whole point of `TerrainSource`: nine tiles standing where one
+## patch stood, without retyping every caller. Two ways it can go wrong and both
+## are silent:
+##
+##   * The cast fails and `terrain()` returns **null**, so every height query in
+##     the project answers zero. That was the state before the base type existed,
+##     which is why the field was kept out of the `terrain` group until now.
+##   * A **tile** answers instead of the field. Tiles are `TerrainSource` too and
+##     join the group in their own `_ready`, and the lookup keeps whichever
+##     arrived last — always a tile. Queries would then be answered by one
+##     4096 m corner of a 12 km world, correctly, for points nowhere near it.
+##
+## The second is the nastier one, and the assertion for it is not "did we get a
+## field" but "does the thing we got span the whole world".
+func _check_the_lattice_finds_the_field() -> void:
+	var found := Lattice.terrain()
+	if found == null:
+		_fail("Lattice.terrain() returned null with a field in the tree — "
+			+ "every height query in the project would answer zero")
+		return
+	if found != _field:
+		_fail("Lattice.terrain() returned %s, not the field itself" % found.name)
+	var box: Rect2 = found.extent()
+	var want := TILE * float(ACROSS)
+	if not is_equal_approx(box.size.x, want):
+		_fail("Lattice.terrain() spans %.0f m, not the field's %.0f — a tile is "
+			% [box.size.x, want]
+			+ "answering for the whole world")
+	# And the answer has to agree with the field's own, at a point deliberately
+	# outside the middle tile.
+	var far_x := box.position.x + TILE * 0.5
+	if not is_equal_approx(found.world_height_at(far_x, 0.0),
+			_field.world_height_at(far_x, 0.0)):
+		_fail("Lattice.terrain() and the field disagree about the ground at x=%.0f"
+			% far_x)
 
 
 func _finish() -> void:

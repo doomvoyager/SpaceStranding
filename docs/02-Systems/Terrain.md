@@ -238,11 +238,22 @@ Offsetting by the node's own position makes adjacent tiles contiguous in the
 noise domain and the field seamless by construction. A patch at the origin is
 unaffected, which is every existing test.
 
-**Not yet wired in.** `TerrainField` deliberately does not join the `terrain`
-group, because `Lattice.terrain()` is typed `-> ProceduralTerrain` and a field
-found there would fail the cast and hand back null - every height query in the
-project would quietly answer zero rather than erroring. Wiring it in wants a
-shared base type carrying the four seam methods, which is its own change.
+**Wired in through `TerrainSource`.** The seam started as a convention; it is a
+type now — `res://scripts/world/terrain_source.gd`, which both
+`ProceduralTerrain` and `TerrainField` extend and which `Lattice.terrain()`
+returns. Nine tiles stand where one patch stood and no caller was retyped except
+to name the base. `world_surface_at` lives there, since both implementations had
+the same one-line copy; everything else is a stub that **errors** rather than
+answering, because the alternative is a plausible zero and this project has
+already had "the ground is at height 0" pass every test.
+
+**A field is shadowed by its own tiles unless you stop it.** Tiles are
+`TerrainSource` too, they join the `terrain` group in their own `_ready`, and
+the lookup keeps whichever arrived last — which is always a tile. Every height
+query would then be answered by one 4096 m corner of a 12 km world, *correctly*,
+for points nowhere near it. `Lattice._is_tile()` walks the parent chain and
+skips anything under another terrain. Proved by removing it: `Lattice.terrain()`
+returns `Tile_2_2`, spanning 256 m of a 768 m field.
 
 ## float32 does not stand in the way of 12 km
 

@@ -167,7 +167,7 @@ signal scattered(placed: int)
 		rebuild = false
 		_build()
 
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _cells: Node3D
 ## [[near, far], ...] per variant. Rebuilt only when the variant set changes.
 var _meshes: Array = []
@@ -216,7 +216,7 @@ func _do_queued_rebuild() -> void:
 func _build() -> void:
 	if not is_inside_tree():
 		return
-	_terrain = get_node_or_null(terrain_path) as ProceduralTerrain
+	_terrain = get_node_or_null(terrain_path) as TerrainSource
 	if _terrain == null:
 		_clear()
 		return

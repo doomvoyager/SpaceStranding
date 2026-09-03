@@ -83,7 +83,7 @@ signal rebuilt
 
 var _image: Image
 var _texture: ImageTexture
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _queued := false
 ## Texels across. Kept so a sampler does not have to re-derive it.
 var _n := 0
@@ -212,5 +212,5 @@ func _surface_material() -> ShaderMaterial:
 ## Asked of the Lattice rather than looked up here: the terrain is not in a
 ## group in every scene, so finding it is a tree walk, and one copy of that is
 ## enough.
-func _find_terrain() -> ProceduralTerrain:
+func _find_terrain() -> TerrainSource:
 	return Lattice.terrain()

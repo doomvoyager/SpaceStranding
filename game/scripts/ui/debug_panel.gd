@@ -232,6 +232,22 @@ func _discover() -> Array[Target]:
 		t.deferred = true
 		out.append(t)
 
+	# The field is a separate target from its tiles. `_collect` matches on a
+	# class name, so a TerrainField would otherwise reach nobody — the trap this
+	# function's own note is about — while its nine children all turn up above
+	# as one "Terrain" group, which is what you want for resolution and relief.
+	# Layout is the field's, and only the field has it.
+	var field: Array = []
+	_collect(tree.current_scene if tree.current_scene != null else tree.root,
+		"TerrainField", field)
+	if not field.is_empty():
+		var t := Target.new()
+		t.title = "Terrain field — relays the whole grid, rebuilds on release"
+		t.sample = field[0]
+		t.nodes = field
+		t.deferred = true
+		out.append(t)
+
 	var scatter: Array = []
 	_collect(tree.current_scene if tree.current_scene != null else tree.root,
 		"RockScatter", scatter)

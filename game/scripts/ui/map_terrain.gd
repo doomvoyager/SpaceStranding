@@ -46,7 +46,7 @@ class_name MapTerrain
 ## than on a frame count.
 signal rebuilt
 
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _queued := false
 ## Patch extent the current mesh was built for, in metres.
 var _span := 0.0
