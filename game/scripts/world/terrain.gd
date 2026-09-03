@@ -78,6 +78,27 @@ const DEFAULT_HEIGHTMAP := "res://assets/terrain/world_01_height_2049.exr"
 		resolution = maxf(v, 0.5)
 		_queue_rebuild()
 
+@export_group("Tiling")
+## Mirror the map's X / Z when sampling it.
+##
+## **How nine tiles share one heightmap without a cliff between them.** A tile
+## and its mirrored neighbour meet on the *same* edge row of the master, so the
+## seam is continuous by construction rather than by luck. The crease is real -
+## slope flips across the join - but it reads as a ridge or a gully, not a wall,
+## and it costs nothing.
+##
+## Set by `TerrainField` from the tile's coordinates; exposed because a single
+## patch may want it too, and because a checkbox is easier to reason about than
+## a rule buried in the layout code.
+@export var map_flip_x := false:
+	set(v):
+		map_flip_x = v
+		_queue_rebuild()
+@export var map_flip_z := false:
+	set(v):
+		map_flip_z = v
+		_queue_rebuild()
+
 @export_group("Shape")
 ## Everything in this group applies to the Procedural source only.
 @export var height_scale := 48.0:
@@ -119,15 +140,17 @@ var _heights: PackedFloat32Array
 var _samples := 0
 var _rebuild_queued := false
 
-# Decoded heightmap, cached across rebuilds. Re-reading costs ~10 ms for the
-# pixels and ~150 ms for the range scan, which is a lot to pay on every drag of
-# a size slider. Keyed on the texture so swapping maps still refreshes.
-var _map_source: Texture2D
-var _map_data: PackedFloat32Array
-var _map_w := 0
-var _map_h := 0
-var _map_lo := 0.0
-var _map_hi := 1.0
+# Decoded heightmap, cached across rebuilds **and across instances**. Re-reading
+# costs ~10 ms for the pixels and ~150 ms for the range scan, which is a lot to
+# pay on every drag of a size slider - and with a 3x3 field it would be paid
+# nine times over, for nine copies of the same 15 MB buffer. `static` makes the
+# tiles share one decode. Keyed on the texture so swapping maps still refreshes.
+static var _map_source: Texture2D
+static var _map_data: PackedFloat32Array
+static var _map_w := 0
+static var _map_h := 0
+static var _map_lo := 0.0
+static var _map_hi := 1.0
 
 
 func _ready() -> void:
@@ -205,10 +228,17 @@ func _sample_heightmap() -> bool:
 	var step_x := float(_map_w - 1) / last
 	var step_z := float(_map_h - 1) / last
 
+	var last_x := float(_map_w - 1)
+	var last_z := float(_map_h - 1)
 	for z in _samples:
 		var fz := z * step_z
+		if map_flip_z:
+			fz = last_z - fz
 		for x in _samples:
-			var raw := _bilinear_map(x * step_x, fz)
+			var fx := x * step_x
+			if map_flip_x:
+				fx = last_x - fx
+			var raw := _bilinear_map(fx, fz)
 			_heights[z * _samples + x] = 				height_floor + (raw - _map_lo) * scale_to_metres
 	return true
 
@@ -285,10 +315,18 @@ func _generate_heights_procedural() -> void:
 	detail.frequency = 0.021
 	detail.fractal_octaves = 2
 
+	# **Sampled in world space, not patch space.** `x * resolution` alone starts
+	# every patch at noise coordinate zero, so nine tiles in a field are nine
+	# copies of the same hill with a cliff at every join. Offsetting by the
+	# node's own position makes adjacent tiles contiguous in the noise domain
+	# and the field seamless by construction - no mirroring needed on this
+	# path, unlike the heightmap. A patch at the origin is unaffected, which is
+	# every existing test.
+	var origin := global_position
 	for z in _samples:
 		for x in _samples:
-			var wx := x * resolution
-			var wz := z * resolution
+			var wx := origin.x + x * resolution
+			var wz := origin.z + z * resolution
 			var b := base.get_noise_2d(wx, wz)              # [-1, 1]
 			var r := ridged.get_noise_2d(wx, wz) * 0.5 + 0.5 # [0, 1]
 			var h := lerpf(b, r * 2.0 - 1.0, ridge_weight)

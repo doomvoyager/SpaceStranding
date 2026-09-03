@@ -11,12 +11,12 @@
 [ext_resource type="Script" uid="uid://d1rxyiogcibmy" path="res://scripts/world/rock_scatter.gd" id="9_m0ivj"]
 [ext_resource type="PackedScene" uid="uid://kgvmwms8r210" path="res://scenes/world/facility.tscn" id="10_facility"]
 [ext_resource type="PackedScene" path="res://scenes/ui/order_panel.tscn" id="11_panel"]
-[ext_resource type="PackedScene" path="res://scenes/ui/map_panel.tscn" id="16_map"]
 [ext_resource type="PackedScene" path="res://scenes/world/relay.tscn" id="12_relay"]
 [ext_resource type="Script" uid="uid://c4krw0ip6kg7x" path="res://scripts/world/scanner.gd" id="13_scanner"]
-[ext_resource type="Script" path="res://scripts/world/spawn_point.gd" id="14_spawn"]
-[ext_resource type="Script" path="res://scripts/world/coverage_map.gd" id="15_coverage"]
-[ext_resource type="Script" path="res://scripts/world/route_marks.gd" id="17_marks"]
+[ext_resource type="Script" uid="uid://bn5p5x8f8yr6v" path="res://scripts/world/spawn_point.gd" id="14_spawn"]
+[ext_resource type="Script" uid="uid://cunrbhjlysnt8" path="res://scripts/world/coverage_map.gd" id="15_coverage"]
+[ext_resource type="PackedScene" path="res://scenes/ui/map_panel.tscn" id="16_map"]
+[ext_resource type="Script" uid="uid://bq1wrnp7w1d" path="res://scripts/world/route_marks.gd" id="17_marks"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_vesper"]
 sky_top_color = Color(0.07, 0.05, 0.07, 1)
@@ -112,25 +112,24 @@ light_color = Color(1, 0.32, 0.24, 1)
 light_energy = 8.0
 omni_range = 60.0
 
-[node name="Spawns" type="Node3D" parent="."]
+[node name="Spawns" type="Node3D" parent="." unique_id=1846280076]
 
-[node name="AstronautSpawn" type="Node3D" parent="Spawns"]
+[node name="AstronautSpawn" type="Node3D" parent="Spawns" unique_id=1998375827]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.287066, 0)
 script = ExtResource("14_spawn")
 spawn_id = "astronaut"
 ground_clearance = 1.2
 
-[node name="RoverSpawn" type="Node3D" parent="Spawns"]
+[node name="RoverSpawn" type="Node3D" parent="Spawns" unique_id=737906197]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.839805, 0)
 script = ExtResource("14_spawn")
 spawn_id = "rover"
 ground_clearance = 1.6
 
-[node name="BeaconSpawn" type="Node3D" parent="Spawns"]
+[node name="BeaconSpawn" type="Node3D" parent="Spawns" unique_id=1004645878]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.390732, -140)
 script = ExtResource("14_spawn")
 spawn_id = "beacon"
-ground_clearance = 0.0
 
 [node name="Astronaut" parent="." unique_id=2068191989 instance=ExtResource("3_astronaut")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -0.287066, 0)
@@ -197,15 +196,15 @@ owner_id = "105"
 value = 200.0
 deploys_as = ExtResource("12_relay")
 
-[node name="MapPanel" parent="." instance=ExtResource("16_map")]
+[node name="MapPanel" parent="." unique_id=1819846467 instance=ExtResource("16_map")]
 
 [node name="RockScatter" type="Node3D" parent="." unique_id=1492972975]
 script = ExtResource("9_m0ivj")
 
-[node name="CoverageMap" type="Node3D" parent="."]
+[node name="CoverageMap" type="Node3D" parent="." unique_id=1283102382]
 script = ExtResource("15_coverage")
 
-[node name="RouteMarks" type="Node3D" parent="."]
+[node name="RouteMarks" type="Node3D" parent="." unique_id=1139319046]
 script = ExtResource("17_marks")
 
 [node name="Scanner" type="Node3D" parent="." unique_id=1512253794]

@@ -215,6 +215,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_si
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_speedometer.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_terrain_field.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -431,6 +435,18 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   untestable headless, and `test_scanner.gd` switched its tag separation *off*
   on that assumption rather than measuring. Screen-space declutter is testable;
   `tests/probe_headless_unproject.gd`.
+- **"Is that join a cliff?" is not a question an absolute threshold can
+  answer.** A seam test asserting "no more than 0.25 m across a tile boundary"
+  failed at 18 m on ground where the same straddle in *open terrain* stepped
+  9.9 m - the number was measuring how rough the noise was, not whether the
+  tiles met. What separates a slope from a discontinuity is what happens when
+  you look closer: a slope's step shrinks in proportion to the straddle
+  (measured 19.1 / 4.78 / 1.195 / 0.119 m at 16 / 4 / 1 / 0.1 m, exactly
+  linear), a cliff does not move. Compare seam against open ground **at the
+  same small straddle** and the instrument calibrates itself against whatever
+  the terrain is doing. Same family as the jitter probe below: both times the
+  first draft measured the fixture instead of the thing.
+  `tests/test_terrain_field.tscn`.
 - **A resting `RigidBody3D` reports exactly zero velocity, because Jolt has
   put it to sleep.** So a probe measuring rest jitter measures *whether the
   body is asleep* - it read a flat `0.0` at every distance out to 40 km, which

@@ -205,6 +205,45 @@ engine/Godot_v4.7.1-stable_win64_console.exe --headless --path game res://tests/
 `probe_world_placement` reports where every spawned thing sits relative to the
 ground. It is the fastest way to catch a terrain change having buried something.
 
+## Nine tiles, before the art exists
+
+**Built 2026-09-03.** `TerrainField` (`res://scripts/world/terrain_field.gd`)
+lays out an N x N grid of `ProceduralTerrain` tiles and answers the seam on
+their behalf, so nothing downstream knows it is not one patch.
+
+Mac has one 8193² master, which covers 8192 m at native resolution - two tiles
+of the nine. Until the rest are authored, every tile samples the same master,
+**mirrored on alternate rows and columns**.
+
+**Mirrored, not stretched**, for two reasons that both outrank how it looks:
+
+- **Grades survive.** Stretching one 210 m master over 12,288 m keeps the relief
+  and triples the run, so every slope divides by three: the measured median 3
+  deg becomes 1 and the p99 17 becomes 6. A pancake - and it would invalidate
+  the drivability tuning the rover was re-seated against two days earlier.
+  Mirroring changes no slope anywhere.
+- **It keeps tile bugs loud.** Nine tiles sampling one *contiguous* stretched
+  map means a wrong tile index still produces plausible ground and the bug
+  hides. Nine discrete tiles means a wrong index is a visible discontinuity.
+
+Measured at a 0.1 m straddle: the mirrored heightmap seam steps **0.0000 m**
+against 0.1804 m in open ground - not merely continuous but exactly symmetric,
+since the two sides are mirror images. Unmirrored the same seam steps **27.75
+m**, which is what makes the assertion worth having.
+
+**The procedural path needed a separate fix and does not use mirroring at all.**
+It sampled noise at `x * resolution`, so every patch started at noise coordinate
+zero and nine tiles were nine copies of one hill with a cliff at every join.
+Offsetting by the node's own position makes adjacent tiles contiguous in the
+noise domain and the field seamless by construction. A patch at the origin is
+unaffected, which is every existing test.
+
+**Not yet wired in.** `TerrainField` deliberately does not join the `terrain`
+group, because `Lattice.terrain()` is typed `-> ProceduralTerrain` and a field
+found there would fail the cast and hand back null - every height query in the
+project would quietly answer zero rather than erroring. Wiring it in wants a
+shared base type carrying the four seam methods, which is its own change.
+
 ## float32 does not stand in the way of 12 km
 
 **Measured 2026-09-03**, before any tiling, because a failure here would have
