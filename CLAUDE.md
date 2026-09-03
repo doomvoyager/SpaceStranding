@@ -109,6 +109,11 @@ engine facts":
 engine/Godot.app/Contents/MacOS/Godot --headless --path game --import
 ```
 
+**Never pipe an `--import` into `head`.** The pipe closing kills Godot partway
+through, and a half-written `.import` is not an error you get told about - see
+the `.import` entry under "Verified engine facts". Redirect to a file and grep
+that.
+
 Run the regression tests - non-zero exit on failure:
 
 ```bash
@@ -219,6 +224,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_sp
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_terrain_field.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_astronaut_rig.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -275,6 +284,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/speedo_capture.tsc
 ```
 
 ```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/astronaut_capture.tscn
+```
+
+```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_sign_size.tscn
 ```
 
@@ -325,6 +338,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_p
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_float_precision.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_astronaut_clips.tscn
 ```
 
 Tests that touch project scripts must run **as a scene**, like the rover test
@@ -617,6 +634,33 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   at the *caller's* variable, with nothing naming the function that caused it.
   A `-> Variant` used to mean "or null" is the usual way in. Take the fallback
   as a parameter and return the real type instead - `Rover.ground_below()`.
+- **`advance_mode = ENABLED` on a state machine transition means "only via
+  `travel()`".** It reads like the opposite - the alternative is `DISABLED` - so
+  an `advance_condition` set beside it looks armed and is not. The condition is
+  evaluated by `AUTO` (2), and nothing warns: the transition loads, the condition
+  goes true every frame, and the machine sits in its start state forever. Cost
+  three "never reached" failures in `test_astronaut_rig.gd` that read exactly
+  like the conditions were being written to the wrong parameter path.
+- **`AnimationNodeStartState` and `AnimationNodeEndState` cannot be written into
+  a `.tscn`.** The state machine constructs its own, so a saved scene carries
+  only `states/Start/position` - naming a type for them fails with "Cannot get
+  class", which takes the *whole scene* down and, through a `preload`, the script
+  that referenced it. Hand-authoring an AnimationTree is otherwise
+  straightforward; this is the one thing the editor writes that you cannot.
+- **The FBX importer scales an unrigged mesh with a 100x node scale and leaves
+  the mesh's own AABB in raw file units.** So `mesh.get_aabb()` on an imported
+  character reports 2 *centimetres* for a 2 m figure, and the node transform is
+  where the truth is. A **skinned** mesh is worse: its AABB is the bind pose in
+  skin space and matches the rendered size not at all - measured, a correctly
+  standing 2.03 m astronaut whose mesh AABB reads 0.015 x 0.006 x 0.021 under an
+  identity transform. Judge an imported character's scale off the skeleton's bone
+  rests, or off a render against a metre stick. `tests/astronaut_capture.gd`.
+- **A hand-edited `.import` that Godot cannot parse is rewritten with values you
+  did not choose, silently.** A mangled `_subresources` block came back with
+  `fbx/importer` flipped from ufbx to FBX2glTF, which is not installed - and the
+  failure surfaces as "Failed loading resource", naming the *asset*. Nothing
+  mentions the setting that changed, and the asset had imported cleanly minutes
+  earlier. Diff the `.import` before believing the resource is at fault.
 - **Correcting a child node's global basis every frame compounds, because the
   correction lands back in the basis it was read from.** The rover camera hangs
   off the chassis and has to have the body's roll clamped out of it; writing a

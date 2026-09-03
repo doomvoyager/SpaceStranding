@@ -154,6 +154,15 @@ func _discover() -> Array[Target]:
 		t.nodes = [astronaut]
 		out.append(t)
 
+		var rigs: Array = []
+		_collect(astronaut, "AstronautRig", rigs)
+		if not rigs.is_empty():
+			var r := Target.new()
+			r.title = "Astronaut rig — cycle speeds and stride"
+			r.sample = rigs[0]
+			r.nodes = rigs
+			out.append(r)
+
 	var rover := tree.get_first_node_in_group("rover")
 	if rover != null:
 		var t := Target.new()

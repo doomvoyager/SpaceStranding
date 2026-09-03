@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-02
+verified: 2026-09-03
 godot: res://scripts/player/astronaut.gd
 tags: [system, traversal, core-loop]
 ---
@@ -150,6 +150,88 @@ press. Without that, a single `E` reaches both nodes in the same frame and you
 enter and immediately exit. Node order between the two is not guaranteed, so
 both sides guard.
 
+## The figure
+
+An authored suited astronaut on a 41-bone Mixamo skeleton, replacing the capsule
+and sphere it stood in as until 2026-09-03. `res://scenes/player/astronaut_rig.tscn`,
+driven by `res://scripts/player/astronaut_rig.gd`.
+
+Six files arrived. **`Idle_with_skin.fbx` is the one everything hangs off** - it
+is the only one carrying both a skin and a rig. The four skinless clips share a
+*byte-identical* skeleton in identical order, so their tracks already resolve
+against it and nothing is retargeted or remapped. `astronaut_01_noBackpack.fbx`
+is the same 37,235-vertex mesh with no rig; it is kept as the clean master and
+referenced by nothing.
+
+Each clip file imports as an **`AnimationLibrary`**, not a scene, and the slices
+in its `.import` are what give the clips their names. Nothing is copied into an
+authored resource, which is the point: a re-export changes the clip and there is
+no second copy left saying otherwise. The rig file imports with
+`animation/import=false` for the same reason - one place where animations live.
+
+### What the controller says, and what it does not
+
+`_animate()` reports three things once a physics frame: ground speed, whether we
+are on the floor, and vertical velocity. **It never names a clip.** Which
+animation that becomes is the state machine's business, so there is no second
+opinion about what the astronaut is doing.
+
+It is read *after* `move_and_slide()`, where velocity has stopped being what we
+asked for and become what actually happened - walking into a rock looks like
+standing against it rather than like walking.
+
+`vertical_speed` is passed rather than derived because stepping off a ledge and
+pushing off one are the same "airborne" to anything that only checks the floor.
+
+### The blend space is in the clips' own units
+
+The animations are **in-place** - the hips translate 0.000 m across every one of
+them - so nothing in the files says how fast the figure is meant to be moving.
+That number still exists as the stride the legs describe, and
+`tests/probe_astronaut_clips.gd` measures it: two steps to a cycle, widest toe
+separation over the cycle length. The walk travels at **2.06 m/s**, the run at
+**4.36 m/s**.
+
+The game's `walk_speed` is 3.2 and `sprint_speed` 6.4, which are 1.55x and 1.47x
+those - near enough the same multiple that **one number covers both**. The blend
+space is fed `speed / stride_scale` and played back at `stride_scale` (1.5), so
+the legs cover the ground the body actually crosses. Raise it and the feet drag;
+lower it and they skate. All three are `@export`, so they are on the F1 panel and
+the blend points are re-applied every frame from them.
+
+### The jump is three clips, and holds rather than loops
+
+`Jump.fbx` is one 2.167 s take covering crouch, launch, flight and recovery. The
+frames dividing those are a property of the animation, and were measured off the
+feet rather than eyeballed: takeoff f25, apex f31, touchdown f37 of 65 at 30 fps.
+
+**Low gravity is what decides the shape of the state machine here.** A 1.9 m jump
+at 3.34 m/s^2 hangs for about 2.1 s against an airborne phase of 0.4 s, so
+looping the air clip would cycle the legs five times and read as flailing. The
+slices are therefore **non-looping**: a finished `AnimationNodeAnimation` holds
+its last frame, so `jump` settles into the apex tuck and stays there for as long
+as the hang lasts. That reads as floating, which is what it should be.
+
+The crouch before f18 is dropped on purpose - the controller sets jump velocity
+on the key press, so the figure is already rising and a wind-up would play after
+the fact.
+
+States are `Ground` (a blend tree: the 1D locomotion blend into a time scale),
+`Jump`, `Fall` and `Land`, with `Land` releasing to `Ground` automatically at the
+end of its clip.
+
+### The model faces the wrong way, and that is handled once
+
+The mesh faces **+Z**; `_face_travel_direction` yaws the body so that **-Z** is
+forward. The rig node carries a 180 degree correction to meet it.
+
+Measured off the rig's own ankle-to-toe vector, (0.18, 0, 0.98), rather than
+eyeballed - and asserted in `tests/test_astronaut_rig.gd`, because getting it
+wrong makes the astronaut moonwalk, which reads as inverted *movement*. The
+tempting fix - flipping the controller's `atan2` - would leave camera-relative
+movement genuinely backwards. Exactly the shape of the [[Rover]]'s
+`ENGINE_FORCE_SIGN` trap.
+
 ## Interactions
 
 [[Rover]] · [[Cargo]] · [[Flares]] · [[Orders]] · [[Scanner]]
@@ -161,3 +243,12 @@ both sides guard.
       reads it yet. #next
 - [ ] TODO: suit systems - O₂, thermal, dose - are a separate survival system
       and are not written. #next
+- [ ] TODO: the back rack sits at z = 0.78 m, tuned against a placeholder box
+      that no longer exists. The authored torso's back surface is around
+      z = 0.3, so a carried crate rides roughly 0.25 m clear of it - visible in
+      `previews/2026-09-03/astronaut-20_carrying_side.png`. Mac's call, since
+      it is a placement judgement rather than a bug. #next
+- [ ] TODO: the suit imports untextured - flat 0.906 grey at roughness 1.0. It
+      reads at mean luma 0.26-0.39 under the 5-degree star, so it is not the
+      black silhouette [[The-Planet]]'s lighting note would predict, but it has
+      no material of its own yet. Look work, and deliberately unspent. #next

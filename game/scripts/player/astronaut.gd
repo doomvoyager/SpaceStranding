@@ -64,6 +64,10 @@ class_name Astronaut
 @onready var _interact_zone: Area3D = $InteractZone
 @onready var _back_rack: CargoRack = $Body/CargoRack
 @onready var _drop_point: Marker3D = $Body/DropPoint
+## The animated figure. Fetched leniently because a test scene is entitled to
+## build an astronaut without one - the controller is what is under test there,
+## and a missing mesh should not be a crash.
+@onready var _rig: AstronautRig = get_node_or_null("Body/Rig") as AstronautRig
 
 var _time_since_grounded := 0.0
 var _mouse_captured := false
@@ -148,6 +152,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, ground_friction * delta)
 		velocity.z = move_toward(velocity.z, 0.0, ground_friction * delta)
 		move_and_slide()
+		_animate(delta)
 		return
 
 	if Input.is_action_just_pressed("jump") and _time_since_grounded <= coyote_time:
@@ -159,6 +164,20 @@ func _physics_process(delta: float) -> void:
 	_apply_horizontal_movement(delta, grounded)
 	move_and_slide()
 	_face_travel_direction(delta)
+	_animate(delta)
+
+
+## Hand the figure what it needs to animate itself, and nothing more: how fast
+## we are crossing the ground, whether we are on it, and which way we are going
+## vertically. Which clip that becomes is the rig's business - see [[Astronaut]].
+##
+## Read *after* move_and_slide, where velocity has stopped being what we asked
+## for and become what actually happened. Walking into a rock should look like
+## standing against it, not like walking.
+func _animate(delta: float) -> void:
+	if _rig == null:
+		return
+	_rig.drive(Vector2(velocity.x, velocity.z).length(), is_on_floor(), velocity.y, delta)
 
 
 func _apply_horizontal_movement(delta: float, grounded: bool) -> void:
@@ -786,6 +805,8 @@ func board_vehicle() -> void:
 	set_physics_process(false)
 	_camera.current = false
 	visible = false
+	if _rig != null:
+		_rig.set_animating(false)
 	# Stop colliding so the rover does not shove a ghost body around.
 	collision_layer = 0
 	collision_mask = 0
@@ -800,4 +821,6 @@ func disembark(at: Vector3) -> void:
 	collision_mask = 1
 	visible = true
 	_camera.current = true
+	if _rig != null:
+		_rig.set_animating(true)
 	set_physics_process(true)

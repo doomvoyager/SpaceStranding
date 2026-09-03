@@ -1,0 +1,120 @@
+[gd_scene load_steps=25 format=3 uid="uid://ba8xrig0astro"]
+
+[ext_resource type="Script" path="res://scripts/player/astronaut_rig.gd" id="1_rig"]
+[ext_resource type="PackedScene" uid="uid://cj45plqyokc1g" path="res://assets/characters/astronaut/Idle_with_skin.fbx" id="2_model"]
+[ext_resource type="AnimationLibrary" uid="uid://dpx3gae300jyt" path="res://assets/characters/astronaut/Idle.fbx" id="3_idle"]
+[ext_resource type="AnimationLibrary" uid="uid://dt5evg2dnvouo" path="res://assets/characters/astronaut/Standard_Walk.fbx" id="4_walk"]
+[ext_resource type="AnimationLibrary" uid="uid://b8wkqp1g0m2eg" path="res://assets/characters/astronaut/Standard_Run.fbx" id="5_run"]
+[ext_resource type="AnimationLibrary" uid="uid://csitgwarqvvbf" path="res://assets/characters/astronaut/Jump.fbx" id="6_jump"]
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_idle"]
+animation = &"idle/idle"
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_walk"]
+animation = &"walk/walk"
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_run"]
+animation = &"run/run"
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_jump"]
+animation = &"jump/jump"
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_fall"]
+animation = &"jump/fall"
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_land"]
+animation = &"jump/land"
+
+[sub_resource type="AnimationNodeBlendSpace1D" id="Blend_locomotion"]
+blend_point_0/node = SubResource("Anim_idle")
+blend_point_0/pos = 0.0
+blend_point_1/node = SubResource("Anim_walk")
+blend_point_1/pos = 2.06
+blend_point_2/node = SubResource("Anim_run")
+blend_point_2/pos = 4.36
+min_space = 0.0
+max_space = 4.36
+snap = 0.05
+value_label = "m/s (clip units)"
+
+[sub_resource type="AnimationNodeTimeScale" id="Time_stride"]
+
+[sub_resource type="AnimationNodeBlendTree" id="Tree_ground"]
+graph_offset = Vector2(-40, 20)
+nodes/Locomotion/node = SubResource("Blend_locomotion")
+nodes/Locomotion/position = Vector2(60, 100)
+nodes/Stride/node = SubResource("Time_stride")
+nodes/Stride/position = Vector2(360, 100)
+nodes/output/position = Vector2(600, 100)
+node_connections = ["output", 0, "Stride", "Stride", 0, "Locomotion"]
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="To_ground"]
+advance_mode = 2
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="Ground_jump"]
+xfade_time = 0.1
+advance_mode = 2
+advance_condition = &"rising"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="Ground_fall"]
+xfade_time = 0.15
+advance_mode = 2
+advance_condition = &"falling"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="Jump_fall"]
+xfade_time = 0.2
+advance_mode = 2
+advance_condition = &"falling"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="Jump_land"]
+xfade_time = 0.1
+advance_mode = 2
+advance_condition = &"grounded"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="Fall_land"]
+xfade_time = 0.1
+advance_mode = 2
+advance_condition = &"grounded"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="Land_ground"]
+switch_mode = 2
+xfade_time = 0.15
+advance_mode = 2
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="Land_jump"]
+xfade_time = 0.08
+advance_mode = 2
+advance_condition = &"rising"
+
+[sub_resource type="AnimationNodeStateMachine" id="Machine_root"]
+states/Ground/node = SubResource("Tree_ground")
+states/Ground/position = Vector2(340, 200)
+states/Jump/node = SubResource("Anim_jump")
+states/Jump/position = Vector2(600, 100)
+states/Land/node = SubResource("Anim_land")
+states/Land/position = Vector2(600, 300)
+states/Fall/node = SubResource("Anim_fall")
+states/Fall/position = Vector2(820, 200)
+states/Start/position = Vector2(120, 200)
+states/End/position = Vector2(1040, 200)
+transitions = ["Start", "Ground", SubResource("To_ground"), "Ground", "Jump", SubResource("Ground_jump"), "Ground", "Fall", SubResource("Ground_fall"), "Jump", "Fall", SubResource("Jump_fall"), "Jump", "Land", SubResource("Jump_land"), "Fall", "Land", SubResource("Fall_land"), "Land", "Ground", SubResource("Land_ground"), "Land", "Jump", SubResource("Land_jump")]
+
+[node name="Rig" type="Node3D"]
+script = ExtResource("1_rig")
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+transform = Transform3D(-1, 0, -8.7422777e-08, 0, 1, 0, 8.7422777e-08, 0, -1, 0, 0, 0)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+root_node = NodePath("../Model")
+libraries = {
+&"idle": ExtResource("3_idle"),
+&"jump": ExtResource("6_jump"),
+&"run": ExtResource("5_run"),
+&"walk": ExtResource("4_walk")
+}
+
+[node name="AnimationTree" type="AnimationTree" parent="."]
+root_node = NodePath("../Model")
+tree_root = SubResource("Machine_root")
+anim_player = NodePath("../AnimationPlayer")

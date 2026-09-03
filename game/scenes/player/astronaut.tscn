@@ -2,36 +2,11 @@
 
 [ext_resource type="Script" uid="uid://deboldmeqejbe" path="res://scripts/player/astronaut.gd" id="1_astronaut"]
 [ext_resource type="Script" uid="uid://dfpjydpesqij0" path="res://scripts/cargo/cargo_rack.gd" id="2_rack"]
+[ext_resource type="PackedScene" uid="uid://ba8xrig0astro" path="res://scenes/player/astronaut_rig.tscn" id="3_rig"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
-height = 1.8
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_torso"]
-radius = 0.36
-height = 1.15
-
-[sub_resource type="StandardMaterial3D" id="Material_suit"]
-albedo_color = Color(0.82, 0.8, 0.75, 1)
-metallic = 0.05
-roughness = 0.72
-
-[sub_resource type="SphereMesh" id="SphereMesh_helmet"]
-radius = 0.28
-height = 0.56
-
-[sub_resource type="StandardMaterial3D" id="Material_visor"]
-albedo_color = Color(0.06, 0.07, 0.09, 1)
-metallic = 0.9
-roughness = 0.12
-
-[sub_resource type="BoxMesh" id="BoxMesh_pack"]
-size = Vector3(0.52, 0.7, 0.28)
-
-[sub_resource type="StandardMaterial3D" id="Material_pack"]
-albedo_color = Color(0.42, 0.44, 0.46, 1)
-metallic = 0.35
-roughness = 0.55
+height = 2.0
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_interact"]
 radius = 3.5
@@ -40,25 +15,12 @@ radius = 3.5
 script = ExtResource("1_astronaut")
 
 [node name="Collision" type="CollisionShape3D" parent="." unique_id=956347150]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 shape = SubResource("CapsuleShape3D_body")
 
 [node name="Body" type="Node3D" parent="." unique_id=871382362]
 
-[node name="Torso" type="MeshInstance3D" parent="Body" unique_id=10013634]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
-mesh = SubResource("CapsuleMesh_torso")
-surface_material_override/0 = SubResource("Material_suit")
-
-[node name="Helmet" type="MeshInstance3D" parent="Body" unique_id=1662358487]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.66, 0)
-mesh = SubResource("SphereMesh_helmet")
-surface_material_override/0 = SubResource("Material_visor")
-
-[node name="Pack" type="MeshInstance3D" parent="Body" unique_id=332121873]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0.32)
-mesh = SubResource("BoxMesh_pack")
-surface_material_override/0 = SubResource("Material_pack")
+[node name="Rig" parent="Body" instance=ExtResource("3_rig")]
 
 [node name="HeadLamp" type="SpotLight3D" parent="Body" unique_id=188112210]
 transform = Transform3D(1, 0, 0, 0, 0.98176897, 0.19007845, 0, -0.19007845, 0.98176897, 0, 1.66, -0.26175392)
