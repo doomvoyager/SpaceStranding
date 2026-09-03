@@ -655,6 +655,15 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   standing 2.03 m astronaut whose mesh AABB reads 0.015 x 0.006 x 0.021 under an
   identity transform. Judge an imported character's scale off the skeleton's bone
   rests, or off a render against a metre stick. `tests/astronaut_capture.gd`.
+- **One animation slice writes 256 slice slots into the `.import`.** Setting
+  `slices/amount` to 1 makes Godot serialise `slice_1` through `slice_256`,
+  empty ones included - 2,105 lines to say one clip is called "walk". It is
+  Godot's canonical output and it is **byte-stable across reimports**, so it
+  costs a big first diff and no churn afterwards. Do not hand-trim it: the next
+  import puts it straight back, and a `_subresources` block edited wrong is the
+  trap in the entry below. Slices are still worth it - they are the only way to
+  cut one take into phases, and they are what names a clip - but budget ~2k
+  lines per animation file that uses them.
 - **A hand-edited `.import` that Godot cannot parse is rewritten with values you
   did not choose, silently.** A mangled `_subresources` block came back with
   `fbx/importer` flipped from ufbx to FBX2glTF, which is not installed - and the
