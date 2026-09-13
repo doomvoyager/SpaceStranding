@@ -158,9 +158,6 @@ var _authored: Dictionary = {}
 var _dirty: Dictionary = {}
 ## Controls to refresh when a value changes underneath them.
 var _sync: Array[Callable] = []
-## The rover's wheels, for the readout's contact count. Taken from the wheel
-## target when the panel opens, so the readout never walks the tree per frame.
-var _wheels: Array = []
 var _restore_mouse := Input.MOUSE_MODE_CAPTURED
 
 var _project_button: Button
@@ -641,7 +638,6 @@ func _rebuild() -> void:
 	_sync.clear()
 	_sections.clear()
 	_cluster_labels.clear()
-	_wheels.clear()
 	# Removed before freeing, so a test counting rows straight after an open does
 	# not also count the last open's rows still waiting to be freed.
 	for child in _rows.get_children():
@@ -650,8 +646,6 @@ func _rebuild() -> void:
 
 	var cluster := ""
 	for target in _targets:
-		if target.title == "Rover wheels":
-			_wheels = target.nodes
 		var props := _properties_for(target)
 		if props.is_empty():
 			continue
@@ -1229,16 +1223,20 @@ func _readout_text() -> String:
 	var rover := get_tree().get_first_node_in_group("rover") as Rover
 	if rover == null:
 		return "\n".join(lines)
-	var speed := rover.linear_velocity.length()
-	var down := 0
-	for wheel in _wheels:
-		if is_instance_valid(wheel) and (wheel as VehicleWheel3D).is_in_contact():
-			down += 1
-	lines.append("rover %.1f m/s  (%.0f km/h)   %d/%d wheels down   tilt %.1f°" % [
-		speed, speed * 3.6, down, _wheels.size(),
+	# Over the ground, like the speedometer: a rover falling off a ledge is not
+	# going anywhere faster.
+	var speed := absf(rover.ground_speed())
+	var cap := rover.speed_cap()
+	lines.append("rover %.1f%s m/s  (%.0f km/h)   %d/%d wheels down   tilt %.1f°" % [
+		speed, " / %.1f" % cap if cap > 0.0 else "", speed * 3.6,
+		rover.wheels_down(), rover.wheel_count(),
 		rad_to_deg(rover.global_transform.basis.y.angle_to(Vector3.UP))])
+	# Sag beside mass because the two are easy to confuse: mass changes how the
+	# rover speeds up and stops, sag is what keeps a wheel on the ground, and
+	# only gravity and the springs move it.
 	var rack := rover.cargo_rack()
-	var load := "rack jolt %.1f m/s²" % rack.jolt()
+	var load := "%.0f kg   sag %.0f cm (%.0f%% of travel)   rack jolt %.1f m/s²" % [
+		rover.mass, rover.static_sag() * 100.0, rover.sag_fraction() * 100.0, rack.jolt()]
 	if not rack.is_empty():
 		load += "   worst crate %s" % Crate.label_for(rack.worst_condition())
 	lines.append(load)

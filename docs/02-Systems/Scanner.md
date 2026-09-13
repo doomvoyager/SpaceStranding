@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-02
+verified: 2026-09-13
 godot: res://scripts/world/scanner.gd
 godot: res://scripts/world/site_sign.gd
 tags: [system, traversal, ui]
@@ -185,26 +185,32 @@ with the wave and thins out with it rather than snapping on across the map.
 
 ## Green and red mean something
 
-`max_slope_deg` is **26**, and it was measured. `probe_rover_climb.tscn` puts the
+`max_slope_deg` is **25**, and it was measured. `probe_rover_climb.tscn` puts the
 loaded rover on slopes of known angle at full throttle and reports how far it
-gets up each in a fixed run, against the same run on the flat:
+gets up each in a fixed run, against the same run on the flat. Re-measured for
+the Moon on 2026-09-13, at 1.62 m/s^2 with the lunar drivetrain:
 
 | slope | up-slope in 5 s | vs flat |
 |---|---|---|
-| 0° | 37.0 m | 100% |
-| 8° | 31.8 m | 86% |
-| 16° | 25.9 m | 70% |
-| 24° | 19.6 m | 53% |
-| 32° | 14.0 m | 38% |
-| 40° | 8.9 m | 24% |
-| 48° | 3.3 m | 9% |
-| 56° | −5.6 m | slides backwards |
+| 0° | 14.0 m | 100% |
+| 8° | 12.6 m | 90% |
+| 16° | 10.6 m | 76% |
+| 24° | 7.4 m | 53% |
+| 32° | 3.7 m | 27% |
+| 40° | 0.2 m | 1% |
+| 48° | −3.0 m | slides backwards |
 
-**The rover does not stall** anywhere useful - it slows, smoothly, until 56°
-where it slides back down. So the threshold is where progress *halves*: 25.5°,
-rounded to 26. Red then promises "this will cost you half your speed or worse",
-which is the honest thing a slope colour can say. Anything else makes the scan a
-picture of steepness.
+**The rover does not stall** anywhere useful - it slows, smoothly, until it
+slides back down. So the threshold is where progress *halves*: 25.0°. Red then
+promises "this will cost you half your speed or worse", which is the honest
+thing a slope colour can say. Anything else makes the scan a picture of
+steepness.
+
+**The number belongs to a gravity and a drivetrain, and goes stale with either.**
+It was 25.5° at 0.34 g, was never re-run when the planet went to 0.55 g, and on
+the Moon it would have been 18° on the first drive force tried. The lunar drive
+force was chosen partly to bring it back - see [[Rover]]. The flat run is
+shorter than the old one because the rover is now governed at 4 m/s.
 
 Slope comes off the rendered normal in the fragment shader, so it accounts for
 whatever scale the terrain node is carrying - which matters, because the terrain

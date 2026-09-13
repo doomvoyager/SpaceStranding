@@ -29,11 +29,11 @@ rover and you on it, and a multi-stop route you draw by clicking the ground.
 ## It is a representation, not a screenshot
 
 **The map is its own mesh with its own shader**, not a camera pointed at the
-world. The world is lit by a red dwarf grazing the horizon through real fog; an
-aerial view of it is a dark red smear — technically the truth and useless as a
+world. The world is lit by a sun grazing the horizon; an aerial view of it is
+a dark smear with one bright edge — technically the truth and useless as a
 map. So `MapTerrain` builds a low-resolution mesh from `Terrain.height_at()`
 and draws it unshaded: elevation ramp, contour lines every 20 real metres, and
-a hillshade from a conventional map light rather than from `World.star_direction()`.
+a hillshade from a conventional map light rather than from `World.sun_direction()`.
 
 Heights come from the same heightfield the game drives on, so the map cannot
 drift from the ground. The mesh rebuilds on `Terrain.rebuilt`.

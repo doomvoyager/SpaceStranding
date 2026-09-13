@@ -2,7 +2,7 @@ shader_type spatial;
 // The map's terrain, not the world's.
 //
 // `render_mode unshaded` is the whole idea: a map is a *representation*, and
-// the world's lighting is a grazing red dwarf sitting on the horizon. Lit by
+// the world's lighting is a grazing sun sitting on the horizon. Lit by
 // that, an aerial view is a black page with one bright edge — technically the
 // truth and useless as a map. Everything here is computed instead, from a
 // hillshade direction chosen for legibility rather than for the fiction.
@@ -38,7 +38,7 @@ uniform vec4 contour_color : source_color = vec4(0.06, 0.07, 0.09, 0.55);
 
 group_uniforms hillshade;
 // A conventional map light: high and over the shoulder. Deliberately not
-// World.star_direction().
+// World.sun_direction().
 uniform vec3 shade_direction = vec3(-0.45, 0.82, -0.35);
 uniform float shade_strength : hint_range(0.0, 1.0) = 0.55;
 uniform float shade_ambient : hint_range(0.0, 1.0) = 0.45;

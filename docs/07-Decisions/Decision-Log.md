@@ -9,6 +9,95 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-13 - The rover is governed, and tuned in newtons
+
+Mac: more control over the rover, especially mass, and slower, so you have to
+drive carefully. Measured first - `tests/probe_rover_spec.tscn` at 5.39 and 1.62
+before any value moved - because the last gravity change broke the rover with
+every test green.
+
+**`empty_mass` is the mass to tune.** `refresh_load()` had always rewritten
+`mass` from a copy taken at `_ready`, so mass could not be tuned live at all. The
+scene's `mass` line is gone. Mass is not grip: `VehicleBody3D` scales springs and
+friction by it, so a heavier rover only speeds up and stops more slowly.
+
+**Drive and brakes are newtons, because the engine's own numbers are not.**
+`engine_force` goes whole to every driven wheel (1170 was 7,020 N), and `brake` is
+a per-wheel impulse per tick (8.7 m/s^2 at 60 Hz, 12.3 at 120). Both are now
+totals converted in `rover.gd`, verified as a pure refactor: the whole spec
+sheet came out identical but for the 120 Hz brake, which now matches 60.
+
+**A governor, at 4 m/s.** Nothing capped speed - there is no rolling resistance
+under power, and the old rover did 17 m/s on flat ground. Four is about the
+Apollo rover's pace, and at a sixth of the gravity it drives like 35 km/h over
+rough ground on Earth. **The cap is on the motors, not the rover**: a downhill can
+still carry it past, and holding it back is the brake's job. Rejected: a governor
+that brakes, which would make every descent safe by default.
+
+**The lunar values**, all first passes and all on F1:
+
+| | Was | Now | Why |
+|---|---|---|---|
+| Drive | 7,020 N | 2,000 N | Chosen on the climb: progress halves at 25°, where the scanner's red has always been. 1,200 was sluggish, not careful |
+| Brake | 9,360 N | 1,250 N | 5.8 m to stop from the cap, 7.1 loaded, against about 1 m |
+| Engine braking | 900 N | 300 N | Lift off at 4 m/s and roll on 24 m |
+| Wheel stiffness | 22 | 3 | Sag 9 cm, 28% of travel. At 22 the inside wheels lifted in every corner at 1.62 |
+| Damping | 1.6 / 2.2 | 0.5 / 0.7 | About a third and a half of critical |
+| Grip (`wheel_friction_slip`) | 6.0 | 1.25 | Chosen for steering: a 7-10 m circle at full lock |
+
+**Grip is set for the steering, and the forces for the rest.** `VehicleBody3D`
+caps straight-line force near 2 x slip x g but sideways grip near 0.65 x slip x
+g, so no single slip gives both a lunar stopping distance and usable steering.
+**Rejected before it was built: a traction model on top**, capping drive and
+brake at grip times weight. It was going to answer a reading of the source that
+said straight-line force is never grip-limited; a slip of 0.2 braked at 0.65
+m/s^2 whatever the brake, so the engine already does it.
+
+**Rejected: ride sag and damping ratios as the rover's inputs**, the way
+GrimdarkTank's tank derives its springs. It would have made the six wheels'
+stiffness and damping runtime outputs rather than values authored in the
+inspector - hard rule 3. The F1 readout shows the sag the wheels add up to
+instead.
+
+**Kept: the crate damage thresholds.** Absolute m/s^2, as decided at 0.55 g, and
+re-measured: a full-throttle run over broken ground peaks at 4.65 p99 against a
+floor of 12, and a loaded 7 m drop costs 0.6%. The soft springs take landings
+the old ones passed straight through.
+
+---
+
+## 2026-09-13 - The Moon is migrated: 1.62, vacuum, a white sun
+
+The code half of the entry below, the same day.
+
+**Gravity 1.62**, in `World` and `project.godot`. **`body_radius` is a tunable**
+rather than a constant, because the horizon is going to be built on it.
+
+**The atmosphere and the thermal axis are gone from `World`**, not zeroed. Nothing
+had ever read pressure, density or the three temperatures, and a vacuum has no
+values worth a slider.
+
+**The star is the sun**, in the API and in the scene: `sun_direction()`,
+`sun_color`, a node named `Sun`. **White, at the same 5.5 degrees**, which sits
+inside the polar band and keeps every look value that was chosen under the red
+star. `sun_energy` 0.46 matches the red star's luminance at 0.85, so the move
+changed the light's colour and not its level. Drawn at its real 0.53 degrees.
+
+**The sky is black and both fogs are off.** The scene's ambient went from blue,
+chosen against red light, to neutral grey. **Everything else about the look was
+left alone**, because it is Mac's: the terrain now reads purple - the pink colour
+bake under the materials' blue fill - and that is the first thing a look pass
+would touch.
+
+**Godot's default linear damping is zero now.** It was 0.1/s on every body, which
+is air drag: at 1.62 a falling body topped out at 16 m/s, and the speedometer
+test's 30 m drop landed just short of the speed it waits for.
+
+**The sun does not move.** Whether it holds still within a session and circles
+the horizon between them is still Mac's question, in [[The-Planet]].
+
+---
+
 ## 2026-09-13 - The Moon, at the south pole
 
 Mac moved the game off Vesper c: **Earth's Moon, realistic, 50-80 years from
@@ -54,8 +143,9 @@ and needs the curvature term: two 3 m masts see each other at 6.5 km.
 - a reason for "no GPS", since ESA and NASA are both building south-pole lunar
   navigation now.
 
-Migration has not started. Until it lands, the code and most notes still
-describe Vesper c; the work is queued `#next` in [[The-Planet]].
+Migration had not started when this was written. The code half landed the
+same day - see "The Moon is migrated" above; the fiction half is queued in
+[[The-Planet]].
 
 ---
 

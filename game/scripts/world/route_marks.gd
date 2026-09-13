@@ -106,7 +106,7 @@ func _build_reveal() -> void:
 	_line_material = StandardMaterial3D.new()
 	_line_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_line_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	# **Mixed, not added.** Adding a bright cyan over the terminator's pink
+	# **Mixed, not added.** Adding a bright cyan over the pink regolith
 	# ground comes out white — the same trap the scan dot had to learn, and the
 	# route line carries its colour for the same reason the dot does. Mixing
 	# keeps the hue at the cost of not glowing, which is the right trade for a

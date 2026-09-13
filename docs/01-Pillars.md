@@ -6,8 +6,14 @@ tags: [pillars]
 
 ## Pitch
 
-You are a **hauler** on a tidally locked exoplanet. A thin chain of settlements
-clings to the twilight band between a scorched dayside and a frozen nightside.
+> **The setting moved to the Moon on 2026-09-13** - the south polar rims,
+> realistic, 50-80 years from now. The facts below are updated; the wording of
+> the pitch, and the mystery in its last line, are Mac's to rewrite. See
+> [[The-Planet]].
+
+You are a **hauler** at the lunar south pole. A thin chain of settlements clings
+to the lit crater rims, between sunlight that barely sets and crater floors that
+have never seen it.
 The colony's supply chain is broken, its comms network is a handful of unlinked
 islands, and nobody is coming to help.
 
@@ -37,7 +43,8 @@ Written down so we don't drift.
    menu.
 4. **Hard sci-fi look.** Machined, bolted, insulated, worn. No glowing
    holograms without a stated in-world reason. See [[Visual-Direction]].
-5. **Silence is a feature.** 18 kPa carries sound, thinly. Use that.
+5. **Silence is a feature.** A vacuum carries no sound at all - what you hear
+   comes through the suit, the seat and the radio. Use that.
 
 ## Lineage, and where we diverge
 

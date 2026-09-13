@@ -1,9 +1,9 @@
 # Space Stranding
 
-A traversal-first, non-combat cargo-hauling game set on a tidally locked
-exoplanet. You drive a rover between settlements strung along the twilight band,
-haul cargo that behaves like cargo, extend a line-of-sight relay network, and
-find out what the planet is.
+A traversal-first, non-combat cargo-hauling game set at the lunar south pole,
+50-80 years from now. You drive a rover between settlements strung along the
+lit crater rims, haul cargo that behaves like cargo, and extend a line-of-sight
+relay network.
 
 Godot 4.7.1, third-person 3D, GDScript.
 
@@ -46,7 +46,8 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game --quit-after 120
 
 ## Status
 
-Traversal slice: procedural terrain, an astronaut controller tuned for 0.34 g,
-and a drivable six-wheel rover with enter/exit. Cargo, flares, the relay
-network and the mobile base are designed but not built - see the build-status
-table in [`docs/00-Index.md`](docs/00-Index.md).
+Traversal slice on the Moon's 1.62 m/s^2: authored terrain, the astronaut on
+foot, a governed six-wheel rover, cargo that takes damage, orders, and a
+line-of-sight relay network you raise by hand. Flares and the mobile base are
+designed but not built - see the build-status table in
+[`docs/00-Index.md`](docs/00-Index.md).

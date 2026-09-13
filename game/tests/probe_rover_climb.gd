@@ -73,8 +73,8 @@ func _ready() -> void:
 		_rover.cargo_rack().load_crate(crate)
 	_rover.refresh_load()
 
-	print("loaded rover: %.0f kg, %d crates, %.0f N engine"
-		% [_rover.mass, _rover.cargo_rack().count(), _rover.max_engine_force])
+	print("loaded rover: %.0f kg, %d crates, %.0f N drive"
+		% [_rover.mass, _rover.cargo_rack().count(), _rover.drive_force])
 	print("")
 	print("%8s %12s %10s %12s" % ["slope", "up-slope", "climbed", "vs flat"])
 	_next()

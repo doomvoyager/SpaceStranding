@@ -64,6 +64,10 @@ enum Owner {
 ## 7 m drop runs 54.6 at p99. Twelve still sits clear of everything ordinary,
 ## with less headroom than it had at 0.34 g but enough that a full-throttle
 ## run over the worst ground leaves the load pristine — verified, not assumed.
+##
+## Kept for the Moon on 2026-09-13, and re-measured there with the soft lunar
+## suspension: a parked loaded rover idles at 2.2, a full-throttle run over
+## broken ground peaks at 4.65 p99, and the same 7 m drop costs the load 0.6%.
 @export var jolt_floor := 12.0
 
 ## The jolt that would destroy a fragility-1 crate in one second of sustained
@@ -76,7 +80,8 @@ enum Owner {
 ## 0.34 g to 0.55 g: the threshold is in absolute m/s^2, and a heavier planet
 ## making a drop more expensive is the physics doing its job rather than a
 ## calibration going stale. The same 7 m drop of the loaded rover went from
-## costing roughly a tenth of the load's condition to costing 0.22.
+## costing roughly a tenth of the load's condition to costing 0.22. Left alone
+## for the Moon for the same reason.
 @export var jolt_ruin := 45.0
 
 @export_group("Deployment")
@@ -257,7 +262,7 @@ func release(world: Node, at: Transform3D) -> void:
 	collision_layer = _loose_layer
 	collision_mask = _loose_mask
 	freeze = false
-	# In 0.55 g a dropped crate still falls softly. Give it nothing extra.
+	# In low gravity a dropped crate still falls softly. Give it nothing extra.
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 	_meter.reset()

@@ -117,26 +117,30 @@ signal pinged(origin: Vector3)
 ##
 ## **Measured, not chosen.** `tests/probe_rover_climb.tscn` puts the loaded
 ## rover on slopes of known angle at full throttle and reports how far it gets
-## up each in a fixed run, against the same run on the flat:
+## up each in a fixed run, against the same run on the flat. Re-measured for the
+## Moon on 2026-09-13, at 1.62 m/s^2 with the lunar drivetrain (2000 N, capped
+## at 4 m/s):
 ##
 ## | slope | up-slope in 5 s | vs flat |
 ## |---|---|---|
-## | 0° | 37.0 m | 100% |
-## | 8° | 31.8 m | 86% |
-## | 16° | 25.9 m | 70% |
-## | 24° | 19.6 m | 53% |
-## | 32° | 14.0 m | 38% |
-## | 40° | 8.9 m | 24% |
-## | 48° | 3.3 m | 9% |
-## | 56° | −5.6 m | slides back |
+## | 0° | 14.0 m | 100% |
+## | 8° | 12.6 m | 90% |
+## | 16° | 10.6 m | 76% |
+## | 24° | 7.4 m | 53% |
+## | 32° | 3.7 m | 27% |
+## | 40° | 0.2 m | 1% |
+## | 48° | −3.0 m | slides back |
 ##
-## The rover does not *stall* anywhere useful — it slows, smoothly, until 56°
-## where it slides backwards. So the threshold is where progress **halves**:
-## 25.5°, rounded to 26. Red then means "this will cost you half your speed or
-## worse", which is the honest thing a slope colour can promise. Any other
-## number makes the scan a picture of steepness rather than an answer to "can I
-## drive that".
-@export_range(5.0, 60.0, 0.5) var max_slope_deg := 26.0:
+## The rover does not *stall* anywhere useful — it slows, smoothly, until it
+## slides backwards. So the threshold is where progress **halves**: 25.0°. Red
+## then means "this will cost you half your speed or worse", which is the honest
+## thing a slope colour can promise. Any other number makes the scan a picture
+## of steepness rather than an answer to "can I drive that".
+##
+## It depends on gravity and on the drivetrain, so it goes stale whenever either
+## moves: it was measured at 0.34 g, never re-run for 0.55 g, and the drive
+## force for the Moon was chosen partly to bring it back to where it had been.
+@export_range(5.0, 60.0, 0.5) var max_slope_deg := 25.0:
 	set(v):
 		max_slope_deg = v
 		_push()

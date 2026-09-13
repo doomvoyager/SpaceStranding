@@ -3,8 +3,8 @@ class_name MapTerrain
 ## The map's own low-resolution copy of the terrain.
 ##
 ## **Not a camera pointed at the world.** A map is a representation, and the
-## world is lit by a red dwarf grazing the horizon through real fog — an aerial
-## shot of it is a dark red smear. So this is a separate mesh at map resolution
+## world is lit by a sun grazing the horizon — an aerial shot of it is a dark
+## smear with one bright edge. So this is a separate mesh at map resolution
 ## with a map material: elevation ramp, hillshade from a conventional direction,
 ## contour lines, and the coverage mask.
 ##

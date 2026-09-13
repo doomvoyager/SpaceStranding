@@ -1,5 +1,5 @@
 extends Node3D
-## Traversal-slice sandbox. Places the star, then drops the player and rover
+## Traversal-slice sandbox. Places the sun, then drops the player and rover
 ## onto whatever the terrain generator produced.
 ##
 ## **Nothing in here decides where anything goes any more.** The astronaut, the
@@ -19,7 +19,7 @@ extends Node3D
 @onready var _terrain: TerrainSource = $Terrain
 @onready var _astronaut: Astronaut = $Astronaut
 @onready var _rover: Rover = $Rover
-@onready var _star: DirectionalLight3D = $Star
+@onready var _sun: DirectionalLight3D = $Sun
 
 ## Where each spawn goes when the scene carries no marker for it — the literals
 ## this script used to hold, kept so a stripped-down test scene still works.
@@ -32,10 +32,10 @@ const FALLBACKS := {
 
 
 func _ready() -> void:
-	_align_star()
-	# The star is tunable at runtime from the debug panel, and its aim is baked
+	_align_sun()
+	# The sun is tunable at runtime from the debug panel, and its aim is baked
 	# into the light's transform rather than read every frame.
-	World.changed.connect(_align_star)
+	World.changed.connect(_align_sun)
 	_place_at_spawn(_astronaut, "astronaut")
 	_place_at_spawn(_rover, "rover")
 	_place_at_spawn($Beacon, "beacon")
@@ -96,15 +96,15 @@ func _settle_structures() -> void:
 				_place_on_ground(n, n.global_position, float(n.get("ground_clearance")))
 
 
-## Point the key light along the fixed star direction from World.
-func _align_star() -> void:
-	_star.look_at_from_position(
+## Point the key light along the sun direction from World.
+func _align_sun() -> void:
+	_sun.look_at_from_position(
 		Vector3(0.0, 400.0, 0.0),
-		Vector3(0.0, 400.0, 0.0) + World.star_direction(),
+		Vector3(0.0, 400.0, 0.0) + World.sun_direction(),
 		Vector3.UP
 	)
-	_star.light_color = World.star_color
-	_star.light_energy = World.star_energy
+	_sun.light_color = World.sun_color
+	_sun.light_energy = World.sun_energy
 
 
 ## Drop `node` onto the terrain at `at`, `clearance` metres above the surface.

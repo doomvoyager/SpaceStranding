@@ -18,25 +18,24 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/map_panel.tscn" id="16_map"]
 [ext_resource type="Script" uid="uid://bq1wrnp7w1d" path="res://scripts/world/route_marks.gd" id="17_marks"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_vesper"]
-sky_top_color = Color(0.07, 0.05, 0.07, 1)
-sky_horizon_color = Color(0.44, 0.19, 0.13, 1)
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_moon"]
+sky_top_color = Color(0, 0, 0, 1)
+sky_horizon_color = Color(0, 0, 0, 1)
 sky_curve = 0.11
-sky_energy_multiplier = 0.8
-ground_bottom_color = Color(0.09, 0.06, 0.05, 1)
-ground_horizon_color = Color(0.33, 0.16, 0.12, 1)
+ground_bottom_color = Color(0, 0, 0, 1)
+ground_horizon_color = Color(0, 0, 0, 1)
 ground_curve = 0.04
-sun_angle_max = 14.0
-sun_curve = 0.03
+sun_angle_max = 0.6
+sun_curve = 0.01
 
-[sub_resource type="Sky" id="Sky_vesper"]
-sky_material = SubResource("ProceduralSkyMaterial_vesper")
+[sub_resource type="Sky" id="Sky_moon"]
+sky_material = SubResource("ProceduralSkyMaterial_moon")
 
-[sub_resource type="Environment" id="Environment_vesper"]
+[sub_resource type="Environment" id="Environment_moon"]
 background_mode = 2
-sky = SubResource("Sky_vesper")
+sky = SubResource("Sky_moon")
 ambient_light_source = 3
-ambient_light_color = Color(0.318, 0.36969995, 0.6, 1)
+ambient_light_color = Color(0.45, 0.45, 0.47, 1)
 ambient_light_sky_contribution = 0.7
 ambient_light_energy = 0.55
 tonemap_mode = 3
@@ -48,13 +47,13 @@ glow_enabled = true
 glow_intensity = 0.5
 glow_strength = 0.04
 glow_bloom = 0.1
-fog_enabled = true
+fog_enabled = false
 fog_light_color = Color(0.72280014, 0.7002148, 0.87511814, 1)
 fog_light_energy = 0.44
 fog_sun_scatter = 0.16
 fog_density = 0.002
 fog_aerial_perspective = 0.378
-volumetric_fog_enabled = true
+volumetric_fog_enabled = false
 volumetric_fog_density = 0.005
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_beacon"]
@@ -74,13 +73,13 @@ script = ExtResource("1_world")
 [node name="PostprocessingEffects" parent="." unique_id=370119235 instance=ExtResource("2_f38oy")]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2058511155]
-environment = SubResource("Environment_vesper")
+environment = SubResource("Environment_moon")
 
-[node name="Star" type="DirectionalLight3D" parent="." unique_id=422264066]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=422264066]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 400, 0)
-light_color = Color(1, 0.42, 0.22, 1)
-light_energy = 0.85
-light_angular_distance = 1.2
+light_color = Color(1, 0.97, 0.92, 1)
+light_energy = 0.46
+light_angular_distance = 0.53
 shadow_enabled = true
 directional_shadow_split_1 = 0.06
 directional_shadow_split_2 = 0.16

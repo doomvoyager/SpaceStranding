@@ -31,8 +31,10 @@ Every item carries:
   [[Flares]]), pressure-sensitive, live samples, unstable. *Not built.*
 
 Placement on the rover matters. High loads raise the centre of mass; uneven
-loads pull the vehicle in turns. In 0.55 g a badly balanced rover does not
-skid - it *tips*, slowly, with plenty of time to watch it happen.
+loads pull the vehicle in turns. Whether a badly balanced rover tips or slides
+is a tuning choice rather than a fact about low gravity - gravity cancels out
+of it, and the wheels' grip decides. On the lunar tuning a loaded rover at full
+lock does neither: the front washes wide. See [[Rover]].
 
 Delivery pays on **condition**, not just arrival. *Built - see "Delivery".*
 

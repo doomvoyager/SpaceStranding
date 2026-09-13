@@ -12,12 +12,17 @@ everything else that makes it a *cargo* vehicle is not.
 
 ## Behaviour
 
-`VehicleBody3D`, six wheels, front pair steering, all six driven. Built today:
+`VehicleBody3D`, six wheels, front and middle pairs steering, all six driven.
+Tuned for the Moon on 2026-09-13 - see "Drivetrain, on the Moon". Built today:
 
-- Throttle, reverse, brake, engine braking
+- Throttle, reverse, brake, engine braking, all in newtons
+- **Parked with the brake on from the start of the level**, not only once
+  somebody has climbed out. Before 2026-09-13 an empty rover sat on a free
+  wheel and rolled 4.2 m down its slope in ten seconds on lunar grip
+- **A governor at 4 m/s** (1.5 in reverse) - nothing else limits speed
 - **Speed-sensitive steering with a dead band** - full lock below 5 m/s, falling
-  to 35% by 14 m/s. At just over half Earth's grip, full lock at speed puts you
-  on your roof; but the ramp has to *start* above manoeuvring speed. See below
+  to 35% by 14 m/s. Under the governor it only engages running downhill past
+  the cap; the ramp still has to *start* above manoeuvring speed. See below
 - Slow hydraulic steering rate (1.6 rad/s), so it never darts
 - Centre of mass dropped to −0.35 to resist rolling on side slopes
 - Enter/exit with `E` / gamepad `A`, camera and input handover to and from the
@@ -46,7 +51,7 @@ both true at once, and `test_rover_controls.tscn` asserts that holding
 
 The decelerate pedal is a brake above `reverse_threshold` (0.6 m/s forward) and
 reverse below it. Applying reverse torque to wheels that are still rolling
-forward at just over half Earth's grip does not stop you - it just spins them.
+forward on low grip does not stop you - it just spins them.
 
 ## The steering dead band
 
@@ -218,10 +223,17 @@ pass and runs **windowed**.
 
 ## The load
 
-`mass` in the inspector is the **empty** rover. `refresh_load()` adds whatever
-is on the rack and recomputes the centre of mass as the mass-weighted blend of
-the empty chassis and the occupied slots, read from the slot markers themselves
-rather than from numbers in code.
+**`empty_mass` is the rover with nothing aboard, and the number to tune** - on
+F1 under Body, live. `refresh_load()` sets `mass` to it plus whatever is on the
+rack and recomputes the centre of mass as the mass-weighted blend of the empty
+chassis and the occupied slots, read from the slot markers themselves rather
+than from numbers in code. `mass` itself used to be the inspector value, and
+could not be tuned live: `refresh_load()` rewrote it from a copy taken at
+`_ready`. The scene no longer carries a `mass` line at all.
+
+Mass is not grip. `VehicleBody3D` multiplies each wheel's spring and friction by
+the chassis mass, so a heavier rover rides and grips the same and is only slower
+to speed up and to stop - the drive and brake forces are newtons.
 
 A full rack is +22% mass and lifts the centre of mass from −0.35 to about −0.10
 - which is the point. The low centre of mass exists to resist rolling on side
@@ -245,7 +257,86 @@ rover and asserts both axes. Re-run them rather than reasoning about it. See [[D
 
 [[Astronaut-Traversal]] · [[Cargo]] · [[Flares]] · [[Progression]]
 
-## Drivetrain, and what 0.55 g cost it
+## Drivetrain, on the Moon
+
+Retuned for 1.62 m/s^2 on 2026-09-13. Every number here comes from
+`tests/probe_rover_spec.tscn`, on flat ground, unless it says otherwise - run it
+with `--fixed-fps 60` and it takes a second.
+
+**What the Moon would have done to the old rover, and what it does now:**
+
+| | 5.39, old tuning | 1.62, old tuning | **1.62, lunar tuning** |
+|---|---|---|---|
+| Launch, empty | 6.25 m/s^2 | 3.06 m/s^2 | **1.74 m/s^2** (1.29 loaded) |
+| Speed after 3 s | 17.3 m/s | 8.2 m/s | **3.9 m/s, governed** |
+| Full brake from 4 m/s | 1.0 m | 1.7 m | **5.8 m** (7.1 m loaded) |
+| Coast from 4 m/s | 7 m | 7 m | **24 m** |
+| Sag | 4.1 cm, 13% of travel | 1.2 cm, 4% | **9 cm, 28%** |
+| Full lock, loaded | turns | inside wheels lift at every speed | **turns: 7 m circle at 2 m/s, 10 m at the cap** |
+| 0.5 m lip, loaded | stays down | 1.0 s with every wheel off at 5 m/s | **stays down at 4 m/s** |
+
+The old columns were measured with Godot's default linear damping of 0.1/s,
+which the Moon no longer has.
+
+**Two of `VehicleBody3D`'s numbers do not mean what they say.** Both measured:
+
+- **`engine_force` is given to every driven wheel.** The old 1170 was 7,020 N:
+  6.25 m/s^2 off the line against 7.39 predicted per wheel, 1.23 as a total.
+  `drive_force` is now a total, split across the driven wheels.
+- **`brake` is a per-wheel impulse per physics tick**, so the same number was a
+  stronger brake at a higher tick rate - 8.7 m/s^2 at 60 Hz, 12.3 at 120.
+  `brake_force` is newtons, converted each tick: 5.84 m at 60 Hz, 5.82 at 120.
+
+**Nothing capped the top speed.** There is no rolling resistance under power,
+so the old rover did 17 m/s on flat ground; the 6.5 m/s it used to reach was the
+terrain. Hence `top_speed`, a governor: full drive until the last
+`governor_band`, fading to nothing at the cap. It settles at 3.9. A downhill can
+still carry the rover past it - the cap is on the motors, and holding it back is
+the brake's job.
+
+**The springs were set for a heavier planet.** Sag is gravity over the summed
+stiffness and does not depend on mass - measured 4.3 cm against 4.1 predicted
+at 5.39. A wheel's whole margin is its sag, so at 1.62 on the old stiffness of
+22 the inside wheels left the ground in every corner while the body rolled less
+than two degrees. **Stiffness 3** gives 9 cm, 28% of travel; **damping 0.5 /
+0.7** puts it near 0.7 Hz at roughly a third and a half of critical damping:
+soft, and settled within a few seconds. All six wheels now
+stay down through a loaded full-lock turn and over a 0.5 m lip.
+
+**Grip is not the same in both directions, and that shaped everything else.**
+`VehicleBody3D` caps straight-line force at about twice `wheel_friction_slip`
+times gravity - at a slip of 0.2 the rover braked at 0.65 m/s^2 with 3,000 N of
+brake or 9,000 - but its sideways grip is nearer 0.6 to 0.7 of the slip times
+gravity, read off the turning circles. One slip cannot give both a lunar
+stopping distance and steering worth having. So **slip 1.25 is chosen for the
+steering**, and the stopping distance and the pull are set by `brake_force` and
+`drive_force`, which the grip cap sits well above.
+
+**Drive force was chosen on the climb, not the launch.** Loaded, at 1.62, capped
+at 4 m/s (`probe_rover_climb` and `probe_carrier_jolt`):
+
+| `drive_force` | Progress halves at | 10 s over broken ground | Jolt p99 |
+|---|---|---|---|
+| 1200 | 18.0° | 15 m, top 2.7 m/s | 2.9 |
+| 1600 | 21.3° | 24 m, top 3.2 m/s | 3.6 |
+| **2000** | **25.0°** | **26 m, top 3.4 m/s** | **4.7** |
+| 2400 | 28.7° | 27 m, top 3.5 m/s | 5.6 |
+
+1200 was sluggish, which is not the same thing as careful. **2000** brings the
+scanner's red ground back to where it has always been (25°, was 26) and covers
+nearly the old 29 m in ten seconds while held to the cap. Cargo came through
+every run pristine; a loaded 7 m drop now costs 0.6%, against 22% at 0.55 g,
+because the soft springs take the landing.
+
+**Brakes 1250 N, engine braking 300 N.** Stopping from the cap takes 5.8 m
+empty and 7.1 loaded, and letting go rolls on for 24 m. Momentum is the thing
+low gravity is about; a rover that stopped when you lifted off would hide it.
+
+**All of this is a first pass, measured and never driven.** Every number is on
+F1 under Body, Drivetrain and Brakes, and the wheels' grip and springs under
+Rover wheels. #playtest
+
+### Before the Moon: what 0.55 g cost it
 
 Grip scales with normal force, so a heavier planet is *kinder* to a vehicle in
 the corners - but the same weight costs more in rolling resistance and in
@@ -275,9 +366,8 @@ stretches. 1450 was rejected for scuffing cargo on an ordinary drive, which is
 the line between rough terrain and bad driving.
 
 `max_reverse_force` was scaled by the same 1.3 so the drivetrain keeps its
-shape. **Brakes were not touched and are not measured** - no probe stops the
-rover, and `max_brake_force` has been at 26 across both planets. Worth an
-instrument before anyone trusts it. #playtest
+shape. Brakes were not touched and were not measured then; the spec probe is the
+instrument that was missing.
 
 ## Behind a panel
 
@@ -379,13 +469,10 @@ checks the exit point is above ground with the rover inverted.
 
 ## Known issues
 
-- [ ] Suspension stiffness and friction slip were tuned by reasoning, never
-      against a human driving. Still provisional - but they are on sliders in
-      the F1 panel ([[Debug-Panel]]), including the six wheels' built-in
-      suspension and grip, so this is an evening of driving rather than a code
-      change per guess. **Engine force is no longer in this list**: the move to
-      0.55 g on 2026-09-02 broke it outright and it was re-seated against
-      `probe_carrier_jolt`, 900 -> 1170. See below. #playtest
+- [ ] The lunar tuning is measured on flat ground and on the carrier route, and
+      has never been driven by a human. Every number is on F1 - Body,
+      Drivetrain, Brakes, and the six wheels' springs and grip - so this is an
+      evening of driving rather than a code change per guess. #playtest
 - [ ] Wheels do not visually spin or steer - the meshes are static children.
 - [x] ~~No rollover recovery.~~ Built 2026-09-02 - see above.
 - [ ] The righting pivots about the chassis origin, so mid-roll the rover
@@ -402,18 +489,17 @@ checks the exit point is above ground with the rover inverted.
 
 ## Open
 
-- [ ] Tunable like GrimdarkTank's tank, and slower, for the Moon. Measure first:
-      a spec-sheet probe (top speed, stopping distance, climb, airtime, full-lock
-      rollover) at 5.39, then again at 1.62. Then on F1: an `empty_mass` export
-      (`refresh_load()` rewrites `mass` from a value captured at `_ready`, so
-      mass cannot be tuned live today), a top-speed governor (nothing caps speed
-      now, and a sixth of the gravity will make it *faster*), brakes as forces
-      rather than per-tick impulses, and ride sag / damping ratios. From Godot's
-      source and still to be probed: `max_engine_force` applies per driven wheel,
-      so 1170 is 7,020 N. Proposed 2026-09-13. #next
-- [ ] TODO: at the Moon, should a loaded rover tip first or slide first? Gravity
-      cancels out of that comparison - `wheel_friction_slip` decides it - so it
-      is a feel choice to make with sliders, not a physics fact. #playtest
+- [x] Tunable like GrimdarkTank's tank, and slower, for the Moon: the spec
+      probe at both gravities, `empty_mass`, a governor, drive and brakes in
+      newtons, and a lunar retune. Done 2026-09-13; see "Drivetrain, on the
+      Moon". Ride sag and damping *ratios* were left out - the wheels keep their
+      stiffness and damping in the inspector, and F1's readout shows the sag
+      they add up to. #now
+- [ ] TODO: tip first or slide first? On the lunar tuning a loaded rover at full
+      lock does neither: the front washes out and the circle widens, 7 m at
+      2 m/s to 10 m at the cap. Raising `wheel_friction_slip` trades that for a
+      tighter turn and, eventually, a roll. A feel choice to make with the
+      slider. #playtest
 - [ ] Since 702b214 the middle wheels steer by the front pair's angle from a
       different distance to the rear axle, so the two axles cannot share a
       turning centre and scrub each other through a turn. Whether that is felt

@@ -7,7 +7,9 @@ tags: [system, traversal, core-loop]
 
 # Astronaut traversal
 
-On-foot movement in 0.55 g. Complete for the traversal slice.
+On-foot movement, tuned at 0.55 g and not yet revisited for the Moon's 1.62 -
+where a 1.9 m jump now hangs for three seconds. Complete for the traversal
+slice.
 
 ## Behaviour
 
@@ -218,7 +220,8 @@ frames dividing those are a property of the animation, and were measured off the
 feet rather than eyeballed: takeoff f25, apex f31, touchdown f37 of 65 at 30 fps.
 
 **Low gravity is what decides the shape of the state machine here.** A 1.9 m jump
-at 3.34 m/s^2 hangs for about 2.1 s against an airborne phase of 0.4 s, so
+at 3.34 m/s^2 hangs for about 2.1 s - 3.1 s at the Moon's 1.62 - against an
+airborne phase of 0.4 s, so
 looping the air clip would cycle the legs five times and read as flailing. The
 slices are therefore **non-looping**: a finished `AnimationNodeAnimation` holds
 its last frame, so `jump` settles into the apex tuck and stays there for as long

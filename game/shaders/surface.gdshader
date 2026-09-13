@@ -20,11 +20,12 @@ shader_type spatial;
 // no banding, no hue-shifted shadows, no brush stamps, no `light()` at all -
 // scene ambient is replaced by a flat fill rather than reinterpreted.
 //
-// **Ambient is rolled by hand, and that is not a style choice.** Vesper c's sky
-// is nearly black — `sky_top_color` 0.07 over a 0.09 ground hemisphere — so
-// Godot's sky-sourced ambient contributes almost nothing, and the star sits 5°
-// above the horizon, which puts N·L at about 0.09 on flat ground. Delete the
-// fill term and the near ground renders **black**: measured, by capturing this
+// **Ambient is rolled by hand, and that is not a style choice.** The sky is
+// black - it was nearly black under Vesper c's red star, where this was
+// measured, and on the Moon it is black outright - so Godot's sky-sourced
+// ambient contributes nothing, and the sun sits 5.5° above the horizon, which
+// puts N·L at about 0.09 on flat ground. Delete the fill term and the near
+// ground renders **black**: measured, by capturing this
 // scene with and without it. Raising `ambient_light_energy` instead does not
 // work either. At 1.0-1.8 the environment's blue ambient turns red regolith
 // violet, and driving it from the sky at 3.0 leaves the foreground where it

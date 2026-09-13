@@ -1,9 +1,10 @@
 shader_type spatial;
 // A light pillar standing on a route stop.
 //
-// Additive and unshaded, because it is light in the air rather than a surface:
-// it has to read against the bright terminator sky and against dark nightward
-// ground without being lit by either.
+// Additive and unshaded, because it is a marker rather than a surface: it has
+// to read against a black sky and sunlit ground without being lit by either.
+// There is no air on the Moon for a real beam of light to show up in, so this
+// stands for something drawn for the driver - what draws it is Mac's to settle.
 //
 // `depth_draw_never` so two beams never punch holes in each other, and
 // `cull_disabled` because a billboard has no back worth hiding.

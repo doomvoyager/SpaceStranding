@@ -4,7 +4,7 @@ class_name SiteSign
 ## with it. See [[Scanner]].
 ##
 ## **It is a scan result, not scenery.** The sign used to hang there
-## permanently, big enough to read from across the Verge — which worked while
+## permanently, big enough to read from across the map — which worked while
 ## there were two facilities on an empty plain and stopped working the moment
 ## the world had things in it. A name burning over every site at all times is
 ## the map drawn on the world, and it flattens exactly the thing this game is

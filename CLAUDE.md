@@ -1,7 +1,7 @@
 # Space Stranding
 
-A traversal-first, non-combat cargo-hauling game set on a tidally locked
-exoplanet. Godot 4.7.1, third-person 3D, GDScript.
+A traversal-first, non-combat cargo-hauling game set at the lunar south pole,
+50-80 years from now. Godot 4.7.1, third-person 3D, GDScript.
 
 Death Stranding is the acknowledged parent. The divergences that have to carry
 their own weight are in `docs/01-Pillars.md`.
@@ -26,14 +26,14 @@ mechanics. Mac makes their own scene edits between sessions.
 
 4. **Planetary constants live in exactly one place.** `World`
    (`res://scripts/core/world_constants.gd`) is autoloaded. Never hardcode
-   gravity, pressure, or star direction anywhere else - retuning the planet has
-   to stay a one-file change. Project gravity is 5.39 m/s² in `project.godot`,
-   so every rigid body is low-g by default rather than by per-script correction.
-   (The Moon's 1.62 is decided but not migrated - see "Design decisions".)
+   gravity or the sun's direction anywhere else - retuning the world has to
+   stay a one-file change. Project gravity is the Moon's 1.62 m/s² in
+   `project.godot`, so every rigid body is low-g by default rather than by
+   per-script correction.
 
    They are **`@export var`, not `const`**, and named in snake_case, because the
    F1 panel retunes them while the game runs. Anything derived from one is a
-   *function* (`gravity_ratio()`, `horizon_distance()`, `star_direction()`),
+   *function* (`gravity_ratio()`, `horizon_distance()`, `sun_direction()`),
    never a stored copy, so nothing can go stale. Anything that caches a derived
    value listens to `World.changed`.
 
@@ -365,6 +365,14 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_e
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_panel_focus.tscn
 ```
 
+The rover's spec sheet - launch, brakes, coast, sag, full lock, a kicker - at
+any gravity, with any rover or wheel value overridden. `--fixed-fps 60` makes it
+take a second instead of two minutes, with identical output:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --fixed-fps 60 --path game res://tests/probe_rover_spec.tscn -- --gravity=1.62 --set=top_speed=4 --wheel=wheel_friction_slip=1.25
+```
+
 Tests that touch project scripts must run **as a scene**, like the rover test
 above, because those scripts reach for `World`.
 
@@ -506,7 +514,8 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   first principles; the arithmetic bound alone predicts trouble that Jolt and
   the renderer do not actually have. `tests/probe_far_render.tscn`.
 - **A 5-degree sun makes Lambert useless, and no ambient setting rescues it.**
-  Vesper c is tidally locked and the star sits ~5 deg above the horizon, so
+  At the lunar south pole the sun sits ~5 deg above the horizon - as Vesper c's
+  star did, where this was measured - so
   `N.L` on flat ground is about **0.09** - the terrain renders essentially
   black under ordinary diffuse lighting. Sky-sourced ambient cannot fix it
   because the sky is nearly black too (`sky_top_color` 0.07 over a 0.09 ground
@@ -515,7 +524,7 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   foreground is readable, and pure sky ambient at 3.0 leaves it where it
   started. What actually works is a flat fill multiplied by ALBEDO, which is
   why `surface.gdshader` keeps `render_mode ambient_light_disabled` and rolls
-  its own - not a style choice, a consequence of the star not moving. The
+  its own - not a style choice, a consequence of a sun that stays low. The
   deleted painterly shader got the same lift a second way, from `light_wrap`
   in its custom `light()`, which is worth knowing before concluding a scene
   has gone dark for some other reason. Sweeps in `previews/2026-09-03/`.
@@ -747,6 +756,43 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   comparing every export against a snapshot, also reported values *the game*
   had moved as tuning. Snapshot each object once, and count only keys the panel
   wrote. GrimdarkTank's panel shares the rebuild; see [[Debug-Panel]].
+- **`VehicleBody3D` gives every driven wheel the whole `engine_force`, and takes
+  `brake` as a per-wheel impulse per physics tick.** So `engine_force` 1170 on
+  six driven wheels is 7,020 N - measured 6.25 m/s^2 off the line against 7.39
+  per wheel and 1.23 as a total - and the same `brake` stops harder at a higher
+  tick rate: 8.7 m/s^2 at 60 Hz, 12.3 at 120. `rover.gd` takes newtons and
+  converts both; `tests/probe_rover_spec.tscn` prints the sheet.
+- **`VehicleBody3D`'s grip is not the same forwards and sideways.** Straight-line
+  force is capped at about twice `wheel_friction_slip` times gravity - at a slip
+  of 0.2 the rover braked at 0.65 m/s^2 with 3,000 N of brake or 9,000 - but
+  sideways grip is nearer 0.6 to 0.7 of the slip times gravity, read off the
+  turning circles. One slip cannot set a realistic stopping distance and usable
+  steering together; pick it for the steering and set the brake and drive
+  forces for the rest.
+- **A `VehicleBody3D`'s sag is gravity over its summed wheel stiffness, and does
+  not depend on mass.** The spring force is multiplied by the chassis mass.
+  Measured 4.3 cm against 4.1 predicted at 5.39, 9.6 against 9.0 at 1.62 on soft
+  springs. A wheel's whole margin before it leaves the ground is its sag, so a
+  stiffness set for one gravity lifts wheels at a lower one: at 1.62 on the old
+  stiffness the inside wheels left the ground in every corner while the body
+  rolled under two degrees.
+- **`get_physics_process_delta_time()` is 0 inside `_ready()`**, before the first
+  physics frame has run. Anything that turns a rate into a per-tick amount
+  there comes out as nothing: the rover's parking brake, converted from newtons
+  in `_ready`, was a brake of 0.000, and the empty rover rolled 4.2 m down its
+  slope in ten seconds. Fall back to `1.0 / Engine.physics_ticks_per_second`
+  when it reads zero - `Rover.brake_impulse()` does.
+- **Godot's default linear damping of 0.1/s is air drag**, applied to every body
+  that does not override it. Invisible at Earth-like gravity; at 1.62 it caps a
+  falling body at 16 m/s, and a rover dropped 30 m landed just under the 8 m/s
+  a test waited for. The Moon has `physics/3d/default_linear_damp=0.0`.
+- **Physics runs in real time under `--headless`, and `--fixed-fps 60` lifts
+  that with identical results.** A probe that waits on 3,600 physics frames
+  waits a real minute; the rover spec probe took two minutes and was killed
+  once by a watchdog. With `--fixed-fps 60` the same run takes about a second,
+  and its output diffed **byte-identical** against the real-time run. Use it for
+  probes. The tests still run in real time as documented; nobody has checked
+  that every one of them survives it.
 - **An `Area3D` only reports overlapping *bodies*, so anything the player must
   interact with has to be a body.** A facility terminal built as an `Area3D`
   is invisible to the astronaut's interact zone - not an error, just silence.
@@ -935,20 +981,20 @@ Do not relitigate without Mac raising them first. Reasoning is in
 `docs/07-Decisions/Decision-Log.md`.
 
 - **The game is set on Earth's Moon, at the south polar rims** - realistic,
-  50-80 years from now. Mac's call on 2026-09-13, replacing Vesper c. **Decided
-  but not migrated**: until the `#next` work in [[The-Planet]] lands, the code,
-  `World` and most notes still describe Vesper c, so read them as the old planet.
-  The bullets below that lean on tidal locking and the red dwarf are under
-  revision with it; the Decision-Log entry lists what is still Mac's to decide.
+  50-80 years from now. Mac's call on 2026-09-13, replacing Vesper c, and
+  migrated in code the same day: 1.62 m/s², vacuum, a white sun, a governed
+  rover. The fiction half - the Pillars pitch, [[Flares]], the [[Science]]
+  mystery - is still Vesper c's and queued in [[The-Planet]]; the Decision-Log
+  lists what is Mac's to decide.
 - **Godot, decided on Claude's ability to author content directly.** The costs -
   weaker terrain tooling, no Nanite/Lumen, float precision at map scale - were
   priced in. Never propose an engine switch as the fix for any of them.
 - **No combat.** The environment is the antagonist, and there is no BT
   analogue. Pressure is environmental; the pull is the `Science` mystery.
-- **The star never moves.** *Under revision with the Moon: at the pole the sun
-  circles the horizon at 0.5 deg an hour, and whether it holds still within a
-  session is open.* Tidal locking is load-bearing for the look, the
-  navigation, and the performance budget. The art-direction note is **frozen**
+- **The sun stays low, and does not move for now.** At the pole it circles the
+  horizon at 0.5 deg an hour instead of rising and setting; whether it holds
+  still within a session is Mac's open question. A low sun is load-bearing for
+  the look, the navigation, and the performance budget. The art-direction note is **frozen**
   as of 2026-09-03 - `docs/99-Archive/Visual-Direction.md`, moved out of the
   build tables at Mac's request while the style is still being developed. Do
   not build against anything in it, and do not spend on look work unasked.

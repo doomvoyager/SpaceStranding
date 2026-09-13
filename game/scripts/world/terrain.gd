@@ -489,7 +489,7 @@ func _resolve_material() -> Material:
 ## material is cleared or fails to load.
 func _fallback_material() -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	# Iron-rich dust under a red sun. Desaturated, not orange-cartoon.
+	# A plain stand-in colour, only ever seen if the surface material fails.
 	mat.albedo_color = Color(0.34, 0.24, 0.19)
 	mat.roughness = 0.94
 	mat.metallic = 0.0

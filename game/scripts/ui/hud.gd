@@ -273,8 +273,8 @@ func _tick_survey(delta: float) -> void:
 ## follow without opening anything.
 ##
 ## Bearing is relative to where the camera is looking rather than to north,
-## because there is no north on a tidally locked planet worth speaking of and
-## "20 degrees left" is the instruction you can actually act on.
+## because "20 degrees left" is the instruction you can actually act on - and
+## at the south pole, every direction is north.
 func _route_text() -> String:
 	if Route.is_empty():
 		return ""

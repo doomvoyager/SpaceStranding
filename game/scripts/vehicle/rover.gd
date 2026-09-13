@@ -2,10 +2,16 @@ extends VehicleBody3D
 class_name Rover
 ## Six-wheel pressurised hauler.
 ##
-## Low gravity is unkind to vehicles. Tyre grip scales with normal force, so at
-## 0.55 g the rover has roughly half the traction its mass suggests: it
-## accelerates poorly, brakes worse, and would rather tip than skid. We lean into
-## that rather than fighting it, and only compensate enough to keep it drivable.
+## Low gravity is unkind to vehicles. Grip scales with weight and momentum does
+## not, so the rover keeps all of its mass and loses most of what presses the
+## tyres down: it stops long, turns wide, and leaves the ground over crests. We
+## lean into that rather than fighting it, and only compensate enough to keep it
+## drivable.
+##
+## **Everything a driver feels is in physical units** - kilograms, newtons, m/s -
+## and converted here into what `VehicleBody3D` actually takes, because two of
+## its own numbers do not mean what they say. `tests/probe_rover_spec.tscn`
+## prints the sheet they add up to.
 
 ## Godot's VehicleBody3D pushes toward +Z on a positive engine_force, while our
 ## chassis faces -Z like every other node in the engine. Without this the rover
@@ -14,31 +20,86 @@ class_name Rover
 ## tests/probe_vehicle_axes.gd.
 const ENGINE_FORCE_SIGN := -1.0
 
-@export_group("Drivetrain")
-## Newtons at the wheels. Modest — this is a work vehicle, not a car.
+@export_group("Body")
+## Kilograms with nothing on the rack. **This is the mass to tune**: `mass`
+## itself is rewritten from it by `refresh_load()` whenever cargo moves, so a
+## `mass` typed into the inspector would be gone by the first frame.
 ##
-## Was 900 when the planet was 0.34 g. It does not survive the move to 0.55 g:
-## the extra weight costs more in rolling resistance and in climbing out of
-## undulations than the extra grip gives back, and ten seconds of full throttle
-## over broken ground fell from 4.7 m/s and 29 m to **1.9 m/s and 7 m** — a
-## hauler that can no longer haul. Bisected against the old figures with
-## tests/probe_carrier_jolt.tscn: 1170 restores the same 29 m with the load
-## still pristine, while 1450 covers 37 m and starts scuffing cargo on an
-## ordinary drive. Peak speed comes out livelier than it was (6.5 against 4.7)
-## because the added grip pays off on the clear stretches.
-@export var max_engine_force := 1170.0
-## Scaled with the engine by the same 1.3, so the drivetrain keeps its shape.
-## Unlike the forward figure this one is reasoned, not measured — no probe
-## drives the rover backwards.
-@export var max_reverse_force := 585.0
-@export var max_brake_force := 26.0
-## Passive drag when the throttle is released, in brake units.
-@export var engine_braking := 2.5
+## Heavier is slower to speed up and slower to stop - the drive and brake
+## forces below are newtons, not accelerations. It does *not* change ride height
+## or grip: `VehicleBody3D` multiplies each wheel's spring and friction by the
+## chassis mass, so both scale away. A rover that feels heavy needs the wheels'
+## stiffness and friction changed alongside this.
+@export_range(100.0, 5000.0, 1.0, "or_greater") var empty_mass := 950.0
+## Where the mass sits when the rack is empty. Low in the chassis, so the rover
+## resists rolling on side slopes — and so a loaded roof rack has something to
+## fight against.
+@export var empty_center_of_mass := Vector3(0.0, -0.35, 0.0)
+
+@export_group("Drivetrain")
+## Newtons, in total, shared between the driven wheels.
+##
+## **Not what `engine_force` means.** Godot gives *every* driven wheel the full
+## `engine_force`, so the old `max_engine_force` of 1170 was 7,020 N across six
+## wheels - measured at 6.25 m/s^2 off the line against 7.39 predicted per wheel
+## and 1.23 as a total. Split here, so adding or removing a driven wheel no
+## longer changes how hard the rover pulls.
+##
+## 2000 for the Moon, chosen on the climb rather than the launch. At 1200 the
+## loaded rover's progress halved on an 18 degree slope and ten seconds over
+## broken ground covered 15 m - sluggish, which is not the same thing as
+## careful. 2000 halves at 25 degrees, which is where the scanner's red ground
+## has always meant, and covers 26 m while still held to the cap. 2400 climbs
+## to 28.7 and starts to make the cap the only thing slowing it down.
+@export_range(0.0, 20000.0, 10.0, "or_greater") var drive_force := 2000.0
+## Newtons, in total, in reverse. Half the forward figure, as it always was.
+@export_range(0.0, 20000.0, 10.0, "or_greater") var reverse_force := 1000.0
+## m/s. The governor: the motors give full drive until the last `governor_band`
+## below this, then taper to nothing at it. 0 is no governor.
+##
+## **Nothing else limits top speed.** `VehicleBody3D` has no rolling resistance
+## under power and there is no air, so on flat ground the old tuning did
+## 17 m/s after three seconds; the 6.5 m/s the rover used to reach was the
+## terrain holding it back. A downhill can still carry it past this - the cap
+## is on what the motors deliver, and holding it there is the brake's job.
+##
+## 4 m/s, 14 km/h: about what the Apollo rover managed. At a sixth of Earth's
+## gravity a bump throws you at the speed it would at 0.4x the speed on Earth,
+## so 14 km/h here drives like 35 over rough ground at home.
+@export_range(0.0, 30.0, 0.1) var top_speed := 4.0
+## m/s in reverse, the same way. 0 is no governor.
+@export_range(0.0, 30.0, 0.1) var top_reverse_speed := 1.5
+## m/s over which the governor fades the drive out, so the rover settles at its
+## cap instead of hunting across it.
+@export_range(0.05, 5.0, 0.05) var governor_band := 1.0
 ## Below this forward speed (m/s), the decelerate input stops braking and starts
 ## reversing. Above it, holding LT or S slows you down instead of fighting the
-## wheels with reverse torque - which at just over half Earth's grip still
-## spins them.
+## wheels with reverse torque - which on low grip just spins them.
 @export var reverse_threshold := 0.6
+
+@export_group("Brakes")
+## Newtons, in total, on the full brake.
+##
+## **Not what `brake` means.** Godot takes `brake` as the most impulse each wheel
+## may apply *in one physics tick*, so the same number is a stronger brake at a
+## higher tick rate - measured stopping at 8.7 m/s^2 at 60 Hz and 12.3 at 120.
+## Converted every tick here, so this is the same brake at any rate. The old
+## `max_brake_force` of 26 was 9,360 N at 60 Hz.
+##
+## **This, not the tyres, is what sets the stopping distance** - on this rover.
+## `VehicleBody3D` does cap straight-line force by grip, at about twice
+## `wheel_friction_slip` times gravity, but at a slip picked for steering that
+## cap sits well above any brake worth having. 1250 stops the rover from its
+## 4 m/s cap in 5.8 m empty and 7.1 m loaded, against about a metre before.
+@export_range(0.0, 40000.0, 10.0, "or_greater") var brake_force := 1250.0
+## Newtons, in total, holding the rover back whenever the throttle is closed -
+## or once the governor has taken all of it. Was `engine_braking` 2.5, which was
+## 900 N at 60 Hz for the same reason as the brake.
+##
+## 300 for the Moon: let go at 4 m/s and the rover rolls on for 24 m. Momentum
+## is the whole point of low gravity, and a rover that stops when you lift off
+## would be hiding it.
+@export_range(0.0, 10000.0, 10.0, "or_greater") var engine_braking_force := 300.0
 
 @export_group("Steering")
 @export_range(0.0, 60.0) var max_steer_angle := 32.0
@@ -52,12 +113,6 @@ const ENGINE_FORCE_SIGN := -1.0
 ## By this speed (m/s) steering authority has fallen to the floor value below.
 @export var steer_falloff_speed := 14.0
 @export_range(0.1, 1.0) var steer_falloff_floor := 0.35
-
-@export_group("Load")
-## Where the mass sits when the rack is empty. Low in the chassis, so the rover
-## resists rolling on side slopes — and so a loaded roof rack has something to
-## fight against.
-@export var empty_center_of_mass := Vector3(0.0, -0.35, 0.0)
 
 @export_group("Brake light")
 ## The bar that lights up when the driver asks the rover to slow down.
@@ -178,8 +233,9 @@ var _righting_elapsed := 0.0
 var _righting_from := Transform3D.IDENTITY
 var _righting_to := Transform3D.IDENTITY
 var _steer_target := 0.0
-## Kerb mass, captured from the inspector value before any cargo is counted.
-var _empty_mass := 950.0
+## Every wheel, and how many of them are driven, for sharing the forces out.
+var _wheels: Array[VehicleWheel3D] = []
+var _driven := 0
 
 
 func _ready() -> void:
@@ -190,9 +246,17 @@ func _ready() -> void:
 	# to nothing and the camera ends up inside the rover.
 	_spring_arm.add_excluded_object(get_rid())
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
-	# `mass` in the inspector is the *empty* rover; cargo is added on top.
-	_empty_mass = mass
+	for child in get_children():
+		var wheel := child as VehicleWheel3D
+		if wheel != null:
+			_wheels.append(wheel)
+			if wheel.use_as_traction:
+				_driven += 1
 	refresh_load()
+	# Parked, the way `exit()` leaves it. Nothing set the brake until somebody
+	# climbed out, so a rover that started the level empty sat on a free wheel -
+	# and on lunar grip it rolled 4.2 m down its slope in the first ten seconds.
+	brake = brake_impulse(brake_force)
 	_setup_brake_light()
 	set_physics_process(false)
 
@@ -330,8 +394,9 @@ func _apply_steering(steer_input: float, delta: float) -> void:
 
 ## Fraction of full lock available at the current speed. Full below
 ## steer_falloff_start, ramping to steer_falloff_floor by steer_falloff_speed.
-## At speed, full lock in 0.55 g puts you on your roof - but manoeuvring speed
-## has to keep the lock, or parking and turning around feel broken.
+## At speed, full lock at 0.55 g could put you on your roof - but manoeuvring
+## speed has to keep the lock, or parking and turning around feel broken. On
+## the Moon's 4 m/s governor the falloff only engages running downhill past it.
 func steer_authority() -> float:
 	var speed := linear_velocity.length()
 	var span := maxf(steer_falloff_speed - steer_falloff_start, 0.001)
@@ -344,22 +409,97 @@ func _apply_drivetrain(throttle: float, braking: bool) -> void:
 
 	if braking:
 		engine_force = 0.0
-		brake = max_brake_force
+		brake = brake_impulse(brake_force)
 		return
 
 	if is_zero_approx(throttle):
-		engine_force = 0.0
-		brake = engine_braking
+		_coast()
 	elif throttle > 0.0:
-		engine_force = ENGINE_FORCE_SIGN * throttle * max_engine_force
-		brake = 0.0
+		_drive(throttle * _governor(forward_speed(), top_speed), drive_force)
 	elif forward_speed() > reverse_threshold:
 		# Still rolling forward: the decelerate pedal is a brake, not reverse.
 		engine_force = 0.0
-		brake = -throttle * max_brake_force
+		brake = brake_impulse(-throttle * brake_force)
 	else:
-		engine_force = ENGINE_FORCE_SIGN * throttle * max_reverse_force
-		brake = 0.0
+		_drive(throttle * _governor(-forward_speed(), top_reverse_speed), reverse_force)
+
+
+## Put `pedal` of `force` through the driven wheels. A pedal the governor has
+## taken all of is a closed throttle, so a rover sitting at its cap gets engine
+## braking rather than freewheeling.
+func _drive(pedal: float, force: float) -> void:
+	if is_zero_approx(pedal):
+		_coast()
+		return
+	# Godot hands every driven wheel the whole of `engine_force`.
+	engine_force = ENGINE_FORCE_SIGN * pedal * force / maxf(float(_driven), 1.0)
+	brake = 0.0
+
+
+func _coast() -> void:
+	engine_force = 0.0
+	brake = brake_impulse(engine_braking_force)
+
+
+## How much of the pedal the motors deliver at `speed` against a cap: all of it
+## until the last `governor_band`, then down to none at the cap. No cap, no limit.
+func _governor(speed: float, cap: float) -> float:
+	if cap <= 0.0:
+		return 1.0
+	return clampf((cap - speed) / maxf(governor_band, 0.01), 0.0, 1.0)
+
+
+## A braking force in newtons, as the per-wheel, per-tick impulse `brake` really
+## is. Public so a probe can say what the rover is actually being asked for.
+##
+## The tick is read from the physics step actually being taken, and from the
+## tick rate only before there has been one: `get_physics_process_delta_time()`
+## is **0 inside `_ready()`**, so the parking brake set there came out as no
+## brake at all, measured, and the empty rover still rolled.
+func brake_impulse(force: float) -> float:
+	var step := get_physics_process_delta_time()
+	if step <= 0.0:
+		step = 1.0 / float(Engine.physics_ticks_per_second)
+	return force * step / maxf(float(_wheels.size()), 1.0)
+
+
+## The governed top speed, m/s, or 0 with no governor. What the speedometer
+## should be compared against, rather than `top_speed` read directly, in case
+## something ever raises or lowers it.
+func speed_cap() -> float:
+	return top_speed
+
+
+## How far the suspension settles under the rover's own weight, in metres.
+##
+## `VehicleBody3D` multiplies every wheel's spring by the chassis mass, so this
+## is gravity over the summed stiffness and does not depend on mass at all. It
+## is also the whole margin a wheel has: a wheel sagging 1 cm leaves the ground
+## the moment the chassis lifts 1 cm on that side.
+func static_sag() -> float:
+	var stiffness := 0.0
+	for wheel in _wheels:
+		stiffness += wheel.suspension_stiffness
+	return World.surface_gravity / maxf(stiffness, 0.001)
+
+
+## `static_sag()` as a fraction of the wheels' travel.
+func sag_fraction() -> float:
+	if _wheels.is_empty():
+		return 0.0
+	return static_sag() / maxf(_wheels[0].suspension_travel, 0.001)
+
+
+func wheels_down() -> int:
+	var n := 0
+	for wheel in _wheels:
+		if wheel.is_in_contact():
+			n += 1
+	return n
+
+
+func wheel_count() -> int:
+	return _wheels.size()
 
 
 ## Speed along the rover's own forward axis. Negative while reversing.
@@ -386,7 +526,7 @@ func ground_speed() -> float:
 
 # --- Rollover recovery --------------------------------------------------
 #
-# In 0.55 g a flipped rover used to be permanent, and a loaded roof rack makes
+# In low gravity a flipped rover used to be permanent, and a loaded roof rack makes
 # flipping considerably easier - the load lifts the centre of mass from -0.35 to
 # about -0.10, which is exactly the margin the low mass was buying. So a flip
 # had to stop being a run-ending event without becoming a keypress.
@@ -623,15 +763,18 @@ func cargo_rack() -> CargoRack:
 ##
 ## Six crates is roughly +22% mass, and because they sit on the roof the centre
 ## of mass climbs toward them. Load one side only and it moves sideways too,
-## which at 0.55 g is the difference between a corner and a slow roll.
+## which in low gravity is the difference between a corner and a slow roll.
+##
+## Also what the F1 panel calls after any Rover slider, which is what makes
+## `empty_mass` retune live.
 func refresh_load() -> void:
 	var cargo := _rack.load_mass()
-	mass = _empty_mass + cargo
+	mass = empty_mass + cargo
 	if cargo <= 0.0:
 		center_of_mass = empty_center_of_mass
 		return
 	center_of_mass = (
-		_empty_mass * empty_center_of_mass + cargo * _rack.load_centroid()
+		empty_mass * empty_center_of_mass + cargo * _rack.load_centroid()
 	) / mass
 
 
@@ -686,7 +829,7 @@ func exit() -> void:
 	driver = null
 	set_physics_process(false)
 	engine_force = 0.0
-	brake = max_brake_force
+	brake = brake_impulse(brake_force)
 	steering = 0.0
 	# The parking brake is on, but nobody is on the pedal: a rover left parked
 	# with its brake light burning would be reporting a driver that has gone.

@@ -148,14 +148,25 @@ func _check_stick_does_not_drive() -> void:
 
 ## Holding decelerate while rolling forward must slow the rover down without
 ## snapping it into reverse.
+## The pedal has to be braking, which is a claim about the brake rather than
+## about a number of m/s: sized off the rover's own brake and engine braking,
+## so retuning either does not turn this into a test of the old tuning. It used
+## to demand a flat 1.0 m/s, which the lunar brake misses by four hundredths
+## while plainly braking. Half of what the brake alone should shed, and clearly
+## more than letting go would.
 func _check_decelerates_without_reversing() -> void:
 	var now := _rover.forward_speed()
 	var shed := _speed_before_brake - now
-	print("decelerate: %.2f -> %.2f m/s (shed %.2f)" % [_speed_before_brake, now, shed])
-	if shed < 1.0:
+	var seconds := float(BRAKE_FRAMES) / Engine.physics_ticks_per_second
+	var braking := _rover.brake_force / _rover.mass * seconds
+	var coasting := _rover.engine_braking_force / _rover.mass * seconds
+	var wanted := maxf(braking * 0.5, coasting * 1.5)
+	print("decelerate: %.2f -> %.2f m/s (shed %.2f; the brake alone should shed %.2f, coasting %.2f)"
+		% [_speed_before_brake, now, shed, braking, coasting])
+	if shed < wanted:
 		_failures.append(
-			"decelerate shed only %.2f m/s in %d frames; it is not braking"
-			% [shed, BRAKE_FRAMES]
+			"decelerate shed only %.2f m/s in %d frames, against %.2f wanted; it is not braking"
+			% [shed, BRAKE_FRAMES, wanted]
 		)
 	if now < -reverse_slack():
 		_failures.append(

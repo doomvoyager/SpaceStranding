@@ -7,6 +7,13 @@ tags: [system, hazard, core-loop]
 
 # Flares
 
+> **Written for Vesper c's red dwarf, and not yet rewritten for the Moon.** The
+> shape carries over - solar particle events are real, warned by the X-ray
+> flash ahead of the protons, and survivable - but two things below do not: the
+> source is the sun, and a storm arrives from much of the sky, so shelter is
+> *mass* rather than a shadow. The nightside refuge in particular has no lunar
+> equivalent. Queued in [[The-Planet]].
+
 The core environmental hazard, and the structural replacement for timefall.
 
 ## Behaviour

@@ -1,6 +1,7 @@
 extends CharacterBody3D
 class_name Astronaut
-## Third-person suited-astronaut controller tuned for 0.55 g.
+## Third-person suited-astronaut controller. Tuned at 0.55 g, and not yet
+## revisited for the Moon's 1.62, where the same jump hangs for three seconds.
 ##
 ## The low-gravity feel comes from three things, in order of importance:
 ##   1. Almost no air control. A jump is a commitment, not a steering input.
