@@ -18,17 +18,25 @@ const SETTLE := 90
 const FALL_FRAMES := 40
 ## Gravity to retune to mid-test, well away from the authored 5.39.
 const TEST_GRAVITY := 12.0
+## One wheel is authored off the others before the panel ever opens, so the six
+## wheels do not agree - the case where Reset has to hand each its own value.
+const ODD_WHEEL_SLIP := 4.5
 
 var _failures: Array[String] = []
 var _frames := 0
 var _authored_gravity := 0.0
 var _faller: RigidBody3D
 var _fall_start := 0.0
+## Each crate's jolt_floor before the broadcast write, by instance id.
+var _floors_before := {}
 
 
 func _ready() -> void:
 	add_child(WORLD.instantiate())
 	_authored_gravity = World.surface_gravity
+	var wheels := _wheels()
+	if wheels.size() >= 2:
+		wheels[wheels.size() - 1].wheel_friction_slip = ODD_WHEEL_SLIP
 
 
 func _physics_process(delta: float) -> void:
@@ -40,6 +48,9 @@ func _physics_process(delta: float) -> void:
 			_test_post_target()
 			_test_broadcast_write()
 			_test_reset()
+			_test_reset_restores_each_object()
+			_test_reopen_keeps_changes()
+			_test_game_state_is_not_a_change()
 			_test_gravity_reaches_physics_server()
 			_start_fall()
 		SETTLE + 1:
@@ -74,12 +85,13 @@ func _test_discovery() -> void:
 
 	_report_unreachable()
 
-	# Sliders, not just headers. Rows include labels, so count the ones that
-	# actually carry a control.
+	# Sliders, not just headers. Rows now sit folded inside sections, so count
+	# the ones that actually carry a control rather than the list's children.
 	var controls := 0
-	for row in Debug._rows.get_children():
-		if row is HBoxContainer:
-			controls += 1
+	for section in Debug._sections:
+		for row in section.body.get_children():
+			if row is HBoxContainer:
+				controls += 1
 	print("generated %d tunable rows" % controls)
 	_expect(controls >= 40,
 		"only %d tunable rows generated from ~50 exports; the reflection filter is dropping things"
@@ -124,6 +136,16 @@ func _test_subgroups_survive() -> void:
 	_expect(levelling == 3,
 		"%d of the 3 camera levelling knobs reached the panel" % levelling)
 
+	# A group that opens on an export the panel cannot draw keeps its heading.
+	# "Brake light" opens on a NodePath, and discarding the heading there filed
+	# its three rows under "Load".
+	var brake_heading := ""
+	for p in props:
+		if p["name"] == "brake_light_energy":
+			brake_heading = p["group"]
+	_expect(brake_heading == "Brake light",
+		"brake_light_energy sits under \"%s\", not \"Brake light\"" % brake_heading)
+
 
 ## The post stack is the second thing that is not a script variable: its
 ## tunables are shader uniforms on a ShaderMaterial. If the explicit-list path
@@ -151,12 +173,14 @@ func _test_post_target() -> void:
 # --- writing through one slider hits every object ----------------------
 
 func _test_broadcast_write() -> void:
-	var cargo = _target("Cargo")
+	var cargo = _target_named("Crates")
 	if cargo == null:
-		_expect(false, "no cargo target to test broadcast writes with")
+		_expect(false, "no Crates target to test broadcast writes with")
 		return
 	var crates := get_tree().get_nodes_in_group("cargo")
 	_expect(crates.size() >= 2, "only %d crates; broadcast is not being exercised" % crates.size())
+	for c in crates:
+		_floors_before[c.get_instance_id()] = c.jolt_floor
 
 	Debug._write(cargo, "jolt_floor", 33.0)
 	var missed := 0
@@ -173,7 +197,8 @@ func _test_reset() -> void:
 	var crates := get_tree().get_nodes_in_group("cargo")
 	var wrong := 0
 	for c in crates:
-		if not is_equal_approx(c.jolt_floor, 12.0):
+		var was: float = _floors_before.get(c.get_instance_id(), -1.0)
+		if not is_equal_approx(c.jolt_floor, was):
 			wrong += 1
 	_expect(wrong == 0,
 		"%d crates kept the tuned jolt_floor after Reset all" % wrong)
@@ -182,6 +207,111 @@ func _test_reset() -> void:
 	var changes := Debug._changes()
 	_expect(changes.is_empty(),
 		"Reset all left %d value(s) still reading as changed" % changes.size())
+
+
+## **Reset hands every object back ITS OWN value, not the sample's.** A target
+## reads from one object and writes to many, and the many do not have to agree:
+## the Recovered Mast is authored at value 200 among crates worth 0, and every
+## order crate is issued with its order's value, fragility and owner. Resetting
+## from the row's baseline wrote the sample's numbers to all of them while the
+## status line claimed the authored values were back. Same shape as
+## GrimdarkTank's D060; the wheels are the same bug waiting for axles to differ.
+func _test_reset_restores_each_object() -> void:
+	var cargo = _target_named("Crates")
+	var wheel_target = _target_named("Rover wheels")
+	if cargo == null or wheel_target == null:
+		_expect(false, "no Crates or Rover wheels target to test per-object Reset on")
+		return
+	var crates := get_tree().get_nodes_in_group("cargo")
+	var wheels := _wheels()
+
+	var values := {}
+	var owners := {}
+	var distinct := {}
+	for c in crates:
+		values[c.get_instance_id()] = c.value
+		owners[c.get_instance_id()] = c.cargo_owner
+		distinct[c.value] = true
+	var slips := {}
+	for w in wheels:
+		slips[w.get_instance_id()] = w.wheel_friction_slip
+	print("per-object reset: %d crates carrying %d distinct values, wheel slips %s"
+		% [crates.size(), distinct.size(), slips.values()])
+	_expect(distinct.size() >= 2,
+		"every crate is worth the same, so per-object Reset is not being exercised")
+
+	Debug._write(cargo, "value", 5.0)
+	Debug._write(cargo, "cargo_owner", Crate.Owner.NONE)
+	Debug._write(wheel_target, "wheel_friction_slip", 7.5)
+	Debug._reset_all()
+
+	var flattened := 0
+	for c in crates:
+		var id: int = c.get_instance_id()
+		if not is_equal_approx(c.value, values[id]) or c.cargo_owner != owners[id]:
+			flattened += 1
+	_expect(flattened == 0,
+		"Reset all gave %d of %d crates a value or owner that was not their own"
+		% [flattened, crates.size()])
+	var wrong_wheels := 0
+	for w in wheels:
+		if not is_equal_approx(w.wheel_friction_slip, slips[w.get_instance_id()]):
+			wrong_wheels += 1
+	_expect(wrong_wheels == 0,
+		"Reset all gave %d wheel(s) another wheel's friction slip" % wrong_wheels)
+
+
+## **A tweak survives closing and reopening the panel.** Opening rebuilds every
+## row, and the rows used to re-read "what was authored" as they were built -
+## so tune, close F1 to drive, reopen, and the tweak had become the baseline:
+## Copy changes and Save to project said nothing had changed, and Reset put
+## nothing back.
+func _test_reopen_keeps_changes() -> void:
+	var rover = _target_named("Rover")
+	if rover == null:
+		_expect(false, "no rover target to test reopening with")
+		return
+	var authored: float = rover.sample.max_steer_angle
+	Debug._write(rover, "max_steer_angle", authored + 9.0)
+	Debug.set_open(false)
+	Debug.set_open(true)
+	rover = _target_named("Rover")
+
+	var reported := false
+	for k: String in Debug._changes():
+		if k.ends_with("/max_steer_angle"):
+			reported = true
+	_expect(reported,
+		"a steering tweak stopped reading as a change after F1 was closed and reopened")
+
+	Debug._reset_all()
+	_expect(is_equal_approx(rover.sample.max_steer_angle, authored),
+		"after close, reopen and Reset all the rover steers %.1f deg, authored %.1f"
+		% [rover.sample.max_steer_angle, authored])
+
+
+## **What the GAME changes is not tuning.** A crate's owner moves when it is
+## delivered; that must never reach Copy changes or Save to project, and Reset
+## must not undo it. Only a value the panel itself wrote counts as a change.
+func _test_game_state_is_not_a_change() -> void:
+	var cargo = _target_named("Crates")
+	if cargo == null:
+		return
+	var crate: Crate = cargo.sample
+	var was := crate.fragility
+	crate.fragility = was + 0.75
+
+	var leaked := false
+	for k: String in Debug._changes():
+		if k.ends_with("/fragility"):
+			leaked = true
+	_expect(not leaked,
+		"a fragility the game set, not the panel, was reported as a tuning change")
+	Debug._reset_all()
+	_expect(is_equal_approx(crate.fragility, was + 0.75),
+		"Reset all undid a value the game had set (fragility %.2f -> %.2f)"
+		% [was + 0.75, crate.fragility])
+	crate.fragility = was
 
 
 # --- gravity is the one that has to reach the physics server -----------
@@ -235,6 +365,24 @@ func _target(fragment: String):
 
 func _has_target(fragment: String) -> bool:
 	return _target(fragment) != null
+
+
+## By exact title. "Cargo racks" and "Crates" both used to answer to "Cargo".
+func _target_named(title: String):
+	for t in Debug._targets:
+		if t.title == title:
+			return t
+	return null
+
+
+func _wheels() -> Array:
+	var out: Array = []
+	var rover := get_tree().get_first_node_in_group("rover")
+	if rover == null:
+		return out
+	for child in rover.find_children("*", "VehicleWheel3D", true, false):
+		out.append(child)
+	return out
 
 
 ## Everything in the scene carrying its own @export vars that no target covers.

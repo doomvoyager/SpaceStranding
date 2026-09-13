@@ -27,8 +27,9 @@ mechanics. Mac makes their own scene edits between sessions.
 4. **Planetary constants live in exactly one place.** `World`
    (`res://scripts/core/world_constants.gd`) is autoloaded. Never hardcode
    gravity, pressure, or star direction anywhere else - retuning the planet has
-   to stay a one-file change. Project gravity is 3.34 m/s² in `project.godot`,
+   to stay a one-file change. Project gravity is 5.39 m/s² in `project.godot`,
    so every rigid body is low-g by default rather than by per-script correction.
+   (The Moon's 1.62 is decided but not migrated - see "Design decisions".)
 
    They are **`@export var`, not `const`**, and named in snake_case, because the
    F1 panel retunes them while the game runs. Anything derived from one is a
@@ -228,6 +229,18 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_te
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_astronaut_rig.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_debug_panel_ui.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_typing_gate.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_route_bearing.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -346,6 +359,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_a
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_elbow_bend.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_panel_focus.tscn
 ```
 
 Tests that touch project scripts must run **as a scene**, like the rover test
@@ -711,6 +728,25 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   is not the basis being overwritten. `tests/test_camera_levelling.tscn` asserts
   no drift over 120 frames at a fixed attitude.
 
+- **A focused text field swallows a key as an event but not as a poll.** Typing
+  W into a focused `LineEdit` never reaches `_unhandled_input`, and
+  `Input.is_action_pressed("move_forward")` reads true all the same - so every
+  polled control (walking, jumping, the throttle) acts on whatever is typed into
+  a UI. `Astronaut.is_typing()` is the one answer, and the astronaut and rover
+  stand down on it. Measured alongside it, the reverse leak: **a focused `HSlider`
+  answers the left stick** (32.0 -> 31.92 over ten frames, through `ui_left`) and
+  a focused `Button` fires on **Enter** - twice for one tap - though not on Space.
+  So a panel used while playing gives focus to text fields and nothing else.
+  Hiding a `CanvasLayer` does release the focus of a field inside it. And a
+  focus audit must stay in its own `Window`: every `OptionButton`'s `PopupMenu`
+  carries an internal search `LineEdit` at `FOCUS_ALL`. `tests/probe_panel_focus.tscn`.
+- **An F1 panel that re-reads its baseline when it rebuilds forgets every tweak
+  across a close.** The rows are rebuilt on each open, so a baseline captured
+  while building them turns "tuned, closed, reopened" into "authored" - no change
+  reported, nothing for Save to project, nothing for Reset. The same panel,
+  comparing every export against a snapshot, also reported values *the game*
+  had moved as tuning. Snapshot each object once, and count only keys the panel
+  wrote. GrimdarkTank's panel shares the rebuild; see [[Debug-Panel]].
 - **An `Area3D` only reports overlapping *bodies*, so anything the player must
   interact with has to be a body.** A facility terminal built as an `Area3D`
   is invisible to the astronaut's interact zone - not an error, just silence.
@@ -898,12 +934,20 @@ mechanism - protect it.
 Do not relitigate without Mac raising them first. Reasoning is in
 `docs/07-Decisions/Decision-Log.md`.
 
+- **The game is set on Earth's Moon, at the south polar rims** - realistic,
+  50-80 years from now. Mac's call on 2026-09-13, replacing Vesper c. **Decided
+  but not migrated**: until the `#next` work in [[The-Planet]] lands, the code,
+  `World` and most notes still describe Vesper c, so read them as the old planet.
+  The bullets below that lean on tidal locking and the red dwarf are under
+  revision with it; the Decision-Log entry lists what is still Mac's to decide.
 - **Godot, decided on Claude's ability to author content directly.** The costs -
   weaker terrain tooling, no Nanite/Lumen, float precision at map scale - were
   priced in. Never propose an engine switch as the fix for any of them.
 - **No combat.** The environment is the antagonist, and there is no BT
   analogue. Pressure is environmental; the pull is the `Science` mystery.
-- **The star never moves.** Tidal locking is load-bearing for the look, the
+- **The star never moves.** *Under revision with the Moon: at the pole the sun
+  circles the horizon at 0.5 deg an hour, and whether it holds still within a
+  session is open.* Tidal locking is load-bearing for the look, the
   navigation, and the performance budget. The art-direction note is **frozen**
   as of 2026-09-03 - `docs/99-Archive/Visual-Direction.md`, moved out of the
   build tables at Mac's request while the style is still being developed. Do

@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-09-02
+verified: 2026-09-13
 godot: res://scripts/vehicle/rover.gd
 tags: [system, traversal, core-loop]
 ---
@@ -290,6 +290,12 @@ This did not exist before 2026-09-02. The order board is only reachable on
 foot at a terminal, so nothing could be opened while driving until [[The-Map]]
 got its own key.
 
+**It lets go the same way while a text field has the keyboard** - the F1
+panel's search box, or one of its value fields. The pedals are polled, and a
+focused field swallows W as an event while `drive_forward` still reads it
+held, so typing "wheel" opened the throttle. See `Astronaut.is_typing()` and
+`tests/test_typing_gate.tscn`. Added 2026-09-13.
+
 ## Rollover recovery
 
 In 0.55 g a flipped rover used to be permanent, and a loaded roof rack makes
@@ -396,5 +402,21 @@ checks the exit point is above ground with the rover inverted.
 
 ## Open
 
+- [ ] Tunable like GrimdarkTank's tank, and slower, for the Moon. Measure first:
+      a spec-sheet probe (top speed, stopping distance, climb, airtime, full-lock
+      rollover) at 5.39, then again at 1.62. Then on F1: an `empty_mass` export
+      (`refresh_load()` rewrites `mass` from a value captured at `_ready`, so
+      mass cannot be tuned live today), a top-speed governor (nothing caps speed
+      now, and a sixth of the gravity will make it *faster*), brakes as forces
+      rather than per-tick impulses, and ride sag / damping ratios. From Godot's
+      source and still to be probed: `max_engine_force` applies per driven wheel,
+      so 1170 is 7,020 N. Proposed 2026-09-13. #next
+- [ ] TODO: at the Moon, should a loaded rover tip first or slide first? Gravity
+      cancels out of that comparison - `wheel_friction_slip` decides it - so it
+      is a feel choice to make with sliders, not a physics fact. #playtest
+- [ ] Since 702b214 the middle wheels steer by the front pair's angle from a
+      different distance to the rear axle, so the two axles cannot share a
+      turning centre and scrub each other through a turn. Whether that is felt
+      at all is a driving question. #playtest
 - [ ] TODO: tracks or wheels for the upgrade path, and does it change the
       physics model or just the numbers? #question

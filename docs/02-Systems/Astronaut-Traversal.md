@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-03
+verified: 2026-09-13
 godot: res://scripts/player/astronaut.gd
 tags: [system, traversal, core-loop]
 ---
@@ -144,6 +144,18 @@ you got in. Anything asking where the player is has to go through here; the
 scanner had its own copy of that rule and the HUD's route bearing had a second
 one that was quietly wrong.
 
+**The root never turns, so it is not "where the player faces" either.** Looking
+turns `CamPivot` and walking turns `Body`; the astronaut's own root only ever
+takes the spawn heading. The route bearing's *facing* half read the root, and
+so gave directions relative to where the level started, on foot and driving -
+fixed 2026-09-13 by reading the camera on screen instead.
+
+**While a text field has the keyboard, the controls stand down.**
+`is_typing()` is true while any LineEdit or TextEdit has focus, and the hands-off
+branch of `_physics_process` - the one a panel already uses - takes it, as do the
+rover's pedals. A field swallows W as an event but the poll still reads it, so
+without this, typing into F1's search box walked the astronaut.
+
 Boarding sets a `_driving` flag that suppresses the astronaut's own look and
 interact handling, and both sides call `set_input_as_handled()` on the boarding
 press. Without that, a single `E` reaches both nodes in the same frame and you
@@ -286,6 +298,13 @@ movement genuinely backwards. Exactly the shape of the [[Rover]]'s
 
 ## Open
 
+- [ ] First person as well as third, on foot and in the rover, on one toggle
+      (V / D-pad up). Proposed 2026-09-13: an authored `Camera3D` per view so
+      each can be placed in the editor, the look yaw kept on `CamPivot` so
+      interaction aim does not change, the suit hidden from the eye by a render
+      layer (its shadow stays), `make_current()` only on a real change, and the
+      rover handing its heading over on exit. Needs Mac: the cab box is about
+      0.77 m deck to roof, too low for a seated eye. #next
 - [ ] TODO: balance and stumble under load, the way Death Stranding handles
       it. The two back slots now exist and carry real mass; nothing on foot
       reads it yet. #next

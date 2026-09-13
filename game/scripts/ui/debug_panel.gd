@@ -7,21 +7,27 @@ extends CanvasLayer
 ## a script declares. `@export_group` headers come through as group entries, and
 ## `@export_range` hints become the slider bounds.
 ##
-## That matters more than it sounds. There are around fifty tunables across
-## seven scripts today, and a hand-written panel would be wrong the first time
-## either of us added an `@export`. This one cannot drift: add an export, get a
-## slider. It also means the *editor* stays the place values are authored — the
-## panel is a way to find numbers while playing, not a second source of truth.
+## That matters more than it sounds. There are over two hundred rows across two
+## dozen systems, and a hand-written panel would be wrong the first time either
+## of us added an `@export`. This one cannot drift: add an export, get a slider.
 ##
 ## **Reflection covers the properties, not the targets.** Which objects appear is
 ## `_discover()`, and that is hand-written — so a new system with a dozen
-## perfectly good `@export`s shows up nowhere until someone adds it here. Three
+## perfectly good `@export`s shows up nowhere until someone adds it there. Three
 ## did exactly that on 2026-08-31 before anyone noticed. Adding a system is one
 ## `_collect` call and one Target; if it is an autoload, it has to be named
 ## directly, because nothing that walks the scene will ever find it.
-## Nothing here writes to a scene or to `project.godot`. "Copy changes" puts a
-## transcribable list on the clipboard; the inspector is still where a number
-## goes to be kept.
+##
+## **Sections fold, and a box searches all of them.** Ported from GrimdarkTank on
+## 2026-09-13: two hundred rows in one scroll was a list you hunted through, not
+## one you read. Every section starts folded under a short noun, sections sit
+## under a cluster heading for what gets judged together, and the fold state
+## survives closing the panel. See [[Debug-Panel]].
+##
+## **"Save to project" is the one thing here that writes files.** It rewrites the
+## line a value was already authored on and never inserts one. Two clicks: the
+## first shows exactly which lines will change, the second writes them. See
+## `tuning_writer.gd`.
 ##
 ## Autoloaded as `Debug`, so it exists in every scene including the look-dev
 ## captures, and no scene file had to be edited to host it.
@@ -44,12 +50,32 @@ const WHEEL_PROPERTIES: Array[String] = [
 	"wheel_radius", "wheel_rest_length",
 ]
 
+## The cluster headings, in the order they appear. Sections are grouped by what
+## gets judged together rather than by where the code lives: a rack's load
+## changes how the rover drives, and a crate's jolt thresholds are what the
+## suspension is being tuned against, so all four sit under Driving.
+const CLUSTER_DRIVING := "Driving"
+const CLUSTER_ON_FOOT := "On foot"
+const CLUSTER_WORLD := "World"
+const CLUSTER_NETWORK := "Network"
+const CLUSTER_TRIPS := "Orders and routes"
+const CLUSTER_INTERFACE := "Interface"
+
 
 ## One tunable group in the panel: where to read values from, and where writes
 ## go. Reading from a sample and writing to many is what lets "all crates" be a
-## single set of sliders rather than six identical copies.
+## single set of sliders rather than seven identical copies.
 class Target extends RefCounted:
+	## A short noun, and **stable**: it keys the fold state, the session file
+	## and every "was" the panel remembers. A count in it would reset all three
+	## the moment a crate spawned, which is why counts live in `hint`.
 	var title := ""
+	## What is worth knowing about the section - "rebuilds on release", "all 7".
+	## Shown as the first line when the section is open, as the header's
+	## tooltip, and searched along with the rows.
+	var hint := ""
+	## Which heading the section sits under.
+	var cluster := ""
 	var sample: Object = null
 	## When set, writes broadcast to every node in this group, re-queried at
 	## write time so crates that spawn later are not missed.
@@ -73,17 +99,68 @@ class Target extends RefCounted:
 		return nodes
 
 
+## One collapsible section: a target's header bar and the rows folded under it.
+##
+## The rows are built whether or not the section is open, because building them
+## is what registers their `_sync` callables and captures what each object was
+## authored with — a lazily-built section would not answer Reset or Save until
+## it had been looked at once, which is the sort of bug nobody would connect to
+## a fold arrow.
+class Section extends RefCounted:
+	var title := ""
+	var header: Button
+	var body: VBoxContainer
+	## Property rows only; headings and the hint line are not counted.
+	var total := 0
+	## Parallel to `body`'s children. True for a property row, false for a
+	## heading or the hint line.
+	var is_row: Array[bool] = []
+	## Lower-cased text each row is matched against: its own label plus the
+	## section and the headings above it, so "levelling" finds `tilt_follow`.
+	var haystacks: Array[String] = []
+
+
 var _open := false
 var _built := false
 var _root: PanelContainer
 var _rows: VBoxContainer
 var _readout: Label
 var _status: Label
+var _filter: LineEdit
 var _targets: Array[Target] = []
-## "Target title/property" -> value as first discovered, for Reset.
-var _baseline: Dictionary = {}
+var _sections: Array[Section] = []
+var _cluster_labels: Array[Label] = []
+## Section title -> folded open. Survives the `_rebuild()` that runs on every
+## open, so a section left open is still open next time. Not persisted to disk:
+## it is a reading position, not a setting.
+var _expanded: Dictionary = {}
+## "Target title/property" -> {instance id: the value that OBJECT had when the
+## panel first saw it}.
+##
+## Per object, because a target broadcasts to objects that do not have to
+## agree: the Recovered Mast is authored at value 200 among crates worth 0.
+## Resetting from one sample handed every crate the sample's value and owner
+## while the status line said the authored values were back. GrimdarkTank hit
+## the same thing as D060.
+##
+## **Captured once, not on every open.** Opening rebuilds every row, and the rows
+## used to re-read the baseline as they were built - so tune, close F1 to drive,
+## reopen, and the tweak had quietly become "authored": Copy changes and Save to
+## project reported nothing, and Reset put nothing back. Only Save to project
+## moves it now, because that is the moment the files agree with the sliders.
+var _authored: Dictionary = {}
+## Keys the panel itself has written since the last Reset or Save to project.
+##
+## **What the game changes is not tuning.** A crate's owner moves when it is
+## delivered; with every exported value compared against the snapshot, that
+## would read as a change, offer itself to Save to project, and be undone by
+## Reset. Only a value the panel wrote can be any of those things.
+var _dirty: Dictionary = {}
 ## Controls to refresh when a value changes underneath them.
 var _sync: Array[Callable] = []
+## The rover's wheels, for the readout's contact count. Taken from the wheel
+## target when the panel opens, so the readout never walks the tree per frame.
+var _wheels: Array = []
 var _restore_mouse := Input.MOUSE_MODE_CAPTURED
 
 var _project_button: Button
@@ -107,6 +184,19 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_debug"):
 		toggle()
 		get_viewport().set_input_as_handled()
+		return
+	# A click anywhere outside the panel hands the keyboard back. Without it a
+	# search you typed and walked away from keeps holding W, because the
+	# astronaut and the rover stand down while a text field has focus.
+	if _open and event is InputEventMouseButton and event.pressed:
+		var focus := get_viewport().gui_get_focus_owner()
+		if focus != null and _root.is_ancestor_of(focus) \
+				and not _root.get_global_rect().has_point(_root.get_global_mouse_position()):
+			focus.release_focus()
+
+
+func is_open() -> bool:
+	return _open
 
 
 func toggle() -> void:
@@ -125,6 +215,9 @@ func set_open(open: bool) -> void:
 		# Restore whatever the mouse was doing before, so opening the panel
 		# while already un-captured does not silently recapture on close.
 		Input.mouse_mode = _restore_mouse
+	# Hiding the layer also takes focus away from a field inside it - measured
+	# in tests/probe_panel_focus.tscn - so closing F1 always gives the keyboard
+	# back to the controls.
 	visible = _open
 
 
@@ -135,80 +228,81 @@ func _process(_delta: float) -> void:
 
 
 # --- discovery ----------------------------------------------------------
+##
+## Hand-written, and the one part of this panel that can silently miss a
+## system. If a new script's exports are not showing up, they belong here.
+## The order below is the order on screen.
 
 func _discover() -> Array[Target]:
 	var out: Array[Target] = []
 	var tree := get_tree()
+	var scene: Node = tree.current_scene if tree.current_scene != null else tree.root
 
-	var planet := Target.new()
-	planet.title = "Planet — retunes the world live"
-	planet.sample = World
-	planet.nodes = [World]
-	out.append(planet)
-
-	var astronaut := tree.get_first_node_in_group("player")
-	if astronaut != null:
-		var t := Target.new()
-		t.title = "Astronaut"
-		t.sample = astronaut
-		t.nodes = [astronaut]
-		out.append(t)
-
-		var rigs: Array = []
-		_collect(astronaut, "AstronautRig", rigs)
-		if not rigs.is_empty():
-			var r := Target.new()
-			r.title = "Astronaut rig — cycle speeds and stride"
-			r.sample = rigs[0]
-			r.nodes = rigs
-			out.append(r)
-
+	# --- Driving
 	var rover := tree.get_first_node_in_group("rover")
 	if rover != null:
-		var t := Target.new()
-		t.title = "Rover"
-		t.sample = rover
-		t.nodes = [rover]
+		var t := _target(CLUSTER_DRIVING, "Rover", "", [rover])
 		t.after_write = "refresh_load"
 		out.append(t)
 
 		var wheels: Array = []
 		_collect(rover, "VehicleWheel3D", wheels)
 		if not wheels.is_empty():
-			var w := Target.new()
-			w.title = "Rover wheels — all %d" % wheels.size()
-			w.sample = wheels[0]
-			w.nodes = wheels
+			var w := _target(CLUSTER_DRIVING, "Rover wheels",
+				"all %d; one value writes to every wheel" % wheels.size(), wheels)
 			w.allow = WHEEL_PROPERTIES
 			out.append(w)
 
+	var racks: Array = []
+	_collect(scene, "CargoRack", racks)
+	if not racks.is_empty():
+		out.append(_target(CLUSTER_DRIVING, "Cargo racks", "all %d" % racks.size(), racks))
+
 	var crates := tree.get_nodes_in_group("cargo")
 	if not crates.is_empty():
-		var t := Target.new()
-		t.title = "Cargo — all %d crates" % crates.size()
-		t.sample = crates[0]
-		t.group = "cargo"
+		out.append(_group_target(CLUSTER_DRIVING, "Crates",
+			"all %d; writes reach crates that spawn later" % crates.size(), "cargo"))
+
+	# --- On foot
+	var astronaut := tree.get_first_node_in_group("player")
+	if astronaut != null:
+		out.append(_target(CLUSTER_ON_FOOT, "Astronaut", "", [astronaut]))
+
+		var rigs: Array = []
+		_collect(astronaut, "AstronautRig", rigs)
+		if not rigs.is_empty():
+			out.append(_target(CLUSTER_ON_FOOT, "Astronaut rig",
+				"cycle speeds, stride and the elbow untwist", rigs))
+
+	# --- World
+	out.append(_target(CLUSTER_WORLD, "Planet", "retunes the world live", [World]))
+
+	var terrain: Array = []
+	_collect(scene, "ProceduralTerrain", terrain)
+	if not terrain.is_empty():
+		var t := _target(CLUSTER_WORLD, "Terrain", "rebuilds on release", terrain)
+		t.deferred = true
 		out.append(t)
 
-	var racks: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"CargoRack", racks)
-	if not racks.is_empty():
-		var t := Target.new()
-		t.title = "Cargo racks — all %d" % racks.size()
-		t.sample = racks[0]
-		t.nodes = racks
+	# The field is a separate target from its tiles. `_collect` matches on a
+	# class name, so a TerrainField would otherwise reach nobody — the trap this
+	# function's own note is about — while its nine children all turn up above
+	# as one "Terrain" group, which is what you want for resolution and relief.
+	# Layout is the field's, and only the field has it.
+	var field: Array = []
+	_collect(scene, "TerrainField", field)
+	if not field.is_empty():
+		var t := _target(CLUSTER_WORLD, "Terrain field",
+			"relays the whole grid; rebuilds on release", field)
+		t.deferred = true
 		out.append(t)
 
-	# Every pad, not the first one in the tree. With a pad per facility, a
-	# single-node target silently tunes one of them and leaves the rest alone —
-	# the same shape of bug the HUD's delivery receipt had.
-	var pads := tree.get_nodes_in_group("delivery")
-	if not pads.is_empty():
-		var t := Target.new()
-		t.title = "Delivery pads — all %d" % pads.size()
-		t.sample = pads[0]
-		t.group = "delivery"
+	var scatter: Array = []
+	_collect(scene, "RockScatter", scatter)
+	if not scatter.is_empty():
+		var t := _target(CLUSTER_WORLD, "Rock scatter",
+			"rebuilds on release; the distances retune live", scatter)
+		t.deferred = true
 		out.append(t)
 
 	# The post stack. Its tunables are shader uniforms on a material rather than
@@ -222,175 +316,119 @@ func _discover() -> Array[Target]:
 			var mat := rect.material as ShaderMaterial
 			if mat == null or mat.shader == null:
 				continue
-			var t := Target.new()
-			t.title = "Post — %s" % rect.name
-			t.sample = mat
-			t.nodes = [mat]
+			var t := _target(CLUSTER_WORLD, "Post (%s)" % rect.name,
+				"shader uniforms on the material", [mat])
 			t.allow = _uniform_names(mat)
 			if not t.allow.is_empty():
 				out.append(t)
 
-	var terrain: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"ProceduralTerrain", terrain)
-	if not terrain.is_empty():
-		var t := Target.new()
-		t.title = "Terrain — rebuilds on release"
-		t.sample = terrain[0]
-		t.nodes = terrain
-		t.deferred = true
-		out.append(t)
+	# --- Network
+	# The ledger autoloads, like World above. None is a node in the scene, so
+	# nothing that walks the tree would ever find them.
+	var lattice := _target(CLUSTER_NETWORK, "Lattice", "relinks on release", [Lattice])
+	lattice.deferred = true
+	lattice.after_write = "rebuild"
+	out.append(lattice)
 
-	# The field is a separate target from its tiles. `_collect` matches on a
-	# class name, so a TerrainField would otherwise reach nobody — the trap this
-	# function's own note is about — while its nine children all turn up above
-	# as one "Terrain" group, which is what you want for resolution and relief.
-	# Layout is the field's, and only the field has it.
-	var field: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"TerrainField", field)
-	if not field.is_empty():
-		var t := Target.new()
-		t.title = "Terrain field — relays the whole grid, rebuilds on release"
-		t.sample = field[0]
-		t.nodes = field
-		t.deferred = true
-		out.append(t)
-
-	var scatter: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"RockScatter", scatter)
-	if not scatter.is_empty():
-		var t := Target.new()
-		t.title = "Rock scatter — rebuilds on release"
-		t.sample = scatter[0]
-		t.nodes = scatter
-		t.deferred = true
-		out.append(t)
-
-	var cursors: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"PadCursor", cursors)
-	if not cursors.is_empty():
-		var t := Target.new()
-		t.title = "Pad cursor — open a panel to feel it"
-		t.sample = cursors[0]
-		t.nodes = cursors
-		out.append(t)
-
-	var marks: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"RouteMarks", marks)
-	if not marks.is_empty():
-		var t := Target.new()
-		t.title = "Route marks — the pillar and the scan reveal"
-		t.sample = marks[0]
-		t.nodes = marks
-		out.append(t)
-
-	var maps: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"MapPanel", maps)
-	if not maps.is_empty():
-		var t := Target.new()
-		t.title = "Map — M to open while tuning"
-		t.sample = maps[0]
-		t.nodes = maps
-		out.append(t)
-
-	var map_terrain: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"MapTerrain", map_terrain)
-	if not map_terrain.is_empty():
-		var t := Target.new()
-		t.title = "Map relief — rebuilds on release"
-		t.sample = map_terrain[0]
-		t.nodes = map_terrain
+	var relays := tree.get_nodes_in_group("relay")
+	if not relays.is_empty():
+		var t := _group_target(CLUSTER_NETWORK, "Relays",
+			"all %d; relinks on release" % relays.size(), "relay")
 		t.deferred = true
 		out.append(t)
 
 	var coverage: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"CoverageMap", coverage)
+	_collect(scene, "CoverageMap", coverage)
 	if not coverage.is_empty():
-		var t := Target.new()
-		t.title = "Coverage — the boundary on the ground"
-		t.sample = coverage[0]
-		t.nodes = coverage
+		var t := _target(CLUSTER_NETWORK, "Coverage",
+			"the boundary on the ground; rebuilds on release", coverage)
 		# Changing the mask resolution reallocates and repaints it, which is not
 		# something to do on every pixel of a slider drag.
 		t.deferred = true
 		out.append(t)
 
-	# Every sign, not the first one. Same shape as the pads above: a per-site
-	# node with a single-node target silently tunes one facility's sign and
-	# leaves the rest of the world alone.
+	var scanners: Array = []
+	_collect(scene, "Scanner", scanners)
+	if not scanners.is_empty():
+		out.append(_target(CLUSTER_NETWORK, "Scanner", "Q to ping while tuning", scanners))
+
+	# Every sign, not the first one. A per-site node with a single-node target
+	# silently tunes one facility's sign and leaves the rest of the world alone.
 	var signs := tree.get_nodes_in_group("site_sign")
 	if not signs.is_empty():
-		var t := Target.new()
-		t.title = "Site signs — all %d, Q to light them" % signs.size()
-		t.sample = signs[0]
-		t.group = "site_sign"
-		out.append(t)
+		out.append(_group_target(CLUSTER_NETWORK, "Site signs",
+			"all %d; Q to light them" % signs.size(), "site_sign"))
 
-	var scanners: Array = []
-	_collect(tree.current_scene if tree.current_scene != null else tree.root,
-		"Scanner", scanners)
-	if not scanners.is_empty():
-		var t := Target.new()
-		t.title = "Scanner — Q to ping while tuning"
-		t.sample = scanners[0]
-		t.nodes = scanners
-		out.append(t)
-
-	# The two ledger autoloads, like World above. Neither is a node in the
-	# scene, so nothing that walks the tree would ever find them.
-	var lattice := Target.new()
-	lattice.title = "Lattice — relinks on release"
-	lattice.sample = Lattice
-	lattice.nodes = [Lattice]
-	lattice.deferred = true
-	lattice.after_write = "rebuild"
-	out.append(lattice)
-
-	var route := Target.new()
-	route.title = "Route — the planned trip"
-	route.sample = Route
-	route.nodes = [Route]
-	out.append(route)
-
-	var orders := Target.new()
-	orders.title = "Orders — transfer timing"
-	orders.sample = Orders
-	orders.nodes = [Orders]
-	out.append(orders)
+	# --- Orders and routes
+	out.append(_target(CLUSTER_TRIPS, "Orders", "transfer timing", [Orders]))
 
 	var facilities := tree.get_nodes_in_group("facility")
 	if not facilities.is_empty():
-		var t := Target.new()
-		t.title = "Facilities — all %d" % facilities.size()
-		t.sample = facilities[0]
-		t.group = "facility"
-		out.append(t)
+		out.append(_group_target(CLUSTER_TRIPS, "Facilities",
+			"all %d" % facilities.size(), "facility"))
 
-	var relays := tree.get_nodes_in_group("relay")
-	if not relays.is_empty():
-		var t := Target.new()
-		t.title = "Relays — all %d, relinks on release" % relays.size()
-		t.sample = relays[0]
-		t.group = "relay"
+	# Every pad, not the first one in the tree. With a pad per facility, a
+	# single-node target silently tunes one of them and leaves the rest alone —
+	# the same shape of bug the HUD's delivery receipt had.
+	var pads := tree.get_nodes_in_group("delivery")
+	if not pads.is_empty():
+		out.append(_group_target(CLUSTER_TRIPS, "Delivery pads",
+			"all %d" % pads.size(), "delivery"))
+
+	out.append(_target(CLUSTER_TRIPS, "Route", "the planned trip", [Route]))
+
+	var marks: Array = []
+	_collect(scene, "RouteMarks", marks)
+	if not marks.is_empty():
+		out.append(_target(CLUSTER_TRIPS, "Route marks",
+			"the pillar and the scan reveal", marks))
+
+	var maps: Array = []
+	_collect(scene, "MapPanel", maps)
+	if not maps.is_empty():
+		out.append(_target(CLUSTER_TRIPS, "Map", "M to open while tuning", maps))
+
+	var map_terrain: Array = []
+	_collect(scene, "MapTerrain", map_terrain)
+	if not map_terrain.is_empty():
+		var t := _target(CLUSTER_TRIPS, "Map relief", "rebuilds on release", map_terrain)
 		t.deferred = true
 		out.append(t)
 
+	# --- Interface
 	var hud := tree.get_first_node_in_group("hud")
 	if hud != null:
-		var t := Target.new()
-		t.title = "HUD — the speedometer and the controls card"
-		t.sample = hud
-		t.nodes = [hud]
-		out.append(t)
+		out.append(_target(CLUSTER_INTERFACE, "HUD",
+			"the speedometer and the controls card", [hud]))
+
+	var cursors: Array = []
+	_collect(scene, "PadCursor", cursors)
+	if not cursors.is_empty():
+		out.append(_target(CLUSTER_INTERFACE, "Pad cursor", "open a panel to feel it", cursors))
 
 	return out
+
+
+## A target that reads from the first of `nodes` and writes to all of them.
+func _target(cluster: String, title: String, hint: String, nodes: Array) -> Target:
+	var t := Target.new()
+	t.cluster = cluster
+	t.title = title
+	t.hint = hint
+	t.sample = nodes[0]
+	t.nodes = nodes
+	return t
+
+
+## A target that writes to a group, re-queried at write time.
+func _group_target(cluster: String, title: String, hint: String, group: String) -> Target:
+	var t := Target.new()
+	t.cluster = cluster
+	t.title = title
+	t.hint = hint
+	t.sample = get_tree().get_first_node_in_group(group)
+	t.group = group
+	return t
 
 
 ## Every uniform the material actually exposes, as property names.
@@ -429,15 +467,11 @@ func _is_a(n: Node, klass: String) -> bool:
 
 
 ## The tunables on `target`, in declaration order, with their group headers.
-## Returns dictionaries of {name, type, hint, hint_string, group}.
+## Returns dictionaries of {name, type, hint, hint_string, group, subgroup}.
 func _properties_for(target: Target) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if target.sample == null:
 		return out
-
-	var meta := {}
-	for prop in target.sample.get_property_list():
-		meta[prop["name"]] = prop
 
 	var allowed := {}
 	for name in target.allow:
@@ -474,9 +508,16 @@ func _properties_for(target: Target) -> Array[Dictionary]:
 			# uniforms, neither of which are script variables.
 			included = allowed.has(prop["name"])
 
-		if not included or not _supported(prop["type"]):
+		if not included:
 			pending = ""
 			pending_sub = ""
+			continue
+		# One of our own exports the panel cannot draw - a NodePath, a material,
+		# a scene. Skip the row but keep the heading above it, because the rows
+		# after it still belong there. Discarding here filed the rover's brake
+		# light under "Load" - that group opens on `brake_light_path` - and lost
+		# six other headings the same way.
+		if not _supported(prop["type"]):
 			continue
 		out.append(_entry(prop, pending, pending_sub))
 		pending = ""
@@ -499,10 +540,23 @@ func _supported(type: int) -> bool:
 	return type in [TYPE_FLOAT, TYPE_INT, TYPE_BOOL, TYPE_VECTOR3, TYPE_COLOR]
 
 
+## One entry per slider: a Vector3 is three, everything else is one.
+func _components(p: Dictionary) -> Array:
+	return [0, 1, 2] if int(p["type"]) == TYPE_VECTOR3 else [-1]
+
+
 # --- value access -------------------------------------------------------
 
 func _read(target: Target, prop: String, component := -1):
-	var v = target.sample.get(prop)
+	return _read_from(target.sample, prop, component)
+
+
+## The same read, of a named object rather than of the target's sample. Anything
+## that restores or compares has to ask each object what IT says.
+func _read_from(obj: Object, prop: String, component := -1):
+	if obj == null:
+		return null
+	var v = obj.get(prop)
 	if component >= 0 and v is Vector3:
 		return v[component]
 	return v
@@ -513,23 +567,68 @@ func _write(target: Target, prop: String, value, component := -1) -> void:
 	# Touching any slider makes it stale, and a stale plan is the one way this
 	# could write a number nobody is looking at.
 	_discard_plan()
+	_dirty[_key(target, prop, component)] = true
 	for obj in target.writes():
-		if obj == null:
-			continue
-		if component >= 0:
-			var vec: Vector3 = obj.get(prop)
-			vec[component] = value
-			obj.set(prop, vec)
-		else:
-			obj.set(prop, value)
-		if target.after_write != "" and obj.has_method(target.after_write):
-			obj.call(target.after_write)
+		_write_one(target, obj, prop, value, component)
+
+
+## Write one value into one object. Split out of `_write` so that restoring -
+## which sends a different value to each object - shares the same path.
+func _write_one(target: Target, obj: Object, prop: String, value, component := -1) -> void:
+	if obj == null:
+		return
+	if component >= 0:
+		var vec: Vector3 = obj.get(prop)
+		vec[component] = value
+		obj.set(prop, vec)
+	else:
+		obj.set(prop, value)
+	if target.after_write != "" and obj.has_method(target.after_write):
+		obj.call(target.after_write)
 
 
 func _key(target: Target, prop: String, component: int) -> String:
 	if component < 0:
 		return "%s/%s" % [target.title, prop]
 	return "%s/%s.%s" % [target.title, prop, "xyz"[component]]
+
+
+func _same(a, b) -> bool:
+	if typeof(a) == TYPE_FLOAT or typeof(b) == TYPE_FLOAT:
+		return is_equal_approx(float(a), float(b))
+	return a == b
+
+
+## Record what each object this target writes to says, for any object the panel
+## has not seen before. Objects it has already seen keep their first value; see
+## `_authored`.
+func _capture_authored(target: Target, p: Dictionary, overwrite := false) -> void:
+	var prop: String = p["name"]
+	for component in _components(p):
+		var k := _key(target, prop, component)
+		var per: Dictionary = _authored.get(k, {})
+		for obj in target.writes():
+			if obj == null:
+				continue
+			var id: int = (obj as Object).get_instance_id()
+			if overwrite or not per.has(id):
+				per[id] = _read_from(obj, prop, component)
+		_authored[k] = per
+
+
+## The objects whose value for this key is not what they were authored with,
+## as [object, authored value] pairs. An object the panel never snapshotted - one
+## that appeared since - has nothing to differ from and is left out.
+func _drifted(target: Target, prop: String, component: int) -> Array:
+	var out: Array = []
+	var per: Dictionary = _authored.get(_key(target, prop, component), {})
+	for obj in target.writes():
+		if obj == null:
+			continue
+		var id: int = (obj as Object).get_instance_id()
+		if per.has(id) and not _same(_read_from(obj, prop, component), per[id]):
+			out.append([obj, per[id]])
+	return out
 
 
 # --- UI -----------------------------------------------------------------
@@ -540,32 +639,190 @@ func _rebuild() -> void:
 		_built = true
 	_targets = _discover()
 	_sync.clear()
+	_sections.clear()
+	_cluster_labels.clear()
+	_wheels.clear()
+	# Removed before freeing, so a test counting rows straight after an open does
+	# not also count the last open's rows still waiting to be freed.
 	for child in _rows.get_children():
+		_rows.remove_child(child)
 		child.queue_free()
 
+	var cluster := ""
 	for target in _targets:
+		if target.title == "Rover wheels":
+			_wheels = target.nodes
 		var props := _properties_for(target)
 		if props.is_empty():
 			continue
-		_rows.add_child(_section_label(target.title))
+		if target.cluster != cluster:
+			cluster = target.cluster
+			var heading := _cluster_label(cluster)
+			_rows.add_child(heading)
+			_cluster_labels.append(heading)
+
+		var section := Section.new()
+		section.title = target.title
+		section.body = VBoxContainer.new()
+		section.body.add_theme_constant_override("separation", 3)
+		section.header = _section_header(section, target.hint)
+		_rows.add_child(section.header)
+		_rows.add_child(section.body)
+		if target.hint != "":
+			_add_heading(section, _hint_label(target.hint))
+
+		var heading_text := ""
 		for p in props:
 			var group: String = p["group"]
 			if group != "":
-				_rows.add_child(_group_label(group))
+				heading_text = group
+				_add_heading(section, _group_label(group))
 			var subgroup: String = p["subgroup"]
 			if subgroup != "":
-				_rows.add_child(_subgroup_label(subgroup))
+				heading_text = "%s %s" % [group, subgroup]
+				_add_heading(section, _subgroup_label(subgroup))
+			# Everything a row could reasonably be hunted by: its own label, the
+			# headings above it, and the section it lives in.
+			var context := "%s %s %s" % [target.title, target.hint, heading_text]
 			match int(p["type"]):
 				TYPE_BOOL:
-					_rows.add_child(_bool_row(target, p))
+					_add_row(section, _bool_row(target, p), _label_for(p["name"], -1), context)
 				TYPE_COLOR:
-					_rows.add_child(_color_row(target, p))
+					_add_row(section, _color_row(target, p), _label_for(p["name"], -1), context)
 				TYPE_VECTOR3:
 					for axis in 3:
-						_rows.add_child(_number_row(target, p, axis))
+						_add_row(section, _number_row(target, p, axis),
+							_label_for(p["name"], axis), context)
+				TYPE_INT when int(p["hint"]) == PROPERTY_HINT_ENUM:
+					_add_row(section, _enum_row(target, p), _label_for(p["name"], -1), context)
 				_:
-					_rows.add_child(_number_row(target, p, -1))
-	_status.text = "%d groups" % _targets.size()
+					_add_row(section, _number_row(target, p, -1),
+						_label_for(p["name"], -1), context)
+			_capture_authored(target, p)
+		_sections.append(section)
+
+	_apply_filter()
+
+
+## A heading is registered in the section like a row is, but flagged so the
+## filter can drop it: under a filter the list is flat, because a heading whose
+## rows have all been filtered out is worse than no heading at all.
+func _add_heading(section: Section, label: Control) -> void:
+	section.body.add_child(label)
+	section.is_row.append(false)
+	section.haystacks.append("")
+
+
+func _add_row(section: Section, row: Control, label: String, context: String) -> void:
+	section.body.add_child(row)
+	section.is_row.append(true)
+	section.haystacks.append(("%s %s" % [label, context]).to_lower())
+	section.total += 1
+
+
+## Show what matches, fold what does not.
+##
+## With no filter every section is folded to whatever `_expanded` remembers.
+## With one, a section carrying a match is forced open and shows only the rows
+## that matched — the fold state is left untouched underneath, so clearing the
+## box puts the panel back exactly as it was.
+func _apply_filter() -> void:
+	var needle := "" if _filter == null else _filter.text.strip_edges().to_lower()
+	var matched := 0
+	var shown_sections := 0
+
+	for section in _sections:
+		var children := section.body.get_children()
+		var hits := 0
+		for i in range(children.size()):
+			var control := children[i] as Control
+			if control == null:
+				continue
+			if not section.is_row[i]:
+				control.visible = needle == ""
+				continue
+			var shown := needle == "" or section.haystacks[i].contains(needle)
+			control.visible = shown
+			if shown and needle != "":
+				hits += 1
+
+		var open: bool = bool(_expanded.get(section.title, false))
+		if needle == "":
+			section.header.visible = true
+			section.body.visible = open
+			section.header.text = _header_text(section, open, -1)
+			shown_sections += 1
+		else:
+			var any := hits > 0
+			section.header.visible = any
+			section.body.visible = any
+			section.header.text = _header_text(section, true, hits)
+			matched += hits
+			if any:
+				shown_sections += 1
+
+	for label in _cluster_labels:
+		label.visible = needle == ""
+
+	if needle != "":
+		_status.text = "%d of %d tunables in %d section(s) match \"%s\"" % [
+			matched, _total_tunables(), shown_sections, needle]
+	else:
+		# Restoring this is not cosmetic: without it the last search's message
+		# survives the box being emptied, and GrimdarkTank's panel sat reading
+		# "0 of 308 tunables match" over 44 rows on screen. Clicking a heading
+		# empties the box too, so the lie would appear the moment anyone
+		# searched and then unfolded something.
+		_status.text = "%d sections, %d tunables" % [_sections.size(), _total_tunables()]
+
+
+## Counted off the rows, not the properties: a Vector3 is one property and three
+## sliders, and the filter's denominator counts sliders.
+func _total_tunables() -> int:
+	var n := 0
+	for section in _sections:
+		n += section.total
+	return n
+
+
+## "ROVER  ·  18" with a fold marker. `hits` is the count under an active filter,
+## or -1 for the section's own total.
+func _header_text(section: Section, open: bool, hits: int) -> String:
+	var marker := "v" if open else ">"
+	if hits >= 0:
+		return "%s  %s  ·  %d of %d" % [marker, section.title.to_upper(), hits, section.total]
+	return "%s  %s  ·  %d" % [marker, section.title.to_upper(), section.total]
+
+
+func _fold_all() -> void:
+	_set_all_folds(false)
+
+
+func _unfold_all() -> void:
+	_set_all_folds(true)
+
+
+## Clears the filter, as a heading click does: these set the fold state, and a
+## filter sitting on top of it would hide the effect.
+func _set_all_folds(open: bool) -> void:
+	_clear_filter()
+	for section in _sections:
+		_expanded[section.title] = open
+	_apply_filter()
+
+
+## Fold or unfold one section. Clears the filter box first if a filter is what
+## opened it: a fold arrow that appears to do nothing - because the filter is
+## overriding it - is the same class of confusion as a slider that snaps back.
+func _toggle_section(section: Section) -> void:
+	_clear_filter()
+	_expanded[section.title] = not bool(_expanded.get(section.title, false))
+	_apply_filter()
+
+
+func _clear_filter() -> void:
+	if _filter != null and _filter.text != "":
+		_filter.text = ""
 
 
 func _build_shell() -> void:
@@ -590,13 +847,14 @@ func _build_shell() -> void:
 	_root.add_child(column)
 
 	var title := Label.new()
-	title.text = "TUNING  ·  F1 to close"
+	title.text = "TUNING  ·  F1 to close  ·  click a heading to unfold it"
 	title.add_theme_font_size_override("font_size", 13)
 	title.add_theme_color_override("font_color", Color(1.0, 0.52, 0.34, 0.95))
 	column.add_child(title)
 
 	_readout = Label.new()
 	_readout.add_theme_font_size_override("font_size", 13)
+	_readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_readout.add_theme_color_override("font_color", Color(0.55, 0.92, 0.88, 0.95))
 	column.add_child(_readout)
 
@@ -616,6 +874,7 @@ func _build_shell() -> void:
 
 	_status = Label.new()
 	_status.add_theme_font_size_override("font_size", 12)
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.add_theme_color_override("font_color", Color(0.8, 0.82, 0.86, 0.7))
 	column.add_child(_status)
 
@@ -626,6 +885,22 @@ func _build_shell() -> void:
 	_plan_label.visible = false
 	column.add_child(_plan_label)
 
+	# Above the list, not in the button row: this is the control you reach for
+	# first now that every section starts folded, and the button row is for
+	# things that act on values rather than on the view.
+	var find := HBoxContainer.new()
+	find.add_theme_constant_override("separation", 6)
+	column.add_child(find)
+
+	_filter = _text_field()
+	_filter.placeholder_text = "Find a tunable..."
+	_filter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_filter.clear_button_enabled = true
+	_filter.text_changed.connect(func(_t: String) -> void: _apply_filter())
+	find.add_child(_filter)
+	find.add_child(_button("Fold all", _fold_all))
+	find.add_child(_button("Unfold all", _unfold_all))
+
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -633,33 +908,88 @@ func _build_shell() -> void:
 
 	_rows = VBoxContainer.new()
 	_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_rows.add_theme_constant_override("separation", 3)
+	_rows.add_theme_constant_override("separation", 2)
 	scroll.add_child(_rows)
 
 	var footer := Label.new()
-	footer.text = ("\"Save session\" keeps values in user:// for this machine. "
-		+ "\"Save to project\" writes them back into the .gd, .tscn or .tres "
-		+ "they were authored in - shown for review first, then written on a "
-		+ "second click.")
+	footer.text = ("Enter or a click outside gives the keyboard back to the controls. "
+		+ "Session: user:// on this machine. Project: the file a value came from, "
+		+ "on a second click.")
 	footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	footer.add_theme_font_size_override("font_size", 11)
 	footer.add_theme_color_override("font_color", Color(0.8, 0.82, 0.86, 0.55))
 	column.add_child(footer)
 
 
+## **No control on this panel takes keyboard focus except a text field.** The
+## panel is used while driving, and a focused control answers keys and sticks
+## that gameplay reads too: measured, a focused slider walks 32.0 to 31.92 under
+## ten frames of left stick - which in the rover is steering - and a focused
+## button fires on Enter. The mouse works exactly as before; focus only decides
+## who hears the keyboard and the pad. Same conclusion the map panel reached,
+## for the same reason - see "The panels take no keyboard focus at all".
 func _button(text: String, handler: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
+	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_size_override("font_size", 12)
 	b.pressed.connect(handler)
 	return b
 
 
-func _section_label(text: String) -> Label:
+## The one kind of control that does take focus, because typing needs it.
+## Enter hands the keyboard straight back: while a field has focus the astronaut
+## and the rover stand down (`Astronaut.is_typing()`), since a field swallows W
+## as an event while the `move_forward` poll still reads it held.
+func _text_field() -> LineEdit:
+	var field := LineEdit.new()
+	field.focus_mode = Control.FOCUS_CLICK
+	field.add_theme_font_size_override("font_size", 12)
+	field.text_submitted.connect(func(_t: String) -> void: field.release_focus())
+	return field
+
+
+## The clickable bar a section folds behind. Flat and tight, so the folded panel
+## reads as a list of nouns rather than a column of buttons.
+func _section_header(section: Section, hint: String) -> Button:
+	var b := Button.new()
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.tooltip_text = hint
+	for state: String in ["normal", "hover", "pressed", "hover_pressed", "disabled", "focus"]:
+		var box := StyleBoxEmpty.new()
+		box.content_margin_top = 2.0
+		box.content_margin_bottom = 2.0
+		b.add_theme_stylebox_override(state, box)
+	b.add_theme_font_size_override("font_size", 13)
+	b.add_theme_color_override("font_color", Color(1.0, 0.62, 0.42, 1.0))
+	b.add_theme_color_override("font_hover_color", Color(1.0, 0.8, 0.62, 1.0))
+	b.add_theme_color_override("font_pressed_color", Color(1.0, 0.8, 0.62, 1.0))
+	b.pressed.connect(func() -> void: _toggle_section(section))
+	return b
+
+
+func _cluster_label(text: String) -> Label:
 	var l := Label.new()
-	l.text = "\n" + text.to_upper()
-	l.add_theme_font_size_override("font_size", 13)
-	l.add_theme_color_override("font_color", Color(1.0, 0.62, 0.42, 1.0))
+	l.text = text.to_upper()
+	l.add_theme_font_size_override("font_size", 10)
+	l.add_theme_color_override("font_color", Color(0.8, 0.82, 0.86, 0.45))
+	l.add_theme_constant_override("line_spacing", 0)
+	# A little air above each cluster, none below: the heading belongs to what
+	# follows it.
+	var box := StyleBoxEmpty.new()
+	box.content_margin_top = 8.0
+	l.add_theme_stylebox_override("normal", box)
+	return l
+
+
+func _hint_label(text: String) -> Label:
+	var l := Label.new()
+	l.text = "  " + text
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", 11)
+	l.add_theme_color_override("font_color", Color(0.55, 0.92, 0.88, 0.55))
 	return l
 
 
@@ -703,8 +1033,8 @@ func _bool_row(target: Target, p: Dictionary) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_child(_row_label(_label_for(prop, -1)))
 	var box := CheckBox.new()
+	box.focus_mode = Control.FOCUS_NONE
 	box.button_pressed = bool(_read(target, prop))
-	_baseline[_key(target, prop, -1)] = box.button_pressed
 	box.toggled.connect(func(on: bool) -> void: _write(target, prop, on))
 	row.add_child(box)
 	_sync.append(func() -> void: box.set_pressed_no_signal(bool(_read(target, prop))))
@@ -717,14 +1047,58 @@ func _color_row(target: Target, p: Dictionary) -> HBoxContainer:
 	row.add_theme_constant_override("separation", 6)
 	row.add_child(_row_label(_label_for(prop, -1)))
 	var picker := ColorPickerButton.new()
+	picker.focus_mode = Control.FOCUS_NONE
 	picker.color = _read(target, prop)
 	picker.edit_alpha = false
 	picker.custom_minimum_size = Vector2(120.0, 22.0)
 	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_baseline[_key(target, prop, -1)] = picker.color
 	picker.color_changed.connect(func(c: Color) -> void: _write(target, prop, c))
 	row.add_child(picker)
 	_sync.append(func() -> void: picker.color = _read(target, prop))
+	return row
+
+
+## Enum ints get a dropdown rather than a slider — `cargo_owner 3` on a guessed
+## 0-to-12 range is not a control anybody can use, and neither is the terrain's
+## height source.
+func _enum_row(target: Target, p: Dictionary) -> HBoxContainer:
+	var prop: String = p["name"]
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.add_child(_row_label(_label_for(prop, -1)))
+
+	var option := OptionButton.new()
+	option.focus_mode = Control.FOCUS_NONE
+	option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	option.add_theme_font_size_override("font_size", 12)
+	# hint_string is "None,Player,Facility" or "None:0,Player:1,Facility:2"
+	var values: Array[int] = []
+	var index := 0
+	for token in String(p["hint_string"]).split(","):
+		var text := token
+		var value := index
+		if token.contains(":"):
+			var bits := token.split(":")
+			text = bits[0]
+			if String(bits[1]).is_valid_int():
+				value = String(bits[1]).to_int()
+		option.add_item(text.strip_edges())
+		values.append(value)
+		index += 1
+
+	var current := int(_read(target, prop))
+	if values.has(current):
+		option.select(values.find(current))
+	option.item_selected.connect(func(i: int) -> void:
+		if i >= 0 and i < values.size():
+			_write(target, prop, values[i])
+	)
+	row.add_child(option)
+	_sync.append(func() -> void:
+		var now := int(_read(target, prop))
+		if values.has(now):
+			option.select(values.find(now))
+	)
 	return row
 
 
@@ -735,13 +1109,12 @@ func _number_row(target: Target, p: Dictionary, component: int) -> HBoxContainer
 	var bounds := _bounds(p, value)
 	var step := 1.0 if is_int else _step(bounds)
 
-	_baseline[_key(target, prop, component)] = _read(target, prop, component)
-
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	row.add_child(_row_label(_label_for(prop, component)))
 
 	var slider := HSlider.new()
+	slider.focus_mode = Control.FOCUS_NONE
 	slider.min_value = bounds.x
 	slider.max_value = bounds.y
 	slider.step = step
@@ -754,11 +1127,10 @@ func _number_row(target: Target, p: Dictionary, component: int) -> HBoxContainer
 	# step, and no single step divides every value cleanly - an authored 32.0 on
 	# a 0-60 range showed as 31.998, and 0.35 as 0.35002. Reading a value back
 	# wrong is worse than losing the arrows.
-	var field := LineEdit.new()
+	var field := _text_field()
 	field.text = _format(value)
 	field.custom_minimum_size = Vector2(96.0, 0.0)
 	field.alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	field.add_theme_font_size_override("font_size", 12)
 	row.add_child(field)
 
 	var commit := func(v: float) -> void:
@@ -780,7 +1152,16 @@ func _number_row(target: Target, p: Dictionary, component: int) -> HBoxContainer
 	# Typed entry is deliberately not clamped to the slider: a guessed range is
 	# often narrower than a value worth trying, and the slider just pins to its
 	# end while the real value goes where it was asked to.
+	#
+	# Only text that was actually typed is committed. Leaving a field submits it,
+	# and clicking into one and back out must not mark an untouched value as
+	# tuned - it would then be offered to Save to project as a change of nothing.
+	var edited := [false]
+	field.text_changed.connect(func(_t: String) -> void: edited[0] = true)
 	var submit := func(_text := "") -> void:
+		if not edited[0]:
+			return
+		edited[0] = false
 		var text := field.text.strip_edges()
 		if not text.is_valid_float():
 			field.text = _format(float(_read(target, prop, component)))
@@ -836,60 +1217,73 @@ func _step(bounds: Vector2) -> float:
 
 
 # --- readout ------------------------------------------------------------
+##
+## The numbers you want while driving, not after, one subject to a line.
 
 func _readout_text() -> String:
-	var parts := PackedStringArray()
-	parts.append("%d fps" % Engine.get_frames_per_second())
-	parts.append("g %.2f" % World.surface_gravity)
+	var lines := PackedStringArray()
+	lines.append("%d fps   %d Hz physics   g %.2f m/s²  (%.2f g)" % [
+		Engine.get_frames_per_second(), Engine.physics_ticks_per_second,
+		World.surface_gravity, World.gravity_ratio()])
+
 	var rover := get_tree().get_first_node_in_group("rover") as Rover
-	if rover != null:
-		parts.append("rover %.1f m/s" % rover.linear_velocity.length())
-		var rack := rover.cargo_rack()
-		parts.append("jolt %.1f" % rack.jolt())
-		if not rack.is_empty():
-			parts.append("worst %s" % Crate.label_for(rack.worst_condition()))
-	return "   ".join(parts)
+	if rover == null:
+		return "\n".join(lines)
+	var speed := rover.linear_velocity.length()
+	var down := 0
+	for wheel in _wheels:
+		if is_instance_valid(wheel) and (wheel as VehicleWheel3D).is_in_contact():
+			down += 1
+	lines.append("rover %.1f m/s  (%.0f km/h)   %d/%d wheels down   tilt %.1f°" % [
+		speed, speed * 3.6, down, _wheels.size(),
+		rad_to_deg(rover.global_transform.basis.y.angle_to(Vector3.UP))])
+	var rack := rover.cargo_rack()
+	var load := "rack jolt %.1f m/s²" % rack.jolt()
+	if not rack.is_empty():
+		load += "   worst crate %s" % Crate.label_for(rack.worst_condition())
+	lines.append(load)
+	return "\n".join(lines)
 
 
 # --- buttons ------------------------------------------------------------
 
+## Put back what the panel changed, each object to its own value. What the game
+## changed meanwhile is left alone; see `_dirty`.
 func _reset_all() -> void:
+	_discard_plan()
 	for target in _targets:
 		for p in _properties_for(target):
 			var prop: String = p["name"]
-			if int(p["type"]) == TYPE_VECTOR3:
-				for axis in 3:
-					var k := _key(target, prop, axis)
-					if _baseline.has(k):
-						_write(target, prop, _baseline[k], axis)
-			else:
-				var k := _key(target, prop, -1)
-				if _baseline.has(k):
-					_write(target, prop, _baseline[k], -1)
+			for component in _components(p):
+				if not _dirty.has(_key(target, prop, component)):
+					continue
+				for pair in _drifted(target, prop, component):
+					_write_one(target, pair[0], prop, pair[1], component)
+	_dirty.clear()
 	_resync()
-	_status.text = "reset to the values the scenes were authored with"
+	_status.text = "reset everything the panel changed"
 
 
-## Everything that differs from what the scene was authored with, in a shape
-## that can be read straight across into the inspector.
+## Everything the panel changed that still differs from what was authored, in a
+## shape that can be read straight across into the inspector. "was" is the
+## sample's own authored value where the panel has one.
 func _changes() -> Dictionary:
 	var out := {}
 	for target in _targets:
 		for p in _properties_for(target):
 			var prop: String = p["name"]
-			var components := [0, 1, 2] if int(p["type"]) == TYPE_VECTOR3 else [-1]
-			for component in components:
+			for component in _components(p):
 				var k := _key(target, prop, component)
-				if not _baseline.has(k):
+				if not _dirty.has(k):
 					continue
-				var now = _read(target, prop, component)
-				var was = _baseline[k]
-				if typeof(now) == TYPE_FLOAT:
-					if is_equal_approx(float(now), float(was)):
-						continue
-				elif now == was:
+				var drifted := _drifted(target, prop, component)
+				if drifted.is_empty():
 					continue
-				out[k] = {"was": was, "now": now}
+				var was = drifted[0][1]
+				var per: Dictionary = _authored.get(k, {})
+				if target.sample != null and per.has(target.sample.get_instance_id()):
+					was = per[target.sample.get_instance_id()]
+				out[k] = {"was": was, "now": _read(target, prop, component)}
 	return out
 
 
@@ -902,7 +1296,7 @@ func _copy_changes() -> void:
 	lines.append("# Tuning changes — set these in the inspector to keep them")
 	for k in changes:
 		var c: Dictionary = changes[k]
-		lines.append("%-52s %s   (was %s)" % [k, c["now"], c["was"]])
+		lines.append("%-40s %s   (was %s)" % [k, c["now"], c["was"]])
 	DisplayServer.clipboard_set("\n".join(lines))
 	print("\n".join(lines))
 	_status.text = "%d changed value(s) copied to the clipboard" % changes.size()
@@ -989,57 +1383,30 @@ func _commit_plan() -> void:
 			% [result["written"], failed.size()]
 
 
-## Every changed property, once per object the panel actually writes to.
+## Every changed property, once per object whose value actually moved.
 ##
 ## Per object and not per target, because a target can broadcast: the six wheels
 ## are six lines in `rover.tscn`, and tuning them together has to update all
-## six. The writer deduplicates whatever collapses onto the same line.
+## six. An object already saying the new value has nothing to write. The writer
+## deduplicates whatever collapses onto the same line.
 func _project_entries() -> Array:
 	var out: Array = []
 	for target in _targets:
-		var short := _short_title(target)
 		for p in _properties_for(target):
-			if not _differs(target, p):
-				continue
 			var prop: String = p["name"]
-			for obj in target.writes():
-				if obj == null:
+			var moved := {}
+			for component in _components(p):
+				if not _dirty.has(_key(target, prop, component)):
 					continue
+				for pair in _drifted(target, prop, component):
+					moved[pair[0]] = true
+			for obj in moved:
 				out.append({
 					"obj": obj,
 					"prop": prop,
-					"label": "%s.%s" % [short, prop.trim_prefix("shader_parameter/")],
+					"label": "%s.%s" % [target.title, prop.trim_prefix("shader_parameter/")],
 				})
 	return out
-
-
-## True when any component of this property differs from the authored value.
-func _differs(target: Target, p: Dictionary) -> bool:
-	var prop: String = p["name"]
-	var components := [0, 1, 2] if int(p["type"]) == TYPE_VECTOR3 else [-1]
-	for component in components:
-		var k := _key(target, prop, component)
-		if not _baseline.has(k):
-			continue
-		var now = _read(target, prop, component)
-		var was = _baseline[k]
-		if typeof(now) == TYPE_FLOAT:
-			if not is_equal_approx(float(now), float(was)):
-				return true
-		elif now != was:
-			return true
-	return false
-
-
-## "Rover wheels - all 6" becomes "Rover wheels". Titles carry a note after a
-## dash for the panel's benefit, which is noise in a file report.
-func _short_title(target: Target) -> String:
-	var title := target.title
-	for marker: String in [" — ", " - "]:
-		var at := title.find(marker)
-		if at > 0:
-			title = title.substr(0, at)
-	return title
 
 
 func _show_plan(lines: PackedStringArray, pending: bool) -> void:
@@ -1064,15 +1431,14 @@ func _discard_plan() -> void:
 		_plan_label.visible = false
 
 
-## Re-read every value as the new "authored" baseline, after the files on disk
-## have been made to agree with it.
+## Re-read every object's value as the new "authored", after the files on disk
+## have been made to agree with it. Without it, Reset would undo a save that has
+## already been written.
 func _rebaseline() -> void:
 	for target in _targets:
 		for p in _properties_for(target):
-			var prop: String = p["name"]
-			var components := [0, 1, 2] if int(p["type"]) == TYPE_VECTOR3 else [-1]
-			for component in components:
-				_baseline[_key(target, prop, component)] = _read(target, prop, component)
+			_capture_authored(target, p, true)
+	_dirty.clear()
 
 
 func _save() -> void:
@@ -1080,8 +1446,7 @@ func _save() -> void:
 	for target in _targets:
 		for p in _properties_for(target):
 			var prop: String = p["name"]
-			var components := [0, 1, 2] if int(p["type"]) == TYPE_VECTOR3 else [-1]
-			for component in components:
+			for component in _components(p):
 				var v = _read(target, prop, component)
 				if v is Color:
 					v = [v.r, v.g, v.b, v.a]
@@ -1109,8 +1474,7 @@ func _load() -> void:
 	for target in _targets:
 		for p in _properties_for(target):
 			var prop: String = p["name"]
-			var components := [0, 1, 2] if int(p["type"]) == TYPE_VECTOR3 else [-1]
-			for component in components:
+			for component in _components(p):
 				var k := _key(target, prop, component)
 				if not parsed.has(k):
 					continue
@@ -1127,6 +1491,13 @@ func _load() -> void:
 					_write(target, prop, float(v), component)
 				applied += 1
 	_resync()
+	if applied == 0 and not parsed.is_empty():
+		# Keys are section titles. Titles were shortened on 2026-09-13, so a
+		# session saved before that matches nothing - say so rather than
+		# reporting a load of zero as if the file were empty.
+		_status.text = "nothing in %s matches this panel - saved before the titles changed?" \
+			% SAVE_PATH
+		return
 	_status.text = "loaded %d values from %s" % [applied, SAVE_PATH]
 
 

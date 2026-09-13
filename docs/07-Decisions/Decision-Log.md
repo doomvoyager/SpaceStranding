@@ -9,6 +9,109 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-13 - The Moon, at the south pole
+
+Mac moved the game off Vesper c: **Earth's Moon, realistic, 50-80 years from
+now.** Mac raised it, so the entries it touches are open again - "Vesper c:
+tidally locked, red dwarf, 0.34 g" wholesale, the 0.55 g revision with it, and
+the *physics* under "Flares replace timefall; the Lattice replaces the chiral
+network". The two analogues themselves stand.
+
+**Where on the Moon was the real decision, and Mac chose the south polar
+rims** from three: polar rims, a near-side mid-latitude site, the far side.
+Chosen because it keeps an unusual amount of what is built:
+
+| Vesper c | South-polar Moon |
+|---|---|
+| Star fixed ~5.5 deg up | Sun within a few degrees of the horizon (about +/-3.5 to 6.5 deg between 88 and 85 S), circling it once a synodic month - 0.51 deg an hour - rather than rising and setting |
+| The Verge | Lit crater rims |
+| Nightward: dark, cryogenic, ice | Permanently shadowed crater floors, ~40 K, holding ice |
+| Red-dwarf flares | Solar particle events: the X-ray flash arrives ahead of the protons, so they stay warned and survivable |
+| Lattice on a tight horizon | Relays on rims; Earth hangs low, visible from some slopes and hidden by others |
+| The fill term for a grazing star | Still needed - the 5-degree Lambert fact carries over unchanged |
+
+**Rejected: a near-side mid-latitude site.** It brings the 14-day day and night,
+but also a high noon sun - relighting, while look work is frozen - a terminator
+moving at 11-15 km/h, too fast to chase, and surviving the night as the core
+game. **Rejected: the far side.** No Earth in the sky at all, and still a
+14-day cycle unless it is also polar.
+
+**The horizon is a culling line for small things, not for relief.** Measured
+arithmetic, not a render: 2.43 km from a standing 1.7 m eye, but the ground only
+drops 1.7 m at 2.4 km and 22 m at a 3x3 corner, against 210 m of relief - a
+20 m rise stays in view out to ~11 km. So rocks, crates and signs cull for free,
+hills do not, and **vacuum has no fog to hide the world's edge**, which is what
+the in-house terrain plan above leans on. Relay line of sight becomes km-scale
+and needs the curvature term: two 3 m masts see each other at 6.5 km.
+
+**Proposed and not yet decided**, all in Mac's hands:
+
+- whether the sun holds still within a session and moves between sessions,
+  which keeps the navigation and performance half of "the star never moves";
+- what replaces the xenological mystery, which "realistic" rules out;
+- the rover's lunar feel - a top-speed governor, and whether it tips or slides
+  first, since at a sixth of the gravity nothing currently makes it slower;
+- a reason for "no GPS", since ESA and NASA are both building south-pole lunar
+  navigation now.
+
+Migration has not started. Until it lands, the code and most notes still
+describe Vesper c; the work is queued `#next` in [[The-Planet]].
+
+---
+
+## 2026-09-13 - The F1 panel folds, searches, and takes no keyboard focus
+
+Mac: GrimdarkTank's panel reads much better. It does, for two reasons - sections
+fold and a box searches all of them - and both were ported, with its enum
+dropdowns and its per-object Reset (GrimdarkTank's D058 and D060).
+
+**Titles became short, stable nouns**, with the notes that used to trail them
+("rebuilds on release", "all 7 crates") moved to a hint: the first line of an
+open section, the header's tooltip, and searchable. A title keys the fold state,
+the session file and every remembered value, so a count in one reset all three
+whenever a crate spawned. Sections sit under six cluster headings for **what
+gets judged together** rather than where the code lives - the rack and the
+crates under Driving, because a load changes how the rover drives.
+
+**Three things were measured wrong on the old code, and are fixed:**
+
+1. **Reset flattened objects onto the sample.** It restored every object in a
+   broadcast target to the one sample's value: the Recovered Mast went from
+   worth 200 and order-owned to worth 0 and player-owned, and an odd wheel from
+   4.5 to 6.0 - while the status line said the authored values were back.
+2. **Reopening F1 re-recorded "authored".** Rows re-read their baseline on
+   every open, so tune steering 32 -> 41, close to drive, reopen: no change
+   reported, Save to project had nothing to write, Reset left it at 41.
+3. **What the game changed counted as tuning.** A fragility set by the game
+   showed as a change and Reset undid it.
+
+Now each object's value is captured **once**, when the panel first sees it; only
+keys the panel itself wrote count as changes; and Save to project is the one
+thing that moves the snapshot, because that is the moment the files agree.
+
+**Rejected from GrimdarkTank: focusable headers.** They would break "The panels
+take no keyboard focus at all", and Space is brake and jump here. The rule went
+further instead: **nothing on the panel takes focus but a text field.**
+Measured in `probe_panel_focus`: a focused slider walks 32.0 -> 31.92 under ten
+frames of left stick, which in the rover is steering, and a focused button fires
+on Enter.
+
+**A focused field swallows W as an event but not as a poll**, so typing a search
+walked the astronaut and opened the throttle. `Astronaut.is_typing()` stands the
+polled controls down while any LineEdit or TextEdit has focus, on foot and in the
+rover. **Rejected: GrimdarkTank's `PlayerInput` poll gate**, which routes every
+gameplay poll through an autoload - right for a game with polls everywhere,
+excessive for two call sites. Enter, a click outside the panel, or closing F1
+hands the keyboard back; hiding the layer releases focus on its own.
+
+Found on the way: seven group headings in six scripts vanished whenever the
+group opened on an export the panel cannot draw, filing the rover's brake light
+under "Load". Costs accepted: a `user://tuning.json` saved before today matches
+none of the new titles, and the panel says so rather than loading nothing
+quietly.
+
+---
+
 ## 2026-09-03 - One plain surface shader; the terrain is ours, not Terrain3D
 
 Two calls, both Mac's, both taken after the options were laid out.

@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-03
+verified: 2026-09-13
 godot: res://scripts/ui/map_panel.gd
 tags: [system, ui, traversal]
 ---
@@ -232,6 +232,12 @@ Clicks are turned into ground positions by **marching the heightfield**, not by
 raycasting a collision shape: the map has no physics world of its own, and
 giving it one would mean a 33k-triangle trimesh existing only to be clicked on.
 
+**The HUD's bearing to the next stop turns with the view.** "20° left" is only
+an instruction relative to what is on screen, so it is measured from the camera
+that is current, whichever rig owns it. Until 2026-09-13 it read the astronaut's
+root node, which nothing rotates after spawning, and every bearing was relative
+to the spawn heading - "ahead" whichever way you looked or drove.
+
 ## Verification
 
 `res://tests/test_map_route.tscn` covers the parts that fail silently: that a
@@ -239,6 +245,10 @@ waypoint's height is solved rather than stored, that a leg is measured over the
 ground and not across it, that a click lands where it was aimed and a ray at the
 sky fails instead of inventing a hit, that reordering actually reorders, and
 that opening the map takes the rover's controls.
+
+`res://tests/test_route_bearing.tscn` checks the bearing on foot looking three
+ways and from the rover facing a fourth. Run against the old HUD it read
+"ahead" in all four.
 
 `res://tests/map_capture.tscn` is the other half and must run **windowed**. The
 map is a SubViewport with its own World3D and its own shader, and `--headless`

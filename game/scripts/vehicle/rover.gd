@@ -306,7 +306,9 @@ func _physics_process(delta: float) -> void:
 	# its own key and could be opened at speed. The world keeps running — this
 	# is not a pause — so the rover coasts under engine braking and holds the
 	# steering it had, which is what letting go of the controls actually does.
-	if driver.is_menu_open():
+	# Typing into a field counts too: the pedals are polled, and a focused field
+	# does not stop a poll reading W.
+	if driver.is_menu_open() or driver.is_typing():
 		_apply_drivetrain(0.0, false)
 		return
 

@@ -285,7 +285,7 @@ func _route_text() -> String:
 	var text := "Stop 1/%d   %s" % [Route.count(), _metres(distance)]
 	if distance < 1.0:
 		return text
-	var facing := -_astronaut.global_transform.basis.z
+	var facing := _view_forward()
 	var heading := Vector2(facing.x, facing.z)
 	if heading.length_squared() < 0.0001:
 		return text
@@ -295,6 +295,19 @@ func _route_text() -> String:
 		return "%s   ahead" % text
 	return "%s   %.0f° %s" % [text, absf(offset),
 		"right" if offset > 0.0 else "left"]
+
+
+## Where the view is pointing: the camera on screen, whichever rig owns it.
+##
+## Not the astronaut. Looking turns its `CamPivot` and walking turns its `Body`,
+## and its own root only ever takes the spawn heading - so reading the root,
+## as this once did, gave bearings relative to where the level started, on foot
+## and in the rover alike. `tests/test_route_bearing.tscn`.
+func _view_forward() -> Vector3:
+	var camera := get_viewport().get_camera_3d()
+	if camera != null:
+		return -camera.global_transform.basis.z
+	return -_astronaut.global_transform.basis.z
 
 
 # --- Speedometer --------------------------------------------------------

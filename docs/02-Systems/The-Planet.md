@@ -7,6 +7,11 @@ tags: [system, setting, reference]
 
 # Vesper c
 
+> **Being replaced by the Moon.** On 2026-09-13 Mac moved the game to Earth's
+> Moon, at the south polar rims, realistic and 50-80 years from now - see the
+> decision log for why that site, and what is still open. Nothing below has
+> been migrated yet: it describes the planet the code still runs.
+
 Everything numeric about the world lives in `world_constants.gd`, autoloaded as
 `World`. **Never hardcode gravity, pressure or star direction anywhere else** -
 retuning the planet has to stay a one-file change.
@@ -57,6 +62,18 @@ That last line is the map's best tension: *the safest place from the sky is the
 most hostile place on the ground.*
 
 ## Open
+
+- [ ] Migrate to the Moon. `World`: gravity 1.62 (mirrored in `project.godot`),
+      radius 1,737.4 km as a tunable, atmosphere and the thermal axis retired;
+      a black sky, a white sun, no depth or volumetric fog. Then this note, the
+      [[01-Pillars]] pitch and lineage (vacuum carries no sound), [[Flares]] as
+      solar particle events, and [[Science]] once Mac has a replacement for the
+      xenological mystery. Scoped by the 2026-09-13 survey: nothing but the look
+      reads the atmosphere today. Gravity breaks the rover's tuning silently, so
+      it lands with the rover work in [[Rover]], not before it. #next
+- [ ] TODO: at the pole the sun circles the horizon at 0.51 deg an hour. Does it
+      hold still within a session and move between them, keeping the shadow
+      compass and the performance budget? Mac's call. #question
 
 - [ ] TODO: how big is the Verge, in kilometres of drivable band? Gates the
       streaming and floating-origin work. #question

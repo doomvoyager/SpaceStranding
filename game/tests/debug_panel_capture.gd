@@ -3,13 +3,17 @@ extends Node3D
 ## panel, and writes PNGs to user://debug_look/.
 ##
 ## The panel is generated at runtime from reflection, so what it actually looks
-## like - whether the labels fit, whether 60 rows scroll sensibly, whether the
-## groups read - cannot be judged from the code or from a headless test. Both
-## of those only prove the rows exist.
+## like - whether the labels fit, whether the folded list reads, whether a
+## search leaves anything legible - cannot be judged from the code or from a
+## headless test. Both of those only prove the rows exist.
+##
+## Named shots rather than scroll fractions, since the panel folded: a fraction
+## of a list that is mostly folded headings lands on nothing in particular.
 ##
 ## Must run as a scene, not --script. Runs windowed on purpose: --headless uses
-## the dummy renderer and produces no image.
-##   engine/Godot_v4.7.1-stable_win64_console.exe --path game \
+## the dummy renderer and produces no image. Copy the frames into
+## `previews/YYYY-MM-DD/` afterwards, as `panel-<shot>.png`.
+##   engine/Godot.app/Contents/MacOS/Godot --path game \
 ##     res://tests/debug_panel_capture.tscn
 
 const WORLD := preload("res://scenes/world/test_world.tscn")
@@ -18,6 +22,8 @@ const OUT_DIR := "user://debug_look"
 
 func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
+	for old in DirAccess.get_files_at(OUT_DIR):
+		DirAccess.remove_absolute("%s/%s" % [OUT_DIR, old])
 	add_child(WORLD.instantiate())
 	for i in 90:
 		await get_tree().physics_frame
@@ -35,20 +41,36 @@ func _ready() -> void:
 	print("panel closed %.3f ms/frame, open %.3f ms/frame (%+.1f%%)"
 		% [closed_ms, open_ms, 100.0 * (open_ms - closed_ms) / maxf(closed_ms, 0.0001)])
 
-	var scroll := _find_scroll(Debug)
-	await _shot("01_panel_top")
+	Debug._fold_all()
+	await _shot("01_folded")
 
-	if scroll != null:
-		var max_scroll := maxi(scroll.get_v_scroll_bar().max_value - 400, 0)
-		scroll.scroll_vertical = int(max_scroll * 0.33)
-		await _shot("02_panel_rover")
-		scroll.scroll_vertical = int(max_scroll * 0.72)
-		await _shot("03_panel_cargo")
-		scroll.scroll_vertical = int(scroll.get_v_scroll_bar().max_value)
-		await _shot("04_panel_post")
+	for title: String in ["Rover", "Rover wheels"]:
+		_open_section(title)
+	await _shot("02_driving_open")
 
+	Debug._fold_all()
+	Debug._filter.text = "jolt"
+	Debug._apply_filter()
+	await _shot("03_find_jolt")
+
+	Debug._filter.text = ""
+	Debug._unfold_all()
+	await _shot("04_unfolded")
+
+	Debug._fold_all()
 	print("captured to: ", ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()
+
+
+## Errors rather than skipping, so a renamed section cannot quietly turn a shot
+## into a picture of the folded list.
+func _open_section(title: String) -> void:
+	for section in Debug._sections:
+		if section.title == title:
+			if not section.body.visible:
+				Debug._toggle_section(section)
+			return
+	push_error("no section titled %s to open for the capture" % title)
 
 
 func _time_frames(frames := 200) -> float:
@@ -58,16 +80,6 @@ func _time_frames(frames := 200) -> float:
 	for i in frames:
 		await RenderingServer.frame_post_draw
 	return float(Time.get_ticks_usec() - started) / float(frames) / 1000.0
-
-
-func _find_scroll(n: Node) -> ScrollContainer:
-	if n is ScrollContainer:
-		return n
-	for c in n.get_children():
-		var found := _find_scroll(c)
-		if found != null:
-			return found
-	return null
 
 
 func _shot(shot_name: String) -> void:

@@ -339,3 +339,10 @@ coupling rather than the height contract, and it belongs with the chunking.
 - [ ] TODO: pick the real terrain solution. Terrain3D is still the obvious
       candidate, and the map size question this was gated on now has an answer:
       4096 m. #next
+- [ ] On the Moon, the horizon as the far cutoff. Measure before building: a
+      probe on the real heightmap reporting how much ground curvature hides from
+      ordinary positions. Arithmetic says it hides small things and not relief -
+      a 20 m rise stays visible to ~11 km from a standing eye - and vacuum has no
+      fog, so the world's edge shows from any high ground. Nothing simulates
+      curvature yet; `World.horizon_distance()` has no callers. Proposed
+      2026-09-13. #next

@@ -145,7 +145,7 @@ func _physics_process(delta: float) -> void:
 	if not grounded:
 		velocity.y -= World.surface_gravity * delta
 
-	if _menu_open:
+	if _menu_open or is_typing():
 		# Still fall, still collide, but take no input. Coming out of a panel
 		# mid-stride and finding yourself somewhere else would be worse than
 		# standing still.
@@ -788,6 +788,21 @@ func set_menu_open(open: bool) -> void:
 ## True while a panel has the screen. The HUD dims itself on this.
 func is_menu_open() -> bool:
 	return _menu_open
+
+
+## True while a text field has the keyboard, and the controls should stand down.
+##
+## **A focused field swallows a key as an event but not as a poll.** Measured in
+## `tests/probe_panel_focus.tscn`: typing W into a focused LineEdit never reaches
+## `_unhandled_input`, and `Input.is_action_pressed("move_forward")` still reads
+## true - so walking, jumping and the throttle, which are all polled, would act
+## on every letter typed into the F1 panel's search box. Asked of whichever
+## field has focus rather than of the panel, so any text box gets it for free.
+func is_typing() -> bool:
+	if not is_inside_tree():
+		return false
+	var focus := get_viewport().gui_get_focus_owner()
+	return focus is LineEdit or focus is TextEdit
 
 
 # --- Vehicles -----------------------------------------------------------
