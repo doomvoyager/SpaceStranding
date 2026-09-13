@@ -180,6 +180,14 @@ const ENGINE_FORCE_SIGN := -1.0
 @export_range(0.0, 1.0, 0.01) var exit_clearance := 0.1
 
 @export_group("Camera")
+## Drive from the cab instead of behind the rover. `V` / D-pad up flips it
+## while driving; this is the view the first drive starts in, and the F1 panel
+## switches it live. Remembered separately from the astronaut's own.
+@export var first_person := false:
+	set(value):
+		first_person = value
+		if driver != null:
+			_show_view()
 @export var mouse_sensitivity := 0.0022
 ## Right-stick turn rate, radians/sec.
 @export var stick_sensitivity := 2.6
@@ -206,6 +214,8 @@ const ENGINE_FORCE_SIGN := -1.0
 @onready var _cam_pivot: Node3D = $CamPivot
 @onready var _spring_arm: SpringArm3D = $CamPivot/SpringArm3D
 @onready var _camera: Camera3D = $CamPivot/SpringArm3D/Camera3D
+## The driver's eye, a plain child of the chassis - see "Views" below.
+@onready var _eye: Camera3D = $Eye
 @onready var _exit_point: Marker3D = $ExitPoint
 @onready var _rack: CargoRack = $CargoRack
 
@@ -270,6 +280,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if driver.is_menu_open():
 		return
 
+	if event.is_action_pressed("toggle_view"):
+		toggle_view()
+		get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_look_yaw -= event.relative.x * mouse_sensitivity
 		_pitch_by(-event.relative.y * mouse_sensitivity)
@@ -286,6 +301,7 @@ func _process(delta: float) -> void:
 	_look_yaw += look.x
 	_pitch_by(look.y)
 	_level_camera(delta)
+	_aim_eye()
 
 
 ## Pitch lives on the spring arm, below the levelling, so aiming up and down is
@@ -336,6 +352,16 @@ func _level_camera(delta: float) -> void:
 	# only the view turns around it.
 	_cam_pivot.global_position = global_position + levelled * _mount_offset
 	_cam_pivot.global_basis = levelled.rotated(up, _look_yaw)
+
+
+## Point the driver's eye. It is a child of the chassis and stays one: no
+## levelling and no clamp, so a side slope tilts the horizon by exactly the
+## slope and a rollover turns the world over, which is what sitting in the cab
+## means. The player's yaw and pitch go on top, in the chassis's own frame -
+## the same two numbers the chase rig uses, so the two views agree about where
+## you are looking.
+func _aim_eye() -> void:
+	_eye.basis = Basis.from_euler(Vector3(_spring_arm.rotation.x, _look_yaw, 0.0))
 
 
 ## World up, rotated toward the chassis's up by the followed fraction of its
@@ -818,7 +844,8 @@ func enter(astronaut: Astronaut) -> void:
 	# Start level with whatever the rover is sitting on rather than easing in
 	# from wherever the camera was left at the end of the last drive.
 	_cam_up = _clamped_up()
-	_camera.current = true
+	_aim_eye()
+	_show_view()
 	set_physics_process(true)
 
 
@@ -826,6 +853,7 @@ func exit() -> void:
 	if driver == null:
 		return
 	var astronaut := driver
+	var heading := view_heading()
 	driver = null
 	set_physics_process(false)
 	engine_force = 0.0
@@ -834,5 +862,64 @@ func exit() -> void:
 	# The parking brake is on, but nobody is on the pedal: a rover left parked
 	# with its brake light burning would be reporting a driver that has gone.
 	_set_brake_light(false)
-	_camera.current = false
-	astronaut.disembark(exit_position())
+	view_camera().current = false
+	astronaut.disembark(exit_position(), heading)
+
+
+# --- Views --------------------------------------------------------------
+##
+## Two cameras: the chase camera on the levelled pivot, and an eye in the cab.
+## `V` / D-pad up. The rover remembers its own view, separately from the
+## astronaut's, so you can drive from the cab and walk over the shoulder.
+##
+## **The eye does not see the rover.** The hull, the rack deck, the brake light
+## bar and the wheels are on render layer 3, "Rover hull", and the eye's cull
+## mask leaves that bit out - both authored in the scene. The blockout cab is a
+## box 0.77 m deck to roof with a nose wedge rising to its roofline, so any eye
+## inside it looks straight at the inside of a slab. An authored interior goes
+## on a layer the eye keeps; the exterior stays on 3. Layers gate cameras only,
+## so the lights still see the hull and it shadows as it did -
+## `tests/view_capture.tscn` measured that for the suit.
+
+func toggle_view() -> void:
+	first_person = not first_person
+
+
+func is_first_person() -> bool:
+	return first_person
+
+
+## The camera this rover would show its driver, on screen or not.
+func view_camera() -> Camera3D:
+	return _eye if first_person else _camera
+
+
+## The driver's eye, for tests and captures.
+func eye() -> Camera3D:
+	return _eye
+
+
+## The world yaw the driver is looking along, in radians, flat. Handed to the
+## astronaut on the way out, so climbing out of a cab you were looking left from
+## puts you on the ground looking left. Without it a quarter turn of the head
+## spits you out facing the way you got in.
+func view_heading() -> float:
+	var fwd := -view_camera().global_basis.z
+	fwd.y = 0.0
+	if fwd.length_squared() < 1e-6:
+		# Looking straight up or down: the chassis heading is the only one left.
+		fwd = -global_basis.z
+		fwd.y = 0.0
+	if fwd.length_squared() < 1e-6:
+		fwd = Vector3.FORWARD
+	return atan2(-fwd.x, -fwd.z)
+
+
+## Put the chosen camera on screen. Only on a real change - see the astronaut's
+## `_show_view()` for why.
+func _show_view() -> void:
+	if not is_node_ready():
+		return
+	var camera := view_camera()
+	if not camera.current:
+		camera.make_current()

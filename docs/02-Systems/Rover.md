@@ -1,6 +1,6 @@
 ---
 status: partial
-verified: 2026-09-13
+verified: 2026-09-14
 godot: res://scripts/vehicle/rover.gd
 tags: [system, traversal, core-loop]
 ---
@@ -28,6 +28,8 @@ Tuned for the Moon on 2026-09-13 - see "Drivetrain, on the Moon". Built today:
 - Enter/exit with `E` / gamepad `A`, camera and input handover to and from the
   astronaut. Right stick looks; it is polled in `_process` rather than handled
   as an event, because a stick reports a held position and not a delta
+- **First person from the cab** on `V` / D-pad up, the same key as on foot,
+  with the hull culled from the eye - see "The driver's eye"
 - **A six-slot roof rack that changes how it drives** - see below
 - **A brake light that follows the pedals, not the brake force** - see below
 - **Rollover recovery** - you climb out and heave it over. See below
@@ -127,6 +129,40 @@ the view turns around it.
 Both are asserted in `test_camera_levelling.tscn`, and both were checked by
 breaking them again afterwards - a test that passes before and after the fix is
 worth nothing.
+
+## The driver's eye
+
+`V` / D-pad up while driving. Added 2026-09-14; the shared half - one key,
+each context remembering its own view, the handover on climbing out - is in
+[[Astronaut-Traversal]] under "Views".
+
+**The eye rides the chassis.** `Eye` is a plain child of the rover at
+(0, 1.12, -1.55), inside the blockout cab, and `_aim_eye()` writes the
+player's yaw and pitch into its local basis every frame - the same two numbers
+the chase rig uses, so the two views agree about where you are looking. No
+levelling and no clamp: a side slope tilts the horizon by exactly the slope and
+a rollover turns the world over, which is what sitting in a cab means. Measured:
+rolled 40°, the eye tilts 40.0 and the chase pivot 18.0. The
+`previews/2026-09-14/view-15_*` / `view-16_*` pair is the same 30° roll seen
+from both.
+
+**The eye does not see the rover.** The hull, the nose wedge, the rack deck, the
+brake light bar and the six wheel meshes are on render layer 3, "Rover hull",
+and the eye's cull mask leaves it out - both authored in the scene, where a
+mesh's layer belongs. The blockout cab is 0.77 m deck to roof and the nose
+wedge rises to its roofline, so an eye anywhere inside it looks straight at the
+inside of a slab: `view-14_rover_first_hull_visible` is that frame. Lifting the
+eye above the roof was the alternative, and reads as standing on it. An
+authored interior goes on a layer the eye keeps; the exterior stays on 3.
+GrimdarkTank's gunner sight culls its tank the same way.
+
+**Where the eye sits is Mac's.** A seated eye would be 1.1-1.2 m above the
+floor and the cab is 0.77 m tall; 1.12 m is a low, reclined seat, and the node
+moves in the editor. The crates on the roof rack are not hull and stay visible,
+so looking back over your shoulder shows the load.
+
+Climbing out hands the astronaut `view_heading()` - the flat yaw of whichever
+camera was on screen - so you land facing the way you were looking.
 
 ## The brake light
 

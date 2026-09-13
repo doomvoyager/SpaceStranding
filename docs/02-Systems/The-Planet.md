@@ -134,3 +134,17 @@ ready and have no callers.
       and the reason relays exist. Mac's call whether and how. #question
 - [ ] TODO: "no GPS" wants a reason. ESA and NASA are both building south-pole
       lunar navigation now. #question
+- [ ] **The sun casts no shadow onto the ground in `test_world`.** Found
+      2026-09-14 by the view capture's controls: with `sun_elevation_deg`
+      raised to 35, neither the suit, the crates nor a facility box shadowed
+      the regolith - nor a plain grey `StandardMaterial3D` swapped in for it -
+      while the suit's `cast_shadow` still moved its own self-shadow edges. So
+      it is not the terrain shader and not the render layers. `Sun` has
+      `shadow_enabled`, is the only light in the scene with shadows on, and is
+      re-aimed from `(0, 400, 0)` by `_align_sun()`. One more oddity: the
+      crates at the bottom right of the third-person frame trail dark shapes
+      that read as shadows, running left and *toward* the camera - the wrong
+      way for a sun behind it. Unexplained, and load-bearing for any "pure
+      black shadows" direction: needs a probe of its own, a bare plane and box
+      under the same light, then the Sun's settings bisected.
+      `previews/2026-09-14/view-04_*`, `view-10_*`, `view-diff_plain_*`. #next

@@ -66,31 +66,37 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02810669, 0)
 shape = SubResource("BoxShape3D_chassis")
 
 [node name="Hull" type="MeshInstance3D" parent="." unique_id=2027012801]
+layers = 4
 mesh = SubResource("BoxMesh_hull")
 surface_material_override/0 = SubResource("Material_hull")
 
 [node name="Hull2" type="MeshInstance3D" parent="." unique_id=1822455313]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.7431121, -1.2080483)
+layers = 4
 mesh = SubResource("BoxMesh_ia0rk")
 surface_material_override/0 = SubResource("StandardMaterial3D_h58rc")
 
 [node name="BrakeLightBar" type="MeshInstance3D" parent="." unique_id=427897615]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2389617, 2.2554994)
+layers = 4
 mesh = SubResource("BoxMesh_h58rc")
 surface_material_override/0 = SubResource("Material_brake")
 
 [node name="Hull3" type="MeshInstance3D" parent="." unique_id=2074141529]
 transform = Transform3D(1, 0, 0, 0, 0.71775717, 0.69629353, 0, -0.69629353, 0.71775717, 0, 0.5606702, -2.2472591)
+layers = 4
 mesh = SubResource("BoxMesh_bx5wg")
 surface_material_override/0 = SubResource("StandardMaterial3D_1jo25")
 
 [node name="Hull4" type="MeshInstance3D" parent="." unique_id=1260673101]
 transform = Transform3D(1, 0, 0, 0, -0.6972233, 0.71685416, 0, -0.71685416, -0.6972233, 0, 0.4603893, -2.3253756)
+layers = 4
 mesh = SubResource("BoxMesh_bx5wg")
 surface_material_override/0 = SubResource("StandardMaterial3D_1jo25")
 
 [node name="RackDeck" type="MeshInstance3D" parent="." unique_id=850585101]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.56, 1.15)
+layers = 4
 mesh = SubResource("BoxMesh_rack")
 surface_material_override/0 = SubResource("Material_rack")
 
@@ -146,6 +152,7 @@ damping_relaxation = 0.7
 
 [node name="WheelMesh" type="MeshInstance3D" parent="WheelFL" unique_id=721266559]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+layers = 4
 mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
@@ -164,6 +171,7 @@ damping_relaxation = 0.7
 
 [node name="WheelMesh" type="MeshInstance3D" parent="WheelFR" unique_id=1574608126]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+layers = 4
 mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
@@ -182,6 +190,7 @@ damping_relaxation = 0.7
 
 [node name="WheelMesh" type="MeshInstance3D" parent="WheelML" unique_id=969714063]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+layers = 4
 mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
@@ -200,6 +209,7 @@ damping_relaxation = 0.7
 
 [node name="WheelMesh" type="MeshInstance3D" parent="WheelMR" unique_id=1658378247]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+layers = 4
 mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
@@ -217,6 +227,7 @@ damping_relaxation = 0.7
 
 [node name="WheelMesh" type="MeshInstance3D" parent="WheelRL" unique_id=321228857]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+layers = 4
 mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
@@ -234,6 +245,7 @@ damping_relaxation = 0.7
 
 [node name="WheelMesh" type="MeshInstance3D" parent="WheelRR" unique_id=619173125]
 transform = Transform3D(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0)
+layers = 4
 mesh = SubResource("CylinderMesh_wheel")
 surface_material_override/0 = SubResource("Material_tyre")
 
@@ -246,6 +258,12 @@ margin = 0.4
 
 [node name="Camera3D" type="Camera3D" parent="CamPivot/SpringArm3D" unique_id=412705019]
 fov = 72.0
+far = 6000.0
+
+[node name="Eye" type="Camera3D" parent="." unique_id=1377726611]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.12, -1.55)
+cull_mask = 1048571
+fov = 75.0
 far = 6000.0
 
 [node name="ExitPoint" type="Marker3D" parent="." unique_id=443693781]

@@ -241,6 +241,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ty
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_route_bearing.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_view_toggle.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -308,6 +312,10 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_sign_size.ts
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_far_render.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/view_capture.tscn
+```
+
 **Every rendered image that gets looked at is kept, in `previews/`.** A capture
 scene writes to Godot's `user://` first, because that is where a running game
 can write without touching the project; the shots are then copied into
@@ -363,6 +371,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_e
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_panel_focus.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_eye_height.tscn
 ```
 
 The rover's spec sheet - launch, brakes, coast, sag, full lock, a kicker - at
@@ -939,6 +951,25 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   "does this handle CRLF" assertion tests something that cannot occur. Normalise
   a multi-line literal with `.replace("\r\n", "\n")` before relying on its
   endings. Cost two false failures that looked like writer bugs.
+- **`VisualInstance3D.layers` gates cameras only; lights and shadows do not
+  read it.** Moving the suit's meshes to their own layer, so the first-person
+  eye can cull them, changed the chase camera's frame by 0.01% of pixels
+  against a 0.01% noise floor - the suit's own shadow edges included - while
+  turning the same meshes' `cast_shadow` off moved 0.07%, exactly along those
+  edges. The instrument is the finding's other half: a whole-frame mean
+  difference read **1.7/255 for identical settings**, because the regolith
+  dithers, so it cannot see a shadow go; count the pixels that move by more
+  than 16/255, and write the difference image out so the shape of what changed
+  can be looked at. `tests/view_capture.tscn`, `previews/2026-09-14/view-diff_*`.
+  GrimdarkTank measured the same for its tank.
+- **A `SpringArm3D` moves every child to its far end**, so a second camera
+  under the arm ends up 4.5 m behind the figure too. A first-person eye has to
+  be a sibling of the arm, under the yaw pivot, with the pitch written to both
+  - `Astronaut._pitch_by()`.
+- **A `CanvasLayer` is not a `CanvasItem`.** Both have `visible`, so a capture
+  that does `find_child("HUD") as CanvasItem` gets null, sets nothing, and
+  keeps the controls card in every frame - the first view capture did. Cast to
+  `CanvasLayer`, or to `Node` and `set("visible", false)`.
 
 ---
 

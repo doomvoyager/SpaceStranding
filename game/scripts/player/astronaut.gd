@@ -1,7 +1,8 @@
 extends CharacterBody3D
 class_name Astronaut
-## Third-person suited-astronaut controller. Tuned at 0.55 g, and not yet
-## revisited for the Moon's 1.62, where the same jump hangs for three seconds.
+## Suited-astronaut controller: third person over the shoulder, or first person
+## from the helmet, on one rig. Tuned at 0.55 g, and not yet revisited for the
+## Moon's 1.62, where the same jump hangs for three seconds.
 ##
 ## The low-gravity feel comes from three things, in order of importance:
 ##   1. Almost no air control. A jump is a commitment, not a steering input.
@@ -26,6 +27,20 @@ class_name Astronaut
 @export var coyote_time := 0.15
 
 @export_group("Camera")
+## Look out through the helmet instead of over the shoulder. `V` / D-pad up
+## flips it while playing; this is the view the level starts in, and the F1
+## panel switches it live. Remembered separately from the rover's own - see
+## `toggle_view()`.
+@export var first_person := false:
+	set(value):
+		first_person = value
+		_show_view()
+## Render layers the suit is drawn on. The first-person eye leaves them out of
+## its cull mask, so the view is not the inside of the helmet. Layers gate
+## cameras only: the lights still see the suit, and moving it here changed the
+## chase camera's frame by nothing - its shadows included - measured in
+## `tests/view_capture.tscn`.
+@export_flags_3d_render var suit_layers := 2
 @export var mouse_sensitivity := 0.0022
 ## Right-stick turn rate, radians/sec. A stick holds a position rather than
 ## emitting deltas, so this is a speed where the mouse figure is a multiplier.
@@ -61,6 +76,9 @@ class_name Astronaut
 @onready var _cam_pivot: Node3D = $CamPivot
 @onready var _spring_arm: SpringArm3D = $CamPivot/SpringArm3D
 @onready var _camera: Camera3D = $CamPivot/SpringArm3D/Camera3D
+## The first-person camera, at the visor. Under the pivot rather than the arm,
+## because a SpringArm3D moves every child to its far end.
+@onready var _eye: Camera3D = $CamPivot/Eye
 @onready var _body: Node3D = $Body
 @onready var _interact_zone: Area3D = $InteractZone
 @onready var _back_rack: CargoRack = $Body/CargoRack
@@ -85,6 +103,23 @@ var _recovery_held := 0.0
 func _ready() -> void:
 	add_to_group("player")
 	_capture_mouse(true)
+	_dress_suit()
+	_show_view()
+
+
+## Put the figure's meshes on the suit layers, and take those layers out of
+## the eye's mask.
+##
+## Done here rather than in the rig scene because the meshes live inside the
+## imported model, which is meant to stay a drop-in: a layer authored on an
+## editable child would be an override that breaks on the next re-export. The
+## layer itself is an export above, so the choice is still in the inspector.
+func _dress_suit() -> void:
+	_eye.cull_mask = _eye.cull_mask & ~suit_layers
+	if _rig == null:
+		return
+	for node in _rig.find_children("*", "GeometryInstance3D", true, false):
+		(node as GeometryInstance3D).layers = suit_layers
 
 
 func _capture_mouse(captured: bool) -> void:
@@ -109,14 +144,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _menu_open:
 		return
 
+	if event.is_action_pressed("toggle_view"):
+		toggle_view()
+		get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventMouseMotion and _mouse_captured:
 		_cam_pivot.rotate_y(-event.relative.x * mouse_sensitivity)
-		_spring_arm.rotate_x(-event.relative.y * mouse_sensitivity)
-		_spring_arm.rotation.x = clampf(
-			_spring_arm.rotation.x,
-			deg_to_rad(pitch_min),
-			deg_to_rad(pitch_max)
-		)
+		_pitch_by(-event.relative.y * mouse_sensitivity)
 
 	if event.is_action_pressed("interact"):
 		_interact()
@@ -134,9 +169,22 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if _driving or _menu_open:
 		return
-	StickLook.apply(
-		_cam_pivot, _spring_arm, stick_sensitivity, pitch_min, pitch_max, delta
+	var look := StickLook.read(stick_sensitivity, delta)
+	if look != Vector2.ZERO:
+		_cam_pivot.rotate_y(look.x)
+		_pitch_by(look.y)
+
+
+## Pitch both cameras together, clamped once. The chase arm carries the pitch
+## for the third-person view and the eye carries its own, because the eye
+## cannot hang off the arm - so this is the one place the two are written, and
+## they cannot drift apart.
+func _pitch_by(radians: float) -> void:
+	var pitch := clampf(
+		_spring_arm.rotation.x + radians, deg_to_rad(pitch_min), deg_to_rad(pitch_max)
 	)
+	_spring_arm.rotation.x = pitch
+	_eye.rotation.x = pitch
 
 
 func _physics_process(delta: float) -> void:
@@ -210,11 +258,19 @@ func _apply_horizontal_movement(delta: float, grounded: bool) -> void:
 	velocity.z = horizontal.z
 
 
+## Third person turns the body to face travel, as it always has. In first
+## person the body faces where you look, by definition - which also keeps the
+## load on your back behind the eye rather than swinging in front of it when
+## you turn your head, and points the head lamp at what you are looking at.
 func _face_travel_direction(delta: float) -> void:
-	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
-	if horizontal.length_squared() < 0.04:
-		return
-	var target_yaw := atan2(-horizontal.x, -horizontal.z)
+	var target_yaw: float
+	if first_person:
+		target_yaw = _cam_pivot.rotation.y
+	else:
+		var horizontal := Vector3(velocity.x, 0.0, velocity.z)
+		if horizontal.length_squared() < 0.04:
+			return
+		target_yaw = atan2(-horizontal.x, -horizontal.z)
 	_body.rotation.y = rotate_toward(_body.rotation.y, target_yaw, turn_speed * delta)
 
 
@@ -806,6 +862,48 @@ func is_typing() -> bool:
 	return focus is LineEdit or focus is TextEdit
 
 
+# --- Views --------------------------------------------------------------
+##
+## Two cameras on one rig: the chase camera at the end of the spring arm, and
+## an eye at the visor. Both hang off `CamPivot`, so they share the look yaw -
+## which is also what the interact aim reads, so switching views changes what
+## you see and not what E would do. Pitch reaches both through `_pitch_by()`.
+##
+## `V` / D-pad up. Each context remembers its own answer: the rover has a
+## `first_person` of its own, so you can drive from the cab and walk over the
+## shoulder, and boarding changes neither.
+
+## Flip between the shoulder camera and the eye.
+func toggle_view() -> void:
+	first_person = not first_person
+
+
+func is_first_person() -> bool:
+	return first_person
+
+
+## The camera this rig would show, whether or not it is on screen right now.
+func view_camera() -> Camera3D:
+	return _eye if first_person else _camera
+
+
+## The first-person eye, for tests and captures.
+func eye() -> Camera3D:
+	return _eye
+
+
+## Put the chosen camera on screen - unless the rover has the screen, in which
+## case the choice is kept for the climb out. `make_current()` only on a real
+## change: it reaches into the viewport, and a rig that re-asserted its camera
+## every frame would fight any capture scene that had borrowed the view.
+func _show_view() -> void:
+	if not is_node_ready() or _driving:
+		return
+	var camera := view_camera()
+	if not camera.current:
+		camera.make_current()
+
+
 # --- Vehicles -----------------------------------------------------------
 
 func _try_enter_rover() -> void:
@@ -819,7 +917,7 @@ func _try_enter_rover() -> void:
 func board_vehicle() -> void:
 	_driving = true
 	set_physics_process(false)
-	_camera.current = false
+	view_camera().current = false
 	visible = false
 	if _rig != null:
 		_rig.set_animating(false)
@@ -828,15 +926,19 @@ func board_vehicle() -> void:
 	collision_mask = 0
 
 
-## Called by the rover when we climb out, at the given world position.
-func disembark(at: Vector3) -> void:
+## Called by the rover when we climb out, at the given world position, looking
+## the way the driver was. `heading` is a world yaw in radians; leave it out to
+## keep whatever the pivot had.
+func disembark(at: Vector3, heading := INF) -> void:
 	_driving = false
 	global_position = at
 	velocity = Vector3.ZERO
+	if is_finite(heading):
+		_cam_pivot.global_rotation = Vector3(0.0, heading, 0.0)
 	collision_layer = 1
 	collision_mask = 1
 	visible = true
-	_camera.current = true
+	_show_view()
 	if _rig != null:
 		_rig.set_animating(true)
 	set_physics_process(true)

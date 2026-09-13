@@ -54,6 +54,11 @@ current = true
 fov = 70.0
 far = 6000.0
 
+[node name="Eye" type="Camera3D" parent="CamPivot" unique_id=1590211073]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, -0.05)
+fov = 75.0
+far = 6000.0
+
 [node name="InteractZone" type="Area3D" parent="." unique_id=1213944727]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 collision_layer = 0

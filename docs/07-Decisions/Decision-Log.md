@@ -9,6 +9,47 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-14 - One view key, and each context remembers its own
+
+Mac asked for first and third person on foot and in the rover. Built as one
+key - `V` / D-pad up - and two `first_person` exports, the astronaut's and the
+rover's, so you can drive from the cab and walk over the shoulder, and boarding
+changes neither. GTA's arrangement. The alternative, one global preference,
+means the first drive after switching on foot pops you back out of the view you
+just chose.
+
+**The cab eye is rigid; the chase camera stays levelled.** The chase rig clamps
+the chassis's tilt at 18° because a camera behind a rolling rover should not go
+over with it. The eye is a plain child of the chassis with no clamp at all:
+inside a cab the horizon is the cab's, and a rollover turns the world over.
+Measured on the same 40° roll - eye 40.0°, chase pivot 18.0°.
+
+**The rover's exterior is culled from the eye, on render layer 3.** The
+blockout cab is a box 0.77 m deck to roof - too low for a seated eye, which
+the proposal had left to Mac - and its nose wedge rises to the roofline, so an
+eye anywhere inside it is looking at a slab. Lifting the eye above the roof was
+the alternative and reads as standing on it. So the hull goes on "Rover hull",
+the eye's mask drops the bit, and an authored interior later goes on a layer the
+eye keeps: GrimdarkTank's `TankExterior` mechanism pointed the same way. The
+suit is hidden from the on-foot eye likewise, on layer 2, from code because its
+meshes live inside a drop-in import. Layers gate cameras only - measured, see
+`CLAUDE.md`.
+
+**In first person the body faces the look.** One branch in
+`_face_travel_direction()`, not a controller rewrite; it keeps the load on your
+back behind the eye and the head lamp on what you are looking at. GrimdarkTank's
+commander is first-person native, with yaw on the body - the shape to move to
+if first person ever becomes primary here.
+
+**Climbing out faces you the way you were looking.** The rover hands its
+`view_heading()` to `disembark()`; GrimdarkTank's sight does the same for its
+chase rig on release, and for the same reason.
+
+Rejected: a `Pitch` node between pivot and arm so both cameras inherit pitch.
+It either moves the chase pivot 0.3 m up to the eye line or gives the eye a
+0.3 m neck that swings it forward as you look down. Writing the pitch to both
+cameras from `_pitch_by()` costs one line and no scene change.
+
 ## 2026-09-13 - The rover is governed, and tuned in newtons
 
 Mac: more control over the rover, especially mass, and slower, so you have to

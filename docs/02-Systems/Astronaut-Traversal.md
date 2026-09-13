@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-13
+verified: 2026-09-14
 godot: res://scripts/player/astronaut.gd
 tags: [system, traversal, core-loop]
 ---
@@ -13,10 +13,10 @@ slice.
 
 ## Behaviour
 
-`CharacterBody3D`, third-person, camera-relative movement with the body turning
-to face travel. Jump height is specified in metres and solved against actual
-gravity (`v = √(2gh)`), so retuning [[The-Planet]] does not silently break the
-jump.
+`CharacterBody3D`, third person over the shoulder or first person from the
+visor (see "Views"), camera-relative movement with the body turning to face
+travel. Jump height is specified in metres and solved against actual gravity
+(`v = √(2gh)`), so retuning [[The-Planet]] does not silently break the jump.
 
 **Walking is analog.** `Input.get_vector()` returns a vector whose *length* is
 how far the stick was pushed, so the magnitude is kept separately and the
@@ -35,9 +35,9 @@ a two-slot back rack, and the interaction verbs for [[Cargo]].
 
 **Full gamepad parity.** Left stick moves, right stick looks, `A` interacts, `X`
 moves cargo, `B` jumps (and full-brakes in the [[Rover]], exactly as `Space`
-already did for both), `L3` sprints. Mouse look is an event; stick look is a
-held position, so it is polled in `_process` via the shared `StickLook` helper
-that both camera rigs use.
+already did for both), `L3` sprints, D-pad up switches view. Mouse look is an
+event; stick look is a held position, so it is polled in `_process` via the
+shared `StickLook` helper that both camera rigs use.
 
 The left stick's `move_forward` / `move_back` are **on-foot only**. The
 [[Rover]] drives on its own `drive_forward` / `drive_back` (`W`/`S`, `RT`/`LT`)
@@ -163,6 +163,54 @@ interact handling, and both sides call `set_input_as_handled()` on the boarding
 press. Without that, a single `E` reaches both nodes in the same frame and you
 enter and immediately exit. Node order between the two is not guaranteed, so
 both sides guard.
+
+## Views
+
+Third person over the shoulder, or first person from the visor, on one rig:
+`V` / D-pad up. Added 2026-09-14.
+
+**Two cameras, one pivot.** The chase camera sits at the end of the spring arm
+and the eye is a second `Camera3D` under `CamPivot`, at (0, 0.25, -0.05) - it
+cannot hang off the arm, because a `SpringArm3D` moves every child to its far
+end. Both share the pivot's yaw, which is also what the interact aim reads, so
+switching views changes what you see and not what `E` would do; pitch reaches
+both through `_pitch_by()`, clamped once. The eye is 1.80 m above the feet -
+the skeleton's head bone rests at 1.70 and the crown at 2.03,
+`tests/probe_eye_height.tscn` - and the test asserts it stays between them.
+
+**The suit is hidden from the eye by a render layer, not by visibility.** Every
+mesh under the rig goes on `suit_layers` (2, "Suit") in `_dress_suit()`, and
+the eye's cull mask drops that bit; with the suit visible, first person is the
+inside of the helmet (`previews/2026-09-14/view-03_*`). Done from code because
+the meshes live inside the imported model, which is meant to stay a drop-in;
+the layer is an export, so the choice is still in the inspector. Layers gate
+cameras only: moving the suit changed the chase camera's frame by nothing -
+0.01% of pixels, against a 0.01% noise floor - while turning the same meshes'
+`cast_shadow` off did (0.07%, along the suit's own shadow edges).
+
+**In first person the body faces where you look.** Third person keeps turning
+it to face travel. Without this, turning your head in first person swings the
+load on your back round in front of the eye, and the head lamp lights wherever
+the body happens to point. The body still turns at `turn_speed`, so nothing
+snaps. The walk cycle has no strafe or backpedal clip, so walking backwards in
+first person moonwalks the shadow - a playtest question, and GrimdarkTank's
+first-person-native commander (yaw on the body) is the shape to move to if
+first person ever becomes primary.
+
+**Each context remembers its own view.** `first_person` is an export on the
+astronaut and another on the [[Rover]]; boarding shows the rover's, climbing
+out restores yours, so you can drive from the cab and walk over the shoulder.
+Both are on F1 under Camera and switch the view live.
+
+**Climbing out faces you the way you were looking**, on foot as in the cab:
+`disembark()` takes a heading and the rover hands over `view_heading()`.
+Measured 0.0° off. Without it a quarter turn of the head in the cab puts you
+on the ground facing the way you got in.
+
+Behind a panel the key does nothing. `tests/test_view_toggle.tscn` asserts all
+of it - the eye at the visor, the layers, the aim untouched, the body's two
+behaviours, the handover both ways; `tests/view_capture.tscn` is the look pass
+and runs **windowed**.
 
 ## The figure
 
@@ -301,13 +349,13 @@ movement genuinely backwards. Exactly the shape of the [[Rover]]'s
 
 ## Open
 
-- [ ] First person as well as third, on foot and in the rover, on one toggle
-      (V / D-pad up). Proposed 2026-09-13: an authored `Camera3D` per view so
-      each can be placed in the editor, the look yaw kept on `CamPivot` so
-      interaction aim does not change, the suit hidden from the eye by a render
-      layer (its shadow stays), `make_current()` only on a real change, and the
-      rover handing its heading over on exit. Needs Mac: the cab box is about
-      0.77 m deck to roof, too low for a seated eye. #next
+- [x] First person as well as third, on foot and in the rover, on one toggle
+      (V / D-pad up). Done 2026-09-14 - see "Views" and the [[Rover]]'s "The
+      driver's eye". The cab question was answered by culling the hull from
+      the eye rather than by finding room for one inside the blockout. #next
+- [ ] TODO: nobody has played in first person. Where the eye sits on foot and
+      in the cab, the eye's 75° field, and whether the backpedal moonwalk
+      matters are all first impressions to have. #playtest
 - [ ] TODO: balance and stumble under load, the way Death Stranding handles
       it. The two back slots now exist and carry real mass; nothing on foot
       reads it yet. #next

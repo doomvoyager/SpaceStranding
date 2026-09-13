@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cviewcapture01"]
+
+[ext_resource type="Script" path="res://tests/view_capture.gd" id="1_capture"]
+
+[node name="ViewCapture" type="Node3D"]
+script = ExtResource("1_capture")
