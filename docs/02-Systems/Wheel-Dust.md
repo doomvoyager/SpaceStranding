@@ -47,11 +47,15 @@ blockout does not have.
 The throw and the amounts are exports on the node; the F1 panel lists it
 under Driving as "Wheel dust". The shape of a spray - spread, scale range,
 colour, hide-on-contact - is `materials/wheel_dust.tres`, and what a grain is
-drawn with is `materials/dust_grain.tres`: a round speck, **unshaded on
-purpose**. A billboard's normal faces the eye, so a lit quad goes dark
-exactly cross-sun, where a spray is most visible, while a real grain is a
-sunlit sphere bright from every side. What that costs is a grain in the
-rover's shadow staying bright.
+drawn with is `materials/dust_grain.tres` on `shaders/dust_grain.gdshader`:
+a billboard **lit as a sphere**. The first grain was unshaded, because a
+billboard's normal faces the eye and a quad lit as a wall goes dark exactly
+cross-sun, where a spray is most visible; Mac asked for grains that darken
+in shadow, and the shader keeps the quad but gives each pixel the normal of
+a sphere bulging toward the camera. The sun lights the sun's side, the
+shadow map darkens a grain in the rover's shadow, the scene's ambient fills
+it like any prop, and cross-sun a grain is half-lit like a very small moon.
+`dust-unshaded-vs-shaded.jpg` has the pair.
 
 ## What the sweep found
 
@@ -81,8 +85,8 @@ rover's shadow staying bright.
 
 ## Open
 
-- [ ] Grains in the rover's shadow stay bright (unshaded). A spatial shader
-      that lights a billboard as a sphere would fix it; wait until it shows.
+- [x] ~~Grains in the rover's shadow stay bright.~~ Lit as spheres since
+      the same evening; Mac asked, no self-shadowing wanted.
 - [ ] Dust off the boots. The same emitter and rules would hang off
       `Footprints`' landings; a step throws far less than a tyre.
 - [ ] The rate saturates at 4 m/s, the governed top speed. If the governor

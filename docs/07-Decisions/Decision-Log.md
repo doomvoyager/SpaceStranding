@@ -17,9 +17,10 @@ billowing and no drift - every grain flies a parabola at the World's gravity
 and lands, and the Apollo rooster tail is what that looks like. So the
 emitters have no drag, take gravity from `World` and follow `World.changed`,
 and every grain lands on a heightfield under the rover and hides. **The
-grain is unshaded** because a billboard lit as a quad goes dark exactly
-cross-sun where a spray is most visible; the cost, a bright grain in the
-rover's shadow, is in [[Wheel-Dust]] to revisit if it shows. **Rejected: a
+grain is a billboard lit as a sphere** (`dust_grain.gdshader`): a quad lit
+as a quad goes dark exactly cross-sun where a spray is most visible, and
+unshaded it stayed bright in the rover's shadow, which Mac did not want.
+No self-shadowing between grains, at Mac's word. **Rejected: a
 soft smoke sprite**, which is an atmosphere the Moon does not have.
 
 ---

@@ -1,27 +1,8 @@
-[gd_resource type="StandardMaterial3D" format=3 uid="uid://bcedgdo3fbu4m"]
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://bcedgdo3fbu4m"]
 
-[sub_resource type="Gradient" id="Gradient_grain"]
-offsets = PackedFloat32Array(0, 0.55, 1)
-colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
-
-[sub_resource type="GradientTexture2D" id="Texture_grain"]
-gradient = SubResource("Gradient_grain")
-width = 32
-height = 32
-fill = 1
-fill_from = Vector2(0.5, 0.5)
-fill_to = Vector2(1, 0.5)
+[ext_resource type="Shader" path="res://shaders/dust_grain.gdshader" id="1_grain"]
 
 [resource]
 resource_name = "Dust grain"
-transparency = 2
-alpha_scissor_threshold = 0.5
-alpha_antialiasing_mode = 0
-shading_mode = 0
-albedo_color = Color(0.62, 0.6, 0.57, 1)
-albedo_texture = SubResource("Texture_grain")
-billboard_mode = 3
-billboard_keep_scale = true
-particles_anim_h_frames = 1
-particles_anim_v_frames = 1
-particles_anim_loop = false
+shader = ExtResource("1_grain")
+shader_parameter/albedo = Color(0.62, 0.6, 0.57, 1)
