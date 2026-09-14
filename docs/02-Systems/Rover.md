@@ -368,9 +368,9 @@ because the soft springs take the landing.
 empty and 7.1 loaded, and letting go rolls on for 24 m. Momentum is the thing
 low gravity is about; a rover that stopped when you lifted off would hide it.
 
-**All of this is a first pass, measured and never driven.** Every number is on
-F1 under Body, Drivetrain and Brakes, and the wheels' grip and springs under
-Rover wheels. #playtest
+**Driven on 2026-09-14 and kept.** Mac: slower and more careful is exactly the
+feel asked for. Every number is still on F1 under Body, Drivetrain and Brakes,
+and the wheels' grip and springs under Rover wheels.
 
 ### Before the Moon: what 0.55 g cost it
 
@@ -505,10 +505,10 @@ checks the exit point is above ground with the rover inverted.
 
 ## Known issues
 
-- [ ] The lunar tuning is measured on flat ground and on the carrier route, and
-      has never been driven by a human. Every number is on F1 - Body,
-      Drivetrain, Brakes, and the six wheels' springs and grip - so this is an
-      evening of driving rather than a code change per guess. #playtest
+- [x] ~~The lunar tuning has never been driven by a human.~~ Mac drove it on
+      2026-09-14: "feels nice, exactly what I had in mind with slower and more
+      careful driving." The numbers stand; every one is still on F1 - Body,
+      Drivetrain, Brakes, and the six wheels' springs and grip. #playtest
 - [ ] Wheels do not visually spin or steer - the meshes are static children.
 - [x] ~~No rollover recovery.~~ Built 2026-09-02 - see above.
 - [ ] The righting pivots about the chassis origin, so mid-roll the rover
