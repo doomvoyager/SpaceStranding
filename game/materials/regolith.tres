@@ -49,6 +49,7 @@ shader_parameter/lunar_brdf = true
 shader_parameter/lunar_backscatter = 0.4
 shader_parameter/lunar_opposition = 0.4
 shader_parameter/lunar_opposition_width = 40.0
+shader_parameter/lunar_view_floor = 0.25
 shader_parameter/tracks_enabled = true
 shader_parameter/track_darkening = 0.25
 shader_parameter/track_rut_depth = 0.04

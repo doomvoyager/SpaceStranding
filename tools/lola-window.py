@@ -36,6 +36,8 @@ Usage, from the repo root:
         --preview previews/2026-09-14/lola-overview
     python3 tools/lola-window.py --product 5m --center 0 0 --size 4100 --resample 1025 \\
         --out game/assets/terrain/lola_pole_4100.exr --preview previews/2026-09-14/lola-pole
+    python3 tools/lola-window.py --product 5m --center 0 0 --size 24585 --smooth 2.5 \\
+        --raw game/assets/terrain/lola_pole_24k.hf --preview previews/2026-09-15/lola-24k
 """
 
 import argparse
@@ -166,6 +168,31 @@ def resample(z, n):
     return (rows[:, i0] * (1 - t) + rows[:, i0 + 1] * t).astype(np.float32)
 
 
+def smooth(z, sigma):
+    """Separable Gaussian blur, sigma in samples, edges held.
+
+    The 5 m product carries about 0.54 m of per-sample speckle - a 6 degree
+    tilt per sample - which is invisible where the sun hits the ground
+    squarely and comes out as bright lines on every face the sun grazes,
+    measured 2026-09-15 (docs/02-Systems/Terrain.md, "Striations"). A sigma of
+    one sample takes it down about threefold and leaves anything wider than
+    ~20 m alone, and still draws most of the lines; 2.5 - what the world
+    uses - takes most of the lines and the steepest faces with them (p99
+    slope 36.1 to 34.2 degrees). The detail layer will put controlled
+    roughness back.
+    """
+    if sigma <= 0.0:
+        return z
+    radius = int(np.ceil(3.0 * sigma))
+    x = np.arange(-radius, radius + 1, dtype=np.float64)
+    k = np.exp(-0.5 * (x / sigma) ** 2)
+    k /= k.sum()
+    pad = np.pad(z.astype(np.float64), radius, mode="edge")
+    rows = np.apply_along_axis(lambda r: np.convolve(r, k, mode="valid"), 1, pad)
+    out = np.apply_along_axis(lambda c: np.convolve(c, k, mode="valid"), 0, rows)
+    return out.astype(np.float32)
+
+
 def slopes(z, spacing):
     gy, gx = np.gradient(z, spacing)
     return np.degrees(np.arctan(np.hypot(gx, gy))), gx, gy
@@ -253,6 +280,8 @@ def main():
     ap.add_argument("--latlon", nargs=2, type=float, metavar=("LAT", "LON"),
                     help="window centre as south-polar latitude and east longitude")
     ap.add_argument("--size", type=float, default=25600.0, help="window side in metres")
+    ap.add_argument("--smooth", type=float, default=0.0,
+                    help="Gaussian sigma in samples applied after the fetch; 1.0 takes the 5 m product's speckle down")
     ap.add_argument("--resample", type=int, default=0,
                     help="resample the window to this many pixels a side (1025 for 4 m over 4100 m)")
     ap.add_argument("--out", help="EXR to write, in raw metres")
@@ -277,6 +306,11 @@ def main():
     report(z, prod.scale, f"{args.product} window at ({cx:.0f}, {cy:.0f})", args.threshold)
 
     spacing = prod.scale
+    if args.smooth > 0.0:
+        t = time.time()
+        z = smooth(z, args.smooth)
+        print(f"smoothed with sigma {args.smooth:g} samples in {time.time() - t:.1f} s")
+        report(z, spacing, "smoothed", args.threshold)
     if args.resample:
         z = resample(z, args.resample)
         spacing = args.size / (args.resample - 1)

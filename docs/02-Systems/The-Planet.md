@@ -94,15 +94,19 @@ inspector:
   close, and a grazing sun needs something to rake across. A stand-in for the
   detail layer queued in [[Terrain]], not a replacement.
 
-**Open, 2026-09-15: the lunar term limb-brightens.** With the cameras out to
-30 km, a far crater wall seen edge-on reads as a flat white sheet with a
-knife-edge terminator. `2 n_l / max(n_l + n_v, 0.02)` goes to 2 wherever
-`n_v` is near zero and the sun catches the ground at all. Pure
-Lommel-Seeliger does that; the real disc is flat because macroscopic
-roughness takes the limb back. Proposed, not built: a `lunar_view_floor`
-uniform on the material, `max(n_v, floor)` at about 0.25, or a blend toward
-Lambert as the view grazes - both tunable on F1, judged from the rim with
-`probe_far_sheet.tscn`. Frames in `previews/2026-09-15/far-sheet-*`.
+**2026-09-15: the lunar term limb-brightened, and has a floor now.** With
+the cameras out to 30 km, a far crater wall seen edge-on read as a flat
+white sheet with a knife-edge terminator: `2 n_l / max(n_l + n_v, 0.02)`
+goes to 2 wherever `n_v` is near zero and the sun catches the ground at all.
+Pure Lommel-Seeliger does that; the real disc is flat because macroscopic
+roughness takes the limb back. `lunar_view_floor` on the material stands in
+for the roughness: `n_v` is never taken below it, 0.25 on the regolith and
+the rock, 0 being the pure term and 1 Lambert. Swept at 0, 0.1, 0.25 and
+0.4 from the rim in `previews/2026-09-15/far-sheet-floor-sweep.jpg`; 0.25
+keeps tone in the far wall where 0 was paper, and 0.4 dims it further.
+It also dims mid-distance ground seen at a grazing angle from the cab, so
+it is Mac's to retune with the rest of the material. `probe_far_sheet.tscn`
+shoots the sweep.
 
 The frames are `previews/2026-09-14/regolith-before-*` against `regolith-after-*`,
 seven views each: down-sun, up-sun, cross-sun, the feet, the rim, from 150 m,

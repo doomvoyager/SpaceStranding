@@ -99,6 +99,13 @@ uniform float lunar_backscatter : hint_range(0.0, 3.0) = 0.6;
 // and how narrow it is (a power; higher is tighter).
 uniform float lunar_opposition : hint_range(0.0, 3.0) = 0.6;
 uniform float lunar_opposition_width : hint_range(1.0, 200.0) = 40.0;
+// The least the eye's cosine is allowed to be. Pure Lommel-Seeliger goes to
+// twice Lambert wherever the ground is seen edge-on and the sun catches it
+// at all, and steps to nothing at the terminator - a far crater wall comes
+// out a flat white sheet with a knife edge. The real disc is flat because
+// roughness takes the limb back; this stands in for that. 0 is the pure
+// term, 1 is Lambert.
+uniform float lunar_view_floor : hint_range(0.0, 1.0) = 0.25;
 
 group_uniforms tracks;
 // Wheel tracks, from the TrackMap's window, sampled by world position; see
@@ -407,7 +414,7 @@ void light() {
 	if (!lunar_brdf) {
 		DIFFUSE_LIGHT += n_l * incoming;
 	} else {
-		float n_v = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+		float n_v = max(clamp(dot(NORMAL, VIEW), 0.0, 1.0), lunar_view_floor);
 		// Lommel-Seeliger, scaled so it equals Lambert at normal incidence
 		// and normal view, which keeps the tunables comparable between the
 		// two models. The floor keeps the ratio finite on the terminator.

@@ -112,10 +112,10 @@ As of 2026-09-14, the streamed ground:
 | | |
 |---|---|
 | Footprint | 24,576 m tiled, of a 24,580 m window - 3 x 3 root tiles of 8192 m |
-| Data | LOLA 5 m/px, 4917² float32, 97 MB resident |
+| Data | LOLA 5 m/px, 4917² float32, 97 MB resident, Gaussian-smoothed at sigma 2.5 samples |
 | Mesh spacing | 4 m nearest, doubling per ring to 128 m; 1.85 M triangles at the spawn |
-| Relief | 4,830 m, -2,873 to +1,958 |
-| Grade | median 14.7°, p90 31.5°, p99 36.1°; 75% at or under the rover's 25° |
+| Relief | 4830 m after smoothing (4,830 raw) |
+| Grade | median 14.5°, p90 31.3°, p99 34.2°; 75.0% at or under the rover's 25° (14.7 / 31.5 / 36.1 / 75% raw) |
 | Terrain offset | (-374.4, -1246.9, +966.9) - the pole at the map's centre, the flat spot at the origin |
 
 The single patch these replaced, for the record: 4096 m at 4 m, 210 m of
@@ -413,8 +413,10 @@ sight lines to relays kilometres off, the route planner samples across the
 map and the map panel draws all of it, so `world_height_at` has to answer
 anywhere at any time. The whole 24.6 km window lives in memory as a
 [Heightfield] (`res://scripts/world/heightfield.gd`) - 4917² float32 at 5 m,
-97 MB, read in 50-70 ms - and every seam question is a bilinear read on it.
-`is_built()` means the file loaded. Tiles are a view of the data, and every
+97 MB, read in 50-70 ms - and every seam question is a Catmull-Rom read on
+it, exact on every sample and smooth between them (bilinear drew the data
+grid at grazing light; see the known issues). `is_built()` means the file
+loaded. Tiles are a view of the data, and every
 vertex of every tile at every level is an exact sample of the same function
 the seam answers, so a crate placed on `world_height_at` rests on the mesh
 exactly as it did on the patch.
@@ -499,8 +501,26 @@ finding the terrain and not a tile, and the real file's header.
 
 ## Known issues
 
-- [ ] **Striations past every crest, and a pale sheet on the far walls.**
-      Two things, found with `probe_far_sheet.tscn` (2026-09-15, windowed,
+- [x] ~~**Striations past every crest, and a pale sheet on the far walls.**~~
+      Both dealt with 2026-09-15 on Mac's go, the sheet outright and the
+      lines by three-quarters. The material has `lunar_view_floor` at 0.25
+      (the sweep, `far-sheet-floor-sweep.jpg`). The bake is smoothed
+      (`lola-window.py --smooth 2.5`, a Gaussian of 12 m: sigma 1 took the
+      speckle from 0.54 to 0.29 m and left most of the lines, 2.5 takes
+      most of the lines and the steepest faces with them - p99 slope 36.1
+      to 34.2°, the steepest 62 to 41°, the drivable share 75% either way;
+      `far-sheet-crest-three.jpg` has raw, 1 and 2.5 side by side) and the
+      sampler is **Catmull-Rom** rather than bilinear - `Heightfield.height_at`
+      - because bilinear's slope jumps at every data row and a 4 m mesh over
+      a 5 m field puts a vertex either side of every jump, so the data's own
+      grid came out as lines wherever the sun grazed a face. What is left
+      (`far-sheet-crest-before-after.jpg`, `far-sheet-final-*`) is the
+      smoothed noise itself, blobs of 10-15 m and 0.3 m, each lighting its
+      sun side on the terminator; the high-pass of the rim
+      (`lola-24k-rim-highpass-x3.png`) shows the blobs and no stripes. A
+      heavier blur trades 5 m detail for it, and the detail layer will bury
+      it under real roughness either way. The diagnosis, kept:
+      two things, found with `probe_far_sheet.tscn` (2026-09-15, windowed,
       from the rim and from the plain; frames `previews/2026-09-15/far-sheet-*`).
       **The striations are the data's noise, lit at grazing incidence.** They
       survive Lambert in place of the lunar term, the skirts hidden, and the

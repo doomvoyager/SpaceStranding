@@ -105,18 +105,42 @@ func height_at_index(x: int, z: int) -> float:
 	return data[z * width + x]
 
 
-## Bilinear height at a centred local position, metres. Clamped at the edges,
-## so a query a metre off the field gives the edge's height rather than zero -
-## the same rule the single patch had.
+## Height at a centred local position, metres: bicubic (Catmull-Rom) through
+## the samples, so it passes exactly through every one and its slope is
+## continuous between them. Clamped at the edges, so a query a metre off the
+## field gives the edge's height rather than zero - the same rule the single
+## patch had.
+##
+## **Bilinear was not good enough, and it took a 5.5 degree sun to show it.**
+## Bilinear is continuous but its slope jumps at every data row and column,
+## and a 4 m mesh sampled off a 5 m field puts a vertex on both sides of
+## every jump, so the central-difference normals carry the creases. Where
+## the sun grazes the ground - the face just past every crest - each crease
+## is a lit/unlit edge, and the data's grid came out as parallel lines
+## converging on the horizon (`previews/2026-09-15/far-sheet-*`). Smoothing
+## the samples at the bake softened it and could not remove it, because
+## the creases are the interpolation's, not the data's. Sixteen taps instead
+## of four; a tile costs about twice as much to sample.
 func height_at(local_x: float, local_z: float) -> float:
 	var fx := (local_x + span_x() * 0.5) / spacing
 	var fz := (local_z + span_z() * 0.5) / spacing
-	var x0 := int(floorf(fx))
-	var z0 := int(floorf(fz))
-	var tx := fx - float(x0)
-	var tz := fz - float(z0)
-	return lerpf(
-		lerpf(height_at_index(x0, z0), height_at_index(x0 + 1, z0), tx),
-		lerpf(height_at_index(x0, z0 + 1), height_at_index(x0 + 1, z0 + 1), tx),
-		tz
-	)
+	var x1 := int(floorf(fx))
+	var z1 := int(floorf(fz))
+	var tx := fx - float(x1)
+	var tz := fz - float(z1)
+	var rows := PackedFloat32Array()
+	rows.resize(4)
+	for j in 4:
+		var z := z1 + j - 1
+		rows[j] = _cubic(
+			height_at_index(x1 - 1, z), height_at_index(x1, z),
+			height_at_index(x1 + 1, z), height_at_index(x1 + 2, z), tx)
+	return _cubic(rows[0], rows[1], rows[2], rows[3], tz)
+
+
+## Catmull-Rom through p1 and p2, with p0 and p3 setting the slopes.
+static func _cubic(p0: float, p1: float, p2: float, p3: float, t: float) -> float:
+	return 0.5 * (2.0 * p1
+		+ (p2 - p0) * t
+		+ (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t
+		+ (3.0 * p1 - p0 - 3.0 * p2 + p3) * t * t * t)

@@ -123,9 +123,10 @@ func _check_the_seam() -> void:
 	if not is_equal_approx(_terrain.sample_step(), FIELD_SPACING):
 		_fail("sample_step() is %f, expected %f" % [_terrain.sample_step(), FIELD_SPACING])
 
-	# On a sample: exact. Between samples: the bilinear blend of the four
+	# On a sample: exact. Between samples: Catmull-Rom through the sixteen
 	# around it, which is what the data says and not what the analytic relief
-	# says - the terrain is the data.
+	# says - the terrain is the data. The reference cubic here is written
+	# out on its own so the field's is checked against something.
 	var half := span * 0.5
 	for probe: Vector2i in [Vector2i(0, 0), Vector2i(17, 40), Vector2i(256, 256), Vector2i(100, 3)]:
 		var lx := probe.x * FIELD_SPACING - half
@@ -134,12 +135,32 @@ func _check_the_seam() -> void:
 		var got_h := _terrain.world_height_at(OFFSET.x + lx, OFFSET.z + lz)
 		if absf(got_h - want_h) > 1e-3:
 			_fail("world_height_at on sample %s: %f, expected %f" % [probe, got_h, want_h])
-	var mid_want := 0.25 * (_field.height_at_index(10, 20) + _field.height_at_index(11, 20)
-		+ _field.height_at_index(10, 21) + _field.height_at_index(11, 21)) + OFFSET.y
+	var rows := []
+	for j in range(-1, 3):
+		rows.append(_catmull(
+			_field.height_at_index(9, 20 + j), _field.height_at_index(10, 20 + j),
+			_field.height_at_index(11, 20 + j), _field.height_at_index(12, 20 + j), 0.5))
+	var mid_want: float = _catmull(rows[0], rows[1], rows[2], rows[3], 0.5) + OFFSET.y
 	var mid_got := _terrain.world_height_at(OFFSET.x + 10.5 * FIELD_SPACING - half,
 		OFFSET.z + 20.5 * FIELD_SPACING - half)
 	if absf(mid_got - mid_want) > 1e-3:
 		_fail("world_height_at between samples: %f, expected %f" % [mid_got, mid_want])
+	# And the slope is continuous across a sample line, which bilinear's is
+	# not: the step across a data row shrinks in proportion to the straddle,
+	# the way a slope's does and a crease's does not.
+	var at_x := OFFSET.x + 40.0 * FIELD_SPACING - half
+	var at_z := OFFSET.z + 60.0 * FIELD_SPACING - half
+	var wide := _terrain.world_height_at(at_x, at_z + 0.4) - _terrain.world_height_at(at_x, at_z - 0.4)
+	var narrow := _terrain.world_height_at(at_x, at_z + 0.04) - _terrain.world_height_at(at_x, at_z - 0.04)
+	if absf(wide) > 1e-4 and absf(narrow * 10.0 - wide) > absf(wide) * 0.05:
+		_fail("slope is not continuous across a data row: %f over 0.8 m, %f over 0.08 m"
+			% [wide, narrow])
+
+
+static func _catmull(p0: float, p1: float, p2: float, p3: float, t: float) -> float:
+	return 0.5 * (2.0 * p1 + (p2 - p0) * t
+		+ (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t * t
+		+ (3.0 * p1 - p0 - 3.0 * p2 + p3) * t * t * t)
 
 
 # --- 2. Selection -------------------------------------------------------

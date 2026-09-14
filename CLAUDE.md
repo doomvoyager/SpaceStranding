@@ -1144,14 +1144,20 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   `_exit_tree` (and on `NOTIFICATION_PREDELETE`, for a node freed outside the
   tree); blocking there is safe precisely because of the fact above.
   `StreamedTerrain._finish_pending`.
-- **A pixel on the terminator amplifies whatever noise the heightfield
-  carries into lines.** The LOLA 5 m product has 0.54 m of per-sample
-  speckle - a 6° tilt per sample, invisible where the sun hits the ground
-  squarely. On the face just past a crest the sun rays run along the ground,
-  each bump's sun side lights and the rest stays dark, and the DEM's own rows
-  come out as bright lines converging on the horizon. It survives Lambert,
-  no skirts and no detail map, so it is the data and not the shader: smooth
-  at the bake, not in the renderer. `tests/probe_far_sheet.tscn`.
+- **A pixel on the terminator amplifies whatever the heightfield carries
+  into lines - the data's noise, and the sampler's creases.** The LOLA 5 m
+  product has 0.54 m of per-sample speckle - a 6° tilt per sample, invisible
+  where the sun hits the ground squarely. On the face just past a crest the
+  sun rays run along the ground, each bump's sun side lights and the rest
+  stays dark, and the DEM's own rows come out as bright lines converging on
+  the horizon. It survives Lambert, no skirts and no detail map, so it is not
+  the shader. Two causes, two fixes: the noise is smoothed at the bake
+  (`--smooth 1.0`), and **bilinear interpolation is not smooth enough for a
+  mesh finer than its data** - its slope jumps at every data row, a 4 m grid
+  over a 5 m field lands a vertex either side of every jump, and
+  central-difference normals carry the crease, so the data grid draws itself
+  at grazing light no matter how clean the samples are. `Heightfield.height_at`
+  is Catmull-Rom, sixteen taps, exact on every sample. `tests/probe_far_sheet.tscn`.
 - **Godot ignores a file with an extension it has no importer for**, and
   `FileAccess` reads it from `res://` in one call - a 97 MB float32
   heightfield in 50-70 ms. That is the way round the EXR importer expanding

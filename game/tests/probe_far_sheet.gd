@@ -13,6 +13,7 @@ extends Node3D
 ##   03  every tile's skirt hidden
 ##   04  the ground unshaded flat grey - the silhouette alone
 ##   05  the detail normal map off
+##   06  the lunar term's view floor at 0, 0.1, 0.25 and 0.4
 ##
 ## from two eyes: the rim, 150 m over the pole, and the plain behind the
 ## rover at the spawn. The first run also reported the deepest skirts
@@ -88,6 +89,12 @@ func _ready() -> void:
 		regolith.set_shader_parameter("use_detail", false)
 		await _shot("%s_05_no_detail" % key)
 		regolith.set_shader_parameter("use_detail", true)
+		# The view floor, swept: 0 is the pure term that made the sheet.
+		var floor_was: float = regolith.get_shader_parameter("lunar_view_floor")
+		for floor_value: float in [0.0, 0.1, 0.25, 0.4]:
+			regolith.set_shader_parameter("lunar_view_floor", floor_value)
+			await _shot("%s_06_floor_%s" % [key, String.num(floor_value, 2)])
+		regolith.set_shader_parameter("lunar_view_floor", floor_was)
 	print("captured to: ", ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()
 
