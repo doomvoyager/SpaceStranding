@@ -27,7 +27,7 @@ class_name WheelDust
 @export_group("Throw")
 ## Grains per second from one wheel at `full_speed`, before skid. A rooster
 ## tail is a dense sheet; a few hundred a second reads as gravel.
-@export_range(0.0, 5000.0, 10.0) var max_rate := 900.0
+@export_range(0.0, 5000.0, 10.0) var max_rate := 1400.0
 ## Tyre surface speed, m/s, at which the rate stops growing.
 @export_range(0.1, 30.0, 0.1) var full_speed := 4.0
 ## How much more a fully skidding wheel throws, as a multiple on top of 1.
@@ -45,12 +45,13 @@ class_name WheelDust
 @export_group("Grains")
 ## Particles an emitter can hold. With `lifetime`, this caps the rate at
 ## `amount / lifetime` a second.
-@export_range(16, 8192, 16) var amount := 3200
+@export_range(16, 8192, 16) var amount := 5600
 ## Seconds a grain lives if nothing stops it. A 4 m/s throw at 45 degrees
 ## lands after 3.5 s at 1.62, having climbed 2.5 m.
 @export_range(0.1, 10.0, 0.1) var lifetime := 4.0
-## Metres across a grain's quad.
-@export_range(0.005, 0.2, 0.005) var grain_size := 0.03
+## Metres across a grain's quad. Finer than it was at Mac's ask; a finer
+## grain needs more of them for a sheet to read, hence the rate.
+@export_range(0.005, 0.2, 0.005) var grain_size := 0.015
 ## Where a grain is born: this far above the contact point and behind it,
 ## metres. Born on the ground, a grain is on the landing field already and
 ## hidden before it flies - the first capture showed six wheels throwing

@@ -6,3 +6,6 @@
 resource_name = "Dust grain"
 shader = ExtResource("1_grain")
 shader_parameter/albedo = Color(0.62, 0.6, 0.57, 1)
+shader_parameter/fade_near = 0.6
+shader_parameter/fade_far = 3.0
+shader_parameter/edge_softness = 0.4

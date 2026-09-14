@@ -10,13 +10,23 @@ shader_type spatial;
 // crater's shadow, and the scene's ambient fills it like any other prop.
 // Cross-sun a grain reads half-lit, like a very small moon.
 //
+// A grain also fades out as it nears the camera: a speck a metre from the
+// eye is a blot across the frame, and Mac asked for finer grains that go
+// transparent on approach. Alpha-blended for that, with no depth write -
+// grains are a pixel or two and their order does not show.
+//
 // The vertex half is Godot's own BILLBOARD_PARTICLES code, keeping the
 // particle's scale and rotation; nothing here is specific to dust but the
 // name.
 
-render_mode cull_disabled, depth_draw_opaque;
+render_mode cull_disabled, blend_mix, depth_draw_opaque;
 
 uniform vec4 albedo : source_color = vec4(0.62, 0.6, 0.57, 1.0);
+// Metres from the eye at which a grain is gone, and at which it is whole.
+uniform float fade_near : hint_range(0.0, 10.0) = 0.6;
+uniform float fade_far : hint_range(0.0, 30.0) = 3.0;
+// How soft the disc's edge is, as a fraction of its radius.
+uniform float edge_softness : hint_range(0.0, 1.0) = 0.4;
 
 
 void vertex() {
@@ -42,6 +52,13 @@ void fragment() {
 	vec2 p = UV * 2.0 - 1.0;
 	float r2 = dot(p, p);
 	if (r2 > 1.0) {
+		discard;
+	}
+	float disc = 1.0 - smoothstep(1.0 - edge_softness, 1.0, r2);
+	// VERTEX is in view space; its depth is the distance that matters.
+	float near = smoothstep(fade_near, max(fade_far, fade_near + 0.01), -VERTEX.z);
+	ALPHA = albedo.a * disc * near;
+	if (ALPHA < 0.01) {
 		discard;
 	}
 	// The sphere's normal, in view space. UV.y runs down the quad and view

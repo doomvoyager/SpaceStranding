@@ -55,7 +55,11 @@ in shadow, and the shader keeps the quad but gives each pixel the normal of
 a sphere bulging toward the camera. The sun lights the sun's side, the
 shadow map darkens a grain in the rover's shadow, the scene's ambient fills
 it like any prop, and cross-sun a grain is half-lit like a very small moon.
-`dust-unshaded-vs-shaded.jpg` has the pair.
+`dust-unshaded-vs-shaded.jpg` has the pair. A grain also **fades out as it
+nears the eye** - `fade_near` gone, `fade_far` whole, metres - because a
+speck a metre from the camera was a blot across the frame; the grain is
+1.5 cm and the rate 1,400 a second for it, since a finer grain needs more
+of them for a sheet to read. `dust-shaded-vs-fine.jpg`.
 
 ## What the sweep found
 
