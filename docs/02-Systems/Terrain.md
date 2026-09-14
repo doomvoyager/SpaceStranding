@@ -378,8 +378,9 @@ and the dark half is the wall.
 (-374.4, -1477.6, 966.9) so the flat spot is the origin at y ≈ 0. Everything
 placed settled onto it correctly (`probe_world_placement`); the facilities
 kept their old X/Z. The frames are `lola-pole-terrain-*`, on a neutral grey
-with the retired colour bake off - the material's own base colour is still
-Vesper's red, which is Mac's.
+with the retired colour bake off. Later the same day the material itself went
+grey, with the bake off for good and a noise normal map standing in for the
+detail layer - see [[The-Planet]], "The ground, and how it is lit".
 
 **What the frames say.** The macro is right: a plain, a crest, a wall dropping
 into shadow, small craters from the overview. Up close the ground is a smooth
@@ -392,16 +393,15 @@ is 15-25° at 5 m; the metre scale will be rougher still, and boulders.
 - [ ] Single patch, no streaming, no LOD. 2 M triangles resident at all times.
 - [ ] Rebuilds the whole mesh on any slider. ~150 ms of that is the map's range
       scan, cached after the first read.
-- [ ] The albedo is 1 m/texel and visibly soft underfoot. The master only has
-      0.5 m/texel to give at this footprint, so sharpening it means a detail
-      layer, not a bigger bake.
+- [x] ~~The albedo is 1 m/texel and visibly soft underfoot.~~ The bake is
+      off the material since 2026-09-14; the ground's colour is a flat albedo
+      with noise-driven variation, and the sharpness underfoot is the detail
+      layer's job.
 
 ## Open
 
-- [ ] Colour grading pass on the macro albedo. The master is pinker and more
-      saturated than [[Visual-Direction]] calls for; `macro_tint` and
-      `macro_saturation` on the material pull it back without a re-bake, and
-      nobody has judged where they should sit. Mac's call. #next
+- [x] ~~Colour grading pass on the macro albedo.~~ Moot: the bake is off
+      the material (2026-09-14), and a DEM has no colour to grade.
 - [ ] The spawn playa is the flattest ground on the map, which makes the
       immediate area bland. Moving the terrain offset trades that against
       spawning somewhere with more character. #next

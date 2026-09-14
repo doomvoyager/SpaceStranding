@@ -1,17 +1,63 @@
-[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+[gd_resource type="ShaderMaterial" load_steps=7 format=3]
 
 [ext_resource type="Shader" path="res://shaders/surface.gdshader" id="1_surface"]
 [ext_resource type="Texture2D" path="res://assets/terrain/world_01_color_4096.webp" id="2_macro"]
 
+[sub_resource type="FastNoiseLite" id="Noise_dimples"]
+noise_type = 2
+seed = 7
+frequency = 0.018
+fractal_octaves = 4
+fractal_gain = 0.55
+cellular_jitter = 1.0
+cellular_return_type = 1
+
+[sub_resource type="NoiseTexture2D" id="Texture_detail_normal"]
+width = 512
+height = 512
+seamless = true
+as_normal_map = true
+bump_strength = 6.0
+noise = SubResource("Noise_dimples")
+
+[sub_resource type="FastNoiseLite" id="Noise_patches"]
+noise_type = 1
+seed = 11
+frequency = 0.008
+fractal_octaves = 5
+fractal_gain = 0.6
+
+[sub_resource type="NoiseTexture2D" id="Texture_detail_albedo"]
+width = 512
+height = 512
+seamless = true
+noise = SubResource("Noise_patches")
+
 [resource]
 resource_name = "Regolith"
 shader = ExtResource("1_surface")
-shader_parameter/albedo_color = Color(0.55, 0.17, 0.11, 1)
+shader_parameter/albedo_color = Color(0.57, 0.53, 0.48, 1)
 shader_parameter/use_albedo_texture = false
 shader_parameter/albedo_uv_scale = 0.06
 shader_parameter/macro_albedo = ExtResource("2_macro")
-shader_parameter/use_macro_albedo = true
+shader_parameter/use_macro_albedo = false
 shader_parameter/macro_strength = 1.0
+shader_parameter/use_detail = true
+shader_parameter/detail_normal = SubResource("Texture_detail_normal")
+shader_parameter/detail_albedo = SubResource("Texture_detail_albedo")
+shader_parameter/detail_tile_m = 8.0
+shader_parameter/detail_strength = 0.22
+shader_parameter/detail_coarse_tile_m = 60.0
+shader_parameter/detail_coarse_strength = 0.1
+shader_parameter/detail_albedo_tile_m = 120.0
+shader_parameter/detail_albedo_variation = 0.09
+shader_parameter/detail_grain_variation = 0.04
+shader_parameter/lunar_brdf = true
+shader_parameter/lunar_backscatter = 0.4
+shader_parameter/lunar_opposition = 0.4
+shader_parameter/lunar_opposition_width = 40.0
+shader_parameter/fill_color = Color(1, 0.96, 0.9, 1)
+shader_parameter/fill_strength = 0.15
 shader_parameter/coverage_enabled = false
 shader_parameter/coverage_intensity = 1.0
 shader_parameter/coverage_fill_color = Color(0.36, 0.78, 0.84, 1)
@@ -20,5 +66,3 @@ shader_parameter/coverage_edge_color = Color(0.55, 0.95, 1, 1)
 shader_parameter/coverage_edge_glow = 1.5
 shader_parameter/coverage_edge_width = 0.1
 shader_parameter/scan_grid_enabled = true
-shader_parameter/fill_color = Color(0.3, 0.36, 0.6, 1)
-shader_parameter/fill_strength = 1.4

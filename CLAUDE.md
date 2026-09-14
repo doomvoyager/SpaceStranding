@@ -317,6 +317,14 @@ engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_far_render.t
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/view_capture.tscn
 ```
 
+The ground as a material, seven views around the sun, sun only; `-- --tag=x`
+prefixes the files, `--lamp` keeps the head lamp, `--lights` keeps every light,
+`--nopost` hides the film stack:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/regolith_capture.tscn -- --tag=after
+```
+
 **Every rendered image that gets looked at is kept, in `previews/`.** A capture
 scene writes to Godot's `user://` first, because that is where a running game
 can write without touching the project; the shots are then copied into
@@ -992,6 +1000,28 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   under the arm ends up 4.5 m behind the figure too. A first-person eye has to
   be a sibling of the arm, under the yaw pivot, with the pitch written to both
   - `Astronaut._pitch_by()`.
+- **`LIGHT_COLOR` inside a spatial shader's `light()` is energy times pi, and
+  `return` is not allowed in there.** The docs' example writes
+  `dot(NORMAL, LIGHT) * ATTENUATION * LIGHT_COLOR` into `DIFFUSE_LIGHT`, and
+  that renders 60% brighter than Godot's own diffuse on the same frame -
+  measured against a no-`light()` control by `regolith_capture`, and `/ PI`
+  matched the built-in to three decimals. Burley and `diffuse_lambert` were
+  identical in those frames. And an early `return` from `light()` is a shader
+  compile error ("Using 'return' in the 'light' processor function is
+  incorrect"), so a per-material toggle has to be an if/else.
+- **`LIGHT0_SIZE` in a sky shader is the light's `light_angular_distance` in
+  radians**, so a disc of radius *half* of it is the real sun: measured 34
+  pixels of area for 0.53 degrees at a 70 degree vertical field over 900 px,
+  which is the arithmetic. The procedural sky was drawing the disc at the
+  full size as a radius, twice too big.
+- **A look capture has to switch the scene's point lights off, or it measures
+  the settlement.** The spawn sits inside the Hearth's mast light (34 m) and
+  the relay's beacon (22 m); three sweeps of the regolith came out salmon with
+  a cyan band under the horizon, with the post stack ruled out, before either
+  was suspected. A light near the eye is also exactly where a backscattering
+  ground surges, so a lamp tuned against Lambert whites out the ground ahead
+  once the ground stops being Lambert. `regolith_capture` is sun-only by
+  default and takes `--lamp` and `--lights` to put them back.
 - **A `CanvasLayer` is not a `CanvasItem`.** Both have `visible`, so a capture
   that does `find_child("HUD") as CanvasItem` gets null, sets nothing, and
   keeps the controls card in every frame - the first view capture did. Cast to

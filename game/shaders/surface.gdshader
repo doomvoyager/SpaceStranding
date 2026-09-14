@@ -9,31 +9,42 @@ shader_type spatial;
 // 416 lines of opinion nobody is currently building against, and leaving it in
 // place would have meant every terrain change dragging it along.
 //
-// What is left is albedo and two overlays, and the two overlays are the entire
-// reason this is a shader at all rather than a StandardMaterial3D. Both are
-// gameplay:
+// What is left is albedo, a regolith detail layer, a lunar reflectance model
+// and two overlays. The two overlays are gameplay and are the original reason
+// this is a shader at all rather than a StandardMaterial3D:
 //
 //   - **Lattice coverage**, painted on the ground. See [[The-Lattice]].
 //   - **The scan pulse**, on ground and rock. See [[Scanner]].
 //
-// Godot's own lighting handles everything else, which is what "simple" buys:
-// no banding, no hue-shifted shadows, no brush stamps, no `light()` at all -
-// scene ambient is replaced by a flat fill rather than reinterpreted.
+// **The lighting is the Moon's, not a style** (2026-09-14, Mac asked for a
+// realistic regolith). Regolith is not a Lambert surface: it is a fine dark
+// powder whose grains shadow each other, and the classic model for it is
+// Lommel-Seeliger - reflectance goes as `cos_i / (cos_i + cos_e)` rather than
+// `cos_i` alone. Two things follow that a Lambert ground cannot do, and both
+// are what a lunar photograph looks like. The far ground under a grazing sun
+// stays bright: at 5.5 deg `N.L` is 0.096, and a flat plane seen from a
+// standing eye has `N.V` of a few hundredths out at range, so the ratio sits
+// near one where Lambert has already gone black - this is the real reason the
+// Moon's horizon is not dark, and the fill term below used to fake it. And the
+// surface is strongly backscattering, so looking down-sun it washes out flat
+// and shadowless (the opposition surge, the bright halo round your own
+// shadow's head) while up-sun it is dark and every rise is a silhouette.
+// `lunar_brdf` is per material: on for regolith and rock, off for crates and
+// hulls, which get a plain Lambert from the same `light()`.
+//
+// **`LIGHT_COLOR` inside `light()` carries a factor of pi.** Measured: a
+// `light()` writing `dot(N,L) * ATTENUATION * LIGHT_COLOR` rendered 60%
+// brighter than Godot's own diffuse on the same frames, and `/ PI` matched the
+// built-in to three decimals. The docs' example omits the division.
 //
 // **Ambient is rolled by hand, and that is not a style choice.** The sky is
-// black - it was nearly black under Vesper c's red star, where this was
-// measured, and on the Moon it is black outright - so Godot's sky-sourced
-// ambient contributes nothing, and the sun sits 5.5° above the horizon, which
-// puts N·L at about 0.09 on flat ground. Delete the fill term and the near
-// ground renders **black**: measured, by capturing this
-// scene with and without it. Raising `ambient_light_energy` instead does not
-// work either. At 1.0-1.8 the environment's blue ambient turns red regolith
-// violet, and driving it from the sky at 3.0 leaves the foreground where it
-// started, because the dark half of the sky is most of what a ground normal
-// sees. Both sweeps are in `previews/2026-09-03/`.
-//
-// So `ambient_light_disabled` and four lines of fill survive from the shader
-// this replaced, at the values it used. Everything stylistic did not.
+// black, so Godot's sky-sourced ambient contributes nothing, and a coloured
+// ambient at the level needed to read tinted the whole ground. Measured both
+// ways in `previews/2026-09-03/`. So `ambient_light_disabled` stays, and a
+// flat fill in EMISSION stands in for what the sunlit ground around you
+// bounces back - grey, because it is regolith lit by a white sun. It is far
+// smaller than it was: the Lommel-Seeliger term now carries the far ground,
+// so the fill only has to keep the shadows from rendering as holes.
 
 render_mode ambient_light_disabled;
 
@@ -50,13 +61,53 @@ uniform sampler2D macro_albedo : source_color, hint_default_white;
 uniform bool use_macro_albedo = false;
 uniform float macro_strength : hint_range(0.0, 1.0) = 1.0;
 
+group_uniforms detail;
+// Regolith detail, mapped on the world's ground plane in metres rather than
+// through the mesh's UVs, so it is the same on every tile and on anything
+// else the material lands on, and so no mesh needs tangents. Two things:
+//
+//   - a **normal map** sampled at two scales - a fine one for the grain and
+//     the dimples a metre across, a coarse one for the soft undulation the
+//     5 m DEM cannot carry - which is what gives a grazing sun something to
+//     rake across;
+//   - **brightness variation**, at a coarse scale for the patches and a fine
+//     one for the grain, multiplied into ALBEDO.
+//
+// The textures are NoiseTexture2Ds authored on the material, so all of it
+// opens in the inspector. Off by default: only the regolith turns it on.
+uniform bool use_detail = false;
+uniform sampler2D detail_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D detail_albedo : hint_default_white, filter_linear_mipmap, repeat_enable;
+// Metres per repeat of the fine normal, and how far it tilts the surface.
+uniform float detail_tile_m : hint_range(0.5, 50.0) = 5.0;
+uniform float detail_strength : hint_range(0.0, 2.0) = 0.5;
+// The same normal texture again, larger, for the undulation.
+uniform float detail_coarse_tile_m : hint_range(5.0, 500.0) = 60.0;
+uniform float detail_coarse_strength : hint_range(0.0, 2.0) = 0.35;
+// Brightness variation, as a fraction either side of 1.
+uniform float detail_albedo_tile_m : hint_range(5.0, 1000.0) = 120.0;
+uniform float detail_albedo_variation : hint_range(0.0, 0.6) = 0.18;
+uniform float detail_grain_variation : hint_range(0.0, 0.6) = 0.10;
+
+group_uniforms lighting;
+// Lommel-Seeliger with a backscatter lobe and an opposition surge; see the
+// note at the top. Off, the material is plain Lambert.
+uniform bool lunar_brdf = false;
+// How much brighter the surface is with the sun behind the eye than side-on.
+uniform float lunar_backscatter : hint_range(0.0, 3.0) = 0.6;
+// The narrow surge right at zero phase - the halo round your shadow's head -
+// and how narrow it is (a power; higher is tighter).
+uniform float lunar_opposition : hint_range(0.0, 3.0) = 0.6;
+uniform float lunar_opposition_width : hint_range(1.0, 200.0) = 40.0;
+
 group_uniforms fill;
-// Stands in for scene ambient, which this planet's sky cannot provide.
-// Multiplied by ALBEDO so it tints the surface rather than washing over it -
-// blue fill on red regolith reads as dark red, which is what an unlit slope
-// under a black sky should look like.
-uniform vec4 fill_color : source_color = vec4(0.30, 0.36, 0.60, 1.0);
-uniform float fill_strength : hint_range(0.0, 2.0) = 0.42;
+// Stands in for scene ambient, which this planet's sky cannot provide: the
+// light the sunlit ground around you throws back into a shadow. Multiplied by
+// ALBEDO so it tints the surface rather than washing over it. Warm grey,
+// because it is regolith under a white sun - the blue it used to be was
+// chosen against a red star.
+uniform vec4 fill_color : source_color = vec4(1.0, 0.96, 0.90, 1.0);
+uniform float fill_strength : hint_range(0.0, 2.0) = 0.15;
 
 group_uniforms coverage;
 // Lattice coverage. The mask is built by CoverageMap and spans the patch, so
@@ -152,6 +203,26 @@ void fragment() {
 	if (use_macro_albedo) {
 		base = mix(base, texture(macro_albedo, UV2).rgb, macro_strength);
 	}
+
+	if (use_detail) {
+		vec2 ground = world_position.xz;
+		vec2 v = vec2(detail_albedo_variation, detail_grain_variation);
+		float patches = texture(detail_albedo, ground / detail_albedo_tile_m).r;
+		float grain = texture(detail_albedo, ground / detail_tile_m * 1.73 + 0.5).r;
+		base *= mix(1.0 - v.x, 1.0 + v.x, patches) * mix(1.0 - v.y, 1.0 + v.y, grain);
+
+		// Two octaves of the one normal map, in tangent space with +Z up.
+		vec3 fine = texture(detail_normal, ground / detail_tile_m).xyz * 2.0 - 1.0;
+		vec3 coarse = texture(detail_normal,
+			ground / detail_coarse_tile_m + vec2(0.37, 0.11)).xyz * 2.0 - 1.0;
+		vec2 tilt = fine.xy * detail_strength + coarse.xy * detail_coarse_strength;
+		// Planar mapping on the ground plane, so the tangent frame is the world's
+		// X and Z. Good on any slope the rover can drive; a cliff face would
+		// smear, and a cliff is rock's job. The geometric normal stays in
+		// `world_normal` for the scan, which reports the slope as built.
+		vec3 bent = normalize(world_normal + vec3(tilt.x, 0.0, tilt.y));
+		NORMAL = normalize((VIEW_MATRIX * vec4(bent, 0.0)).xyz);
+	}
 	ALBEDO = base;
 
 	// No specular. Kept from the shader this replaced: the surfaces are
@@ -246,5 +317,28 @@ void fragment() {
 				* scan_strength * inside * scan_outline_strength;
 			EMISSION += scan_outline_color.rgb * outline;
 		}
+	}
+}
+
+
+void light() {
+	float n_l = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
+	// LIGHT_COLOR is energy * pi; see the note at the top.
+	vec3 incoming = ATTENUATION * LIGHT_COLOR / PI;
+	// No early return: Godot rejects `return` inside light().
+	if (!lunar_brdf) {
+		DIFFUSE_LIGHT += n_l * incoming;
+	} else {
+		float n_v = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+		// Lommel-Seeliger, scaled so it equals Lambert at normal incidence
+		// and normal view, which keeps the tunables comparable between the
+		// two models. The floor keeps the ratio finite on the terminator.
+		float ls = 2.0 * n_l / max(n_l + n_v, 0.02);
+		// Phase: cos of the angle between the sun and the eye, seen from the
+		// surface. 1 with the sun straight behind the eye, 0 side-on.
+		float cos_g = clamp(dot(LIGHT, VIEW), 0.0, 1.0);
+		float phase = 1.0 + lunar_backscatter * cos_g * cos_g
+			+ lunar_opposition * pow(cos_g, lunar_opposition_width);
+		DIFFUSE_LIGHT += ls * phase * incoming;
 	}
 }

@@ -5,10 +5,15 @@
 [resource]
 resource_name = "Rock"
 shader = ExtResource("1_surface")
-shader_parameter/albedo_color = Color(0.52, 0.31, 0.25, 1)
+shader_parameter/albedo_color = Color(0.46, 0.45, 0.43, 1)
 shader_parameter/use_albedo_texture = false
 shader_parameter/albedo_uv_scale = 1.0
 shader_parameter/use_macro_albedo = false
+shader_parameter/use_detail = false
+shader_parameter/lunar_brdf = true
+shader_parameter/lunar_backscatter = 0.4
+shader_parameter/lunar_opposition = 0.4
+shader_parameter/lunar_opposition_width = 40.0
 shader_parameter/scan_grid_enabled = true
-shader_parameter/fill_color = Color(0.3, 0.36, 0.6, 1)
-shader_parameter/fill_strength = 0.5
+shader_parameter/fill_color = Color(1, 0.96, 0.9, 1)
+shader_parameter/fill_strength = 0.15

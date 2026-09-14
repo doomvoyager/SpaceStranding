@@ -9,6 +9,58 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-14 - The regolith is grey and lit like the Moon; the sky has its sun and stars
+
+Mac: "try making the regolith material and do adjustments to the sky and
+ambient light, so the terrain is more realistic." The first look work since
+art direction was frozen on 09-03, and scoped to that: the ground, the sky,
+the ambient. Built by Claude on a sweep of seven views, so **every number
+below is provisional and Mac's**; all of it is on the material or the
+environment in the inspector, none of it in code.
+
+**Lommel-Seeliger in `light()`, not a bigger fill.** The 5-degree-sun problem
+was being solved with a blue fill at 1.4 because Lambert goes black on flat
+ground at that elevation. The Moon's own answer is that regolith is not
+Lambertian: `cos_i / (cos_i + cos_e)` keeps the far ground bright at a grazing
+view, and a backscatter lobe with an opposition surge makes the down-sun view
+wash out and the up-sun view go dark, which is what the photographs show. So
+`surface.gdshader` has a custom `light()` again - the thing the 09-03 decision
+removed - but it carries a reflectance model, not a style, and it is a
+per-material toggle: on for regolith and rock, Lambert for crates and hulls.
+The fill drops to 0.15 and goes warm grey. **Rejected: scene ambient instead
+of the fill** - it was measured out on 09-03 and nothing about the sky changed.
+
+**The colour bake is off the material.** It was Vesper's, painted for a
+different heightfield, and the DEM under it has no colour anyway. A flat warm
+grey with noise-driven variation at 120 m replaces it; the mask-driven material
+queued on 09-03 still replaces that.
+
+**A normal map stands in for the detail layer.** Cellular noise on the ground
+plane, 8 m and 60 m, tilting the normal a little so the grazing sun has
+something to rake across. It is not the detail layer - that is geometry, and
+queued - and it is off on rock.
+
+**A sky shader replaces the procedural sky.** Black; the sun's disc at the
+real 0.53 degrees the light carries, with a small glare for the eye; stars,
+faint. **Earth is not in it** - where it sits on the horizon is navigation and
+Mac's question in [[The-Planet]].
+
+**The sun is 0.8**, from 0.46, and the head lamp is 3, from 8. The first
+because a dark powder needs a strong sun to read as bright ground; the second
+because the lamp whited out the ground ahead once that ground was grey and
+surging toward it. **The settlement's lights are untouched** and now paint the
+grey orange and cyan around every facility; that is a look call with a design
+question under it (should a base glow in permanent daylight?), so it is in
+[[The-Planet]] rather than done.
+
+**Verified along the way**, in `CLAUDE.md`: `LIGHT_COLOR` in `light()` carries
+a factor of pi; `return` is not allowed in `light()`; `LIGHT0_SIZE` in a sky
+shader is the light's angular distance in radians, so a disc of radius half of
+it is the real sun; and a look capture has to switch the scene's point lights
+off or it measures the settlement, which cost three sweeps of salmon frames.
+
+---
+
 ## 2026-09-14 - The ground is the real south pole, composed; the Gaea master is retired
 
 Mac, once the rover drove right and the question became the world: "a

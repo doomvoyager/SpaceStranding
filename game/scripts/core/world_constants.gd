@@ -105,11 +105,13 @@ func curvature_drop(distance: float) -> float:
 	set(v):
 		sun_color = v
 		changed.emit()
-## Chosen to give the ground the same brightness the red star did, so moving to
-## a white sun changes the colour of the light and not its level. 0.85 of a red
-## light carries about as much luminance as 0.46 of this one. Look work beyond
-## that is Mac's.
-@export_range(0.0, 6.0, 0.01) var sun_energy := 0.46:
+## Raised from 0.46 on 2026-09-14 with the lunar reflectance model: regolith
+## is dark - a real albedo near 0.12 - and a sun that has to make it read as
+## bright ground under a black sky has to be strong. Everything else in the
+## sun, a white suit or a crate, is brighter than it was by the same ratio and
+## sits where a camera exposed for the ground would put it. The sweep is in
+## `previews/2026-09-14/regolith-*`.
+@export_range(0.0, 6.0, 0.01) var sun_energy := 0.8:
 	set(v):
 		sun_energy = v
 		changed.emit()

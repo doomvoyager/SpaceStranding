@@ -1,6 +1,6 @@
 ---
 status: reference
-verified: 2026-09-13
+verified: 2026-09-14
 godot: res://scripts/core/world_constants.gd
 tags: [system, setting, reference]
 ---
@@ -55,17 +55,57 @@ flat ground gets `N.L` of about 0.09, and `surface.gdshader`'s hand-rolled fill
 is still what keeps the near ground from rendering black.
 
 **White, not red.** There is no atmosphere between the sun and the ground to
-redden it, even at five degrees. `sun_energy` 0.46 carries about the luminance
-the red star did at 0.85, so the move changed the colour of the light and not
-its level. The sun is drawn 0.53 degrees across, its real size.
+redden it, even at five degrees. `sun_energy` is **0.8** since the regolith
+went grey (2026-09-14): a dark powder under a black sky needs a strong sun to
+read as bright ground, and the 0.46 that matched the red star's luminance left
+it mud. The sun is drawn 0.53 degrees across, its real size, by the sky shader.
 
 **It does not move yet.** `sun_azimuth_deg` is fixed; at the pole it really
 travels once round the horizon a month. Whether it holds still within a session
 and moves between them is open below.
 
-**The sky is black and there is no fog.** `test_world.tscn`'s procedural sky is
-black top to horizon, both fogs are off, and the scene's ambient is a neutral
-grey rather than the blue that was chosen to sit against a red star.
+**The sky is black and there is no fog.** `shaders/sky.gdshader` draws it:
+black, the sun's disc at its real size with a small glare round it (the eye's,
+not the sky's), and faint stars - a camera exposed for sunlit regolith records
+none, and `star_intensity` is the honesty slider. Both fogs are off. The scene's
+ambient, which only the StandardMaterial3D props see, is a warm grey at 0.15:
+the light the sunlit ground throws back, not a sky.
+
+## The ground, and how it is lit
+
+Mac asked for a realistic regolith on 2026-09-14, and the ground went from
+Vesper's pink bake under a blue fill to this - all of it in
+`shaders/surface.gdshader` and `materials/regolith.tres`, all of it in the
+inspector:
+
+- **Grey.** `albedo_color` (0.57, 0.53, 0.48), a warm neutral, no macro map.
+  Highland regolith is a dark grey with a slight red slope; the brightness is
+  exposure, the hue is the point.
+- **Lit as regolith, not as paint.** `lunar_brdf` on regolith and rock puts a
+  Lommel-Seeliger term in `light()` - `cos_i / (cos_i + cos_e)` in place of
+  `cos_i` - with a backscatter lobe and a narrow opposition surge. Under the
+  5.5 degree sun this is what keeps the far ground bright where Lambert goes
+  black, washes the down-sun view flat and shadowless, and leaves the up-sun
+  view dark with every rise a silhouette. The fill term survives at 0.15, warm
+  grey, and only keeps the shadows from being holes. Crates and hulls keep a
+  plain Lambert from the same function.
+- **Detail below the DEM.** A cellular noise normal map on the ground plane at
+  8 m and 60 m, and brightness variation at 120 m: the 5 m data is a sheet up
+  close, and a grazing sun needs something to rake across. A stand-in for the
+  detail layer queued in [[Terrain]], not a replacement.
+
+The frames are `previews/2026-09-14/regolith-before-*` against `regolith-after-*`,
+seven views each: down-sun, up-sun, cross-sun, the feet, the rim, from 150 m,
+the sky. The sweep in between (`v1`..`v5`) is there too, with the salmon
+frames that turned out to be the settlement's lights and not the material.
+
+**What the lights do to it.** Every point light in the scene was tuned against
+a dark pink ground: the head lamp at 8, the Hearth's orange mast at 4 over 34 m,
+the relay's cyan beacon, the red site beacon. On grey regolith with a
+reflectance model that surges toward a light near the eye, the head lamp
+whited out the ground ahead and the Hearth painted the spawn orange -
+`regolith-after-lights-*` and `regolith-lamp-8-vs-3`. The head lamp is 3 now;
+the settlement's lights are Mac's, below.
 
 ## The map: the rims
 
@@ -127,9 +167,18 @@ ready and have no callers.
 - [ ] TODO: at the pole the sun circles the horizon at 0.51 deg an hour. Does it
       hold still within a session and move between them, keeping the shadow
       compass and the performance budget? Mac's call. #question
-- [ ] The terrain still reads purple: the pink colour bake lit by the materials'
-      blue fill, both chosen against a red star. Look work, and Mac's -
-      `previews/2026-09-13/moon-after-*` against `moon-before-*`. #next
+- [x] ~~The terrain still reads purple.~~ Grey, and lit as regolith, since
+      2026-09-14 - see "The ground, and how it is lit". Mac's to retune; every
+      number is on the material.
+- [ ] TODO: the settlement's lights - the Hearth and Longshadow masts (orange,
+      4 over 34 m), the relay beacon (cyan, 2.6 over 22 m), the site beacon
+      (red, 8 over 60 m) - were chosen against pink ground and now paint the
+      grey. `regolith-after-lights-*`. Halving the masts is the obvious first
+      move; whether a settlement should glow at all in permanent daylight is
+      the real question. Mac's. #next
+- [ ] TODO: rocks. The scatter puts 9,000 over 17 km², one per 44 m square, so
+      the spawn has none in sight - and pebbles are what regolith looks like
+      at arm's length. A visual-only small scatter, or a denser one. #next
 - [ ] TODO: Earth is not in the sky. Low on the horizon, it is both a landmark
       and the reason relays exist. Mac's call whether and how. #question
 - [ ] TODO: "no GPS" wants a reason. ESA and NASA are both building south-pole

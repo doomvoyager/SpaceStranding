@@ -24,7 +24,7 @@ shape = SubResource("CapsuleShape3D_body")
 [node name="HeadLamp" type="SpotLight3D" parent="Body" unique_id=188112210]
 transform = Transform3D(1, 0, 0, 0, 0.98176897, 0.19007845, 0, -0.19007845, 0.98176897, 0, 1.66, -0.26175392)
 light_color = Color(0.86, 0.92, 1, 1)
-light_energy = 8.0
+light_energy = 3.0
 spot_range = 30.0
 spot_angle = 38.0
 
