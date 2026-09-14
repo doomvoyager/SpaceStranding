@@ -64,7 +64,8 @@ mechanics. Mac makes their own scene edits between sessions.
 | Godot engine binary | `engine/` - gitignored, see below |
 | Standalone authoring tools | `tools/` at the repo root, **not** `game/tools/` |
 | Authored game tables (TSV) | `game/data/` - edit with `tools/tsv-editor.ps1` |
-| Terrain masters - gitignored, 420 MB | `game/assets/terrain/_source/` - bake with `tools/bake-terrain.py` |
+| Terrain masters - gitignored, 420 MB, retired 2026-09-14 | `game/assets/terrain/_source/` - bake with `tools/bake-terrain.py` |
+| Lunar DEM windows, from NASA's LOLA over HTTP | `tools/lola-window.py` - needs numpy and tifffile; see [[Terrain]] |
 
 `res://scripts/Foo.gd` on disk is `game/scripts/Foo.gd`.
 
@@ -375,6 +376,14 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_p
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_eye_height.tscn
+```
+
+Why does a shadow not land? Twenty variants of a box on a plane under the
+world's settings, each captured casting and not; **windowed**, and
+`-- --only=a,b` runs a subset:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_sun_shadow.tscn -- --only=world_box_on_playa,world_suit_shadows_only
 ```
 
 The rover's spec sheet - launch, brakes, coast, sag, full lock, a kicker - at
@@ -951,17 +960,34 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   "does this handle CRLF" assertion tests something that cannot occur. Normalise
   a multi-line literal with `.replace("\r\n", "\n")` before relying on its
   endings. Cost two false failures that looked like writer bugs.
-- **`VisualInstance3D.layers` gates cameras only; lights and shadows do not
-  read it.** Moving the suit's meshes to their own layer, so the first-person
-  eye can cull them, changed the chase camera's frame by 0.01% of pixels
-  against a 0.01% noise floor - the suit's own shadow edges included - while
-  turning the same meshes' `cast_shadow` off moved 0.07%, exactly along those
-  edges. The instrument is the finding's other half: a whole-frame mean
-  difference read **1.7/255 for identical settings**, because the regolith
-  dithers, so it cannot see a shadow go; count the pixels that move by more
-  than 16/255, and write the difference image out so the shape of what changed
-  can be looked at. `tests/view_capture.tscn`, `previews/2026-09-14/view-diff_*`.
-  GrimdarkTank measured the same for its tank.
+- **A camera's cull mask culls shadow casters from its own view.** A mesh on
+  a layer the camera leaves out is not drawn *and casts no shadow in that
+  camera's picture*, while every other camera still gets both. Measured in
+  `tests/probe_sun_shadow.tscn`: a box on a culled layer moves 0.01% of the
+  frame when its `cast_shadow` flips, against 0.80% with the layer visible;
+  the suit reads 0.01% against 0.24%. So hiding the suit from the first-person
+  eye by layer left the figure with no shadow on the ground in front of it,
+  and the rover's cab eye no rover shadow - which Mac saw from the cab before
+  the probe named it. GrimdarkTank's "layers gate cameras only" was measured
+  from a camera that *sees* the layer and is true there. **Hide a thing from
+  one camera with `SHADOW_CASTING_SETTING_SHADOWS_ONLY`, not with a layer**:
+  the suit's shadow is 5.4% of the eye's frame pitched at the ground ahead,
+  the rover's own 29% of a cab frame pitched down at it (`view_capture.tscn`). A skinned mesh's 2 cm imported AABB
+  is not the cause; a `custom_aabb` changed nothing.
+- **A bisect probe's null result has to be checked for geometry before it is
+  believed.** The first pass named the world's 2 km heightmap as the shadow
+  killer: at the origin, with no offset, the box stood on the 42 degree massif
+  face *inside the massif's own shadow*, so its shadow had nothing left to
+  darken. The same mesh with procedural relief kept it. Two frames confounded
+  the same way since: a chase camera whose figure stands in front of its own
+  shadow, and a rover eye that moved on its springs between shots and lit up
+  every edge in the difference image. Look at the difference image, not only
+  the number.
+- **A whole-frame mean difference cannot see a shadow go.** It read
+  **1.7/255 for identical settings**, because the regolith dithers; count the
+  pixels that move by more than 16/255, and write the difference image out so
+  the shape of what changed can be looked at. `tests/view_capture.tscn`,
+  `previews/2026-09-14/view-diff_*`.
 - **A `SpringArm3D` moves every child to its far end**, so a second camera
   under the arm ends up 4.5 m behind the figure too. A first-person eye has to
   be a sibling of the arm, under the yaw pivot, with the pitch written to both

@@ -1,12 +1,15 @@
 extends Node3D
-## Stills of the authored terrain, at the ranges that actually decide whether
-## the bake is any good.
+## Stills of the terrain, at the ranges that actually decide whether the bake
+## is any good.
 ##
-## The look-dev shots frame the *material* from a couple of metres up on the
-## spawn plain, which is deliberately the flattest ground on the map - they say
-## nothing about whether the heightfield read correctly. These face the massif
-## instead, at four ranges, because the three ways this pipeline fails all show
-## up at a specific distance and nowhere else:
+## Since 2026-09-14 the ground is a 4.1 km window of NASA's LOLA 5 m/px model
+## centred on the south pole - `tools/lola-window.py` - so the frames face the
+## rim of Shackleton, which runs through the pole with the wall falling away
+## beyond it. The look-dev shots frame the *material* from a couple of metres
+## up on the spawn plain, which is deliberately the flattest ground on the map -
+## they say nothing about whether the heightfield read correctly. These look at
+## the relief at four ranges, because the three ways this pipeline fails all
+## show up at a specific distance and nowhere else:
 ##
 ##   * a **texel offset** or a bad decimation shows as terracing on the gentle
 ##     mid-slopes, invisible up close and invisible from far away;
@@ -22,9 +25,12 @@ extends Node3D
 const WORLD := preload("res://scenes/world/test_world.tscn")
 const OUT_DIR := "user://terrain"
 
-## Roughly where the massif peak sits in world space once the terrain offset in
-## test_world.tscn is applied. Everything below looks at it.
-const PEAK := Vector3(-470.0, 210.0, 1270.0)
+## Where the pole sits in world space once the terrain offset in test_world.tscn
+## is applied: the patch is centred on it, and Shackleton's rim runs through it
+## with the wall falling away toward +x, +z.
+const POLE := Vector3(-374.4, 0.0, 966.9)
+## A point down the inner wall, past the crest, for the frames that look in.
+const INTO_THE_CRATER := Vector3(700.0, -900.0, 1900.0)
 
 var _terrain: ProceduralTerrain
 var _cam: Camera3D
@@ -47,11 +53,21 @@ func _ready() -> void:
 	add_child(_cam)
 	_cam.current = true
 
+	# The colour master is retired with the Gaea ground (2026-09-14); the
+	# material still points at its bake, which painted Vesper c's pink over
+	# the real pole, and under it the authored base colour is Vesper's red.
+	# Both off for the run, in memory only: these frames are about relief, and
+	# a neutral grey is the honest ground to read it on.
+	var material := _terrain.surface_material as ShaderMaterial
+	if material != null:
+		material.set_shader_parameter("use_macro_albedo", false)
+		material.set_shader_parameter("albedo_color", Color(0.42, 0.41, 0.40))
+
 	# Eye heights are metres above the surface at that point.
-	await _shot("01_standing", Vector3(0, 1.7, 0), PEAK)
-	await _shot("02_from_the_plain", Vector3(-200, 12, 500), PEAK)
-	await _shot("03_massif_flank", Vector3(-470, 60, 600), PEAK)
-	await _shot("04_high_overview", Vector3(-470, 900, -400), PEAK)
+	await _shot("01_standing", Vector3(0, 1.7, 0), POLE)
+	await _shot("02_toward_the_rim", Vector3(0, 1.7, 0), Vector3(600, -50, 900))
+	await _shot("03_over_the_crest", Vector3(POLE.x, 150, POLE.z), INTO_THE_CRATER)
+	await _shot("04_high_overview", Vector3(POLE.x, 1500, POLE.z), Vector3(200, -1000, 1600))
 
 	print("captured to: ", ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()

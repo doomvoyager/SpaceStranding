@@ -347,6 +347,46 @@ Two things go before any of it is judged by eye: the sun-shadow probe in
 [[The-Planet]] - at a 5° sun the ground's look *is* its shadows and none render
 today - and the real-ground probe below.
 
+## The real ground, measured
+
+**2026-09-14.** `tools/lola-window.py` reads a window of NASA's LOLA south-pole
+DEM over HTTP - the products are tiled BigTIFFs and the server takes byte
+ranges, so 25.6 km at 20 m is 16 MB and a 4.1 km patch at 5 m is 9 MB, no
+download - decodes the tiles itself (deflate plus the TIFF floating-point
+predictor, which tifffile refuses without a 30 MB codec wheel), reports
+slopes against the rover's 25°, writes hillshade and drivability previews, and
+bakes an EXR in raw metres through `bake-terrain.py`'s writer.
+
+| | 25.6 km at 20 m, around the pole | 4.1 km at 5 m, on the pole | 4.1 km at 5 m, the plateau toward de Gerlache |
+|---|---|---|---|
+| Relief | 4,821 m - Shackleton is in frame | 1,709 m - half the patch is its inner wall | 1,729 m |
+| Slope, median / p90 / p99 | 17 / 32 / 34.5° | 22 / 32 / 37° | 21 / 26 / 30° |
+| At or under the rover's 25° | 66% | 63% | 85% |
+| Under 15° | 43% | 27% | 16% |
+
+**The real pole is rugged.** The crater walls are the red ring in
+`lola-overview-25km-slope.png`; the plateau between the craters reads green at
+20 m and is 15-25° at 5 m. Nowhere inside a 1 km margin of the plateau patch
+has a calm 100 m; the pole patch has one - 3°, 90% drivable for a kilometre
+around it, median 14° - and that is where the world origin now sits, 1.3 km
+from the pole with Shackleton's rim ~600 m off. `lola-pole-hill.png` and
+`lola-pole-slope.png` are the patch; the rim crest runs diagonally across it
+and the dark half is the wall.
+
+**In the scene:** the Terrain node's map is `lola_pole_4100.exr`, 1025² over
+4100 m (4 m, the 5 m data resampled), `height_span` 1708.6, offset
+(-374.4, -1477.6, 966.9) so the flat spot is the origin at y ≈ 0. Everything
+placed settled onto it correctly (`probe_world_placement`); the facilities
+kept their old X/Z. The frames are `lola-pole-terrain-*`, on a neutral grey
+with the retired colour bake off - the material's own base colour is still
+Vesper's red, which is Mac's.
+
+**What the frames say.** The macro is right: a plain, a crest, a wall dropping
+into shadow, small craters from the overview. Up close the ground is a smooth
+sheet - 5 m data under a 4 m mesh has nothing between the samples - which is
+the case for the detail layer, not against the data. The 20 m product's "green"
+is 15-25° at 5 m; the metre scale will be rougher still, and boulders.
+
 ## Known issues
 
 - [ ] Single patch, no streaming, no LOD. 2 M triangles resident at all times.
@@ -367,11 +407,16 @@ today - and the real-ground probe below.
       spawning somewhere with more character. #next
 - [x] ~~Pick the real terrain solution.~~ Ours, not Terrain3D (09-03), and
       now composed from the real south pole (09-14) - see "Where it is going".
-- [ ] **Real-ground probe.** Fetch a LOLA window around a candidate site, bake
-      it as a straight swap for the 2 km patch, and report: grade percentiles
-      against the rover's 25°, where the drivable ground is, and frames under
-      the real 5.5° sun with the astronaut and rover on it. Needs the
-      sun-shadow probe first, or the frames lie. Started 2026-09-14. #now
+- [x] **Real-ground probe.** Done 2026-09-14 - see "The real ground, measured"
+      above. The pole patch is the scene's ground; the frames are in
+      `previews/2026-09-14/lola-*`. #now
+- [ ] **The detail layer**, next: the 5 m data at 4 m spacing is a smooth
+      sheet up close, and it is what the streaming plan needs anyway. Craters
+      on the size-frequency law below 50 m, regolith undulation, boulders from
+      the fresh ones - composed into the tile buffer, on F1. #next
+- [ ] The scene's facilities, relay and crates keep their old X/Z and land
+      wherever the real ground puts them. Fine for a probe; a settlement is a
+      placement pass on the real map, and Mac's. #next
 - [ ] The masters are retired but the baked `world_01_*` files stay in the
       repo until the LOLA bake replaces them; `_source/` is Mac's to delete.
       The colour master goes with it: a DEM has no colour, so the ground's

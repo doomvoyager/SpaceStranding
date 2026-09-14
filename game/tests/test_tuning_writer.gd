@@ -12,7 +12,7 @@ extends Node
 ##      acquire a `.0`, and `size` sitting next to `size_min`.
 ##   2. **Resolution** runs against the real project, read-only. `plan()` never
 ##      writes, so this can assert that `Terrain.size` lands in the world scene
-##      while `Terrain.height_span` lands in `terrain.gd` - the distinction the
+##      while `Terrain.height_floor` lands in `terrain.gd` - the distinction the
 ##      whole feature turns on - without touching either file.
 ##
 ## Nothing here writes to `res://`. If a future change makes it, that is the bug.
@@ -315,7 +315,7 @@ func _check_apply_refuses_a_stale_plan() -> void:
 # --- Resolution, against the real project (read-only) -------------------
 
 ## The distinction the whole feature turns on, checked against the real files:
-## `Terrain.size` is overridden in the world scene, `Terrain.height_span` is not
+## `Terrain.size` is overridden in the world scene, `Terrain.height_floor` is not
 ## and is therefore the script's default. Getting these two the wrong way round
 ## would either write a world value into every terrain in the project, or write
 ## a project-wide default when one scene was meant.
@@ -333,7 +333,9 @@ func _check_real_project_resolution() -> void:
 
 	_expect_home(terrain, "size", "res://scenes/world/test_world.tscn",
 		"authored as a node override in the world scene")
-	_expect_home(terrain, "height_span", "res://scripts/world/terrain.gd",
+	# `height_floor` since 2026-09-14: the real pole's relief put `height_span`
+	# into the scene as well.
+	_expect_home(terrain, "height_floor", "res://scripts/world/terrain.gd",
 		"left at the script default")
 	_expect_home(World, "surface_gravity", "res://scripts/core/world_constants.gd",
 		"a script autoload has no scene to be overridden in")

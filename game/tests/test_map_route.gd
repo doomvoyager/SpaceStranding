@@ -126,23 +126,39 @@ func _stage_height_is_solved() -> void:
 
 ## 2. What you drive, not what the picture shows.
 func _stage_legs_are_ground_distances() -> void:
+	# Routed at whatever climbs. The spawn playa is the flattest ground on any
+	# map this has run on, and a leg over it beat its own straight line by 0.3%
+	# — which passes a `>` test on noise as happily as on a working sampler. So
+	# the leg is chosen from the ground itself: eight 800 m legs out of the
+	# origin, and the one that climbs most is the one tested. Chosen from data
+	# rather than typed, because the typed one was aimed at the Gaea massif and
+	# the real pole put a plain there.
+	var from := Vector2.ZERO
+	var to := Vector2.ZERO
+	var best_ratio := 0.0
+	var extent := _terrain.extent()
+	for i in 8:
+		var candidate := from + Vector2.RIGHT.rotated(TAU * float(i) / 8.0) * 800.0
+		if not extent.has_point(candidate):
+			continue
+		Route.clear()
+		Route.add(candidate.x, candidate.y)
+		var ratio := Route.leg_length(0, from) / from.distance_to(candidate)
+		if ratio > best_ratio:
+			best_ratio = ratio
+			to = candidate
 	Route.clear()
-	# Deliberately routed at the massif rather than across the spawn playa. The
-	# playa is the flattest ground on the map, and a leg over it beat its own
-	# straight line by 0.3% — which passes a `>` test on noise as happily as on
-	# a working sampler. A leg that climbs 200 m cannot.
-	var from := Vector2(-200.0, 500.0)
-	var to := Vector2(-470.0, 1270.0)
 	_astronaut.global_position = Vector3(from.x,
 		_terrain.world_height_at(from.x, from.y) + 1.0, from.y)
 	Route.add(to.x, to.y)
 	var flat := from.distance_to(to)
 	var over_ground := Route.leg_length(0, from)
-	print("leg: %.1f m flat, %.1f m over the ground" % [flat, over_ground])
+	print("leg toward (%.0f, %.0f): %.1f m flat, %.1f m over the ground"
+		% [to.x, to.y, flat, over_ground])
 	_expect(over_ground > flat * 1.02,
-		"the ground distance %.1f is barely over the flat %.1f — a climb of 200 m"
+		"the steepest of eight 800 m legs out of the origin is %.1f over %.1f flat"
 			% [over_ground, flat]
-			+ " has to cost more than that")
+			+ " - either the map is flat for a kilometre or the sampler is not walking the ground")
 	# A sanity ceiling: terrain adds metres, not multiples. A runaway here means
 	# the sampler is walking somewhere other than the leg.
 	_expect(over_ground < flat * 1.5,
