@@ -9,6 +9,38 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-14 - Wheel tracks are a map the wheels paint, not decals or meshes
+
+Mac asked for shader-based tracks behind the rover; Claude proposed, Mac
+said yes, and the design is in [[Tracks]]. What was decided in it:
+
+**One texture, read by world position.** The wheels stamp into a SubViewport
+that is never cleared, and `surface.gdshader` samples it through global
+uniforms, as the scan pulse does. **Rejected: a `Decal` per wheel step**, which
+piles into thousands of projectors; **rejected: a ribbon mesh per wheel**,
+which z-fights the ground and is not shader work.
+
+**A window that follows the rover, addressed toroidally.** A world point's
+texel does not depend on where the window is, so a move copies nothing and
+wipes a strip. 328 m at 8 cm, 48 MB. Tracks beyond 160 m behind are forgotten;
+a persistent patch-wide layer is a second step and Mac's call.
+
+**The tread is drawn, not stored.** The map holds depth and the heading
+doubled; the chevrons are arithmetic in the shader, which is what lets the map
+be coarse. The stamp's depth is a U across the tyre, so the depth stands in for
+the distance from the centre line, which the map cannot hold in three
+channels.
+
+**A track is compressed regolith, in the lighting too.** Darker, a rut, and
+no opposition surge under it - the reflectance model from the regolith pass is
+what makes the track read down-sun.
+
+**Verified on the way**, in `CLAUDE.md`: a never-cleared SubViewport keeps
+every draw and starts black; headless, `frame_post_draw` never fires and every
+shader global reads back null.
+
+---
+
 ## 2026-09-14 - The regolith is grey and lit like the Moon; the sky has its sun and stars
 
 Mac: "try making the regolith material and do adjustments to the sky and

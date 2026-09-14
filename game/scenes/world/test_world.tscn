@@ -18,6 +18,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/map_panel.tscn" id="16_map"]
 [ext_resource type="Script" uid="uid://bq1wrnp7w1d" path="res://scripts/world/route_marks.gd" id="17_marks"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="18_sky"]
+[ext_resource type="Script" path="res://scripts/world/track_map.gd" id="19_tracks"]
 
 [sub_resource type="ShaderMaterial" id="SkyMaterial_moon"]
 shader = ExtResource("18_sky")
@@ -203,3 +204,7 @@ script = ExtResource("17_marks")
 
 [node name="Scanner" type="Node3D" parent="." unique_id=1512253794]
 script = ExtResource("13_scanner")
+
+[node name="TrackMap" type="Node3D" parent="."]
+script = ExtResource("19_tracks")
+follow_path = NodePath("../Rover")

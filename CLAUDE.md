@@ -246,6 +246,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_ro
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_view_toggle.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_track_map.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -325,6 +329,12 @@ prefixes the files, `--lamp` keeps the head lamp, `--lights` keeps every light,
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/regolith_capture.tscn -- --tag=after
 ```
 
+Drive the rover and photograph the tracks it left, five frames, sun only:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/track_capture.tscn -- --tag=after
+```
+
 **Every rendered image that gets looked at is kept, in `previews/`.** A capture
 scene writes to Godot's `user://` first, because that is where a running game
 can write without touching the project; the shots are then copied into
@@ -384,6 +394,13 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_p
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_eye_height.tscn
+```
+
+Does a never-cleared SubViewport keep what is drawn into it? **Windowed** -
+headless it hangs, see the facts:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_track_viewport.tscn
 ```
 
 Why does a shadow not land? Twenty variants of a box on a plane under the
@@ -1022,6 +1039,24 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   ground surges, so a lamp tuned against Lambert whites out the ground ahead
   once the ground stops being Lambert. `regolith_capture` is sun-only by
   default and takes `--lamp` and `--lights` to put them back.
+- **A `SubViewport` with `render_target_clear_mode` NEVER keeps every draw,
+  starts black, and a `_draw()` that queues several stamps lands them all.**
+  Measured by `probe_track_viewport`: a rect drawn on frame one is still there
+  five frames later with nothing drawn since; two rects in one redraw both
+  land. That is what makes an accumulation map - the wheel tracks - a canvas
+  and six sprites rather than a 48 MB upload a tick. Black is not "empty" for
+  a map with a neutral value, so wipe it yourself on the first frame.
+- **Under `--headless`, `RenderingServer.frame_post_draw` never fires, and
+  every shader global reads back null.** An `await` on the signal hangs the
+  process with nothing printed, which looks like a script that failed to
+  compile. And `global_shader_parameter_get` returns null for *every* global,
+  the ones declared with a value in `project.godot` included - so a test
+  cannot check what a system pushed, only what the system says it pushed.
+  `test_track_map` skips the read-back loudly. Both measured on the dummy
+  renderer; `process_frame` and `physics_frame` still fire.
+- **`smooth` is a reserved word in Godot's shader language.** Declaring a
+  float called that fails with "Expected an identifier or '[' after type",
+  pointing at the line and naming nothing.
 - **A `CanvasLayer` is not a `CanvasItem`.** Both have `visible`, so a capture
   that does `find_child("HUD") as CanvasItem` gets null, sets nothing, and
   keeps the controls card in every frame - the first view capture did. Cast to

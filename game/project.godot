@@ -189,6 +189,26 @@ environment/defaults/default_clear_color=Color(0, 0, 0, 1)
 
 [shader_globals]
 
+track_active={
+"type": "bool",
+"value": false
+}
+track_extent={
+"type": "float",
+"value": 1.0
+}
+track_map={
+"type": "sampler2D",
+"value": ""
+}
+track_origin={
+"type": "vec2",
+"value": Vector2(0, 0)
+}
+track_texel={
+"type": "float",
+"value": 0.08
+}
 scan_origin={
 "type": "vec3",
 "value": Vector3(0, 0, 0)

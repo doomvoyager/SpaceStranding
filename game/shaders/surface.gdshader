@@ -100,6 +100,32 @@ uniform float lunar_backscatter : hint_range(0.0, 3.0) = 0.6;
 uniform float lunar_opposition : hint_range(0.0, 3.0) = 0.6;
 uniform float lunar_opposition_width : hint_range(1.0, 200.0) = 40.0;
 
+group_uniforms tracks;
+// Wheel tracks, from the TrackMap's window, sampled by world position; see
+// [[Tracks]]. Per material: on for regolith, off elsewhere. A track does what
+// compressed regolith does - darker, smoother (the opposition surge goes, in
+// light()), pressed into a rut with the tread across it. The tread is drawn
+// here from the stored direction of travel, which is what lets the map be
+// coarse: 8 cm texels resolve the rut, and the chevrons cost arithmetic.
+uniform bool tracks_enabled = false;
+uniform float track_darkening : hint_range(0.0, 1.0) = 0.25;
+// How deep a full track is, metres. Sets the tilt of the rut's walls from
+// the depth gradient: at 0.04 a stamp's soft edge leans about thirty degrees.
+uniform float track_rut_depth : hint_range(0.0, 0.3) = 0.04;
+// Metres between chevron ridges, how hard they tilt the normal, and how far
+// back a chevron sweeps between the centre line and the tyre's edge, metres.
+// The map does not store where the centre line is; the stamp's depth is a U
+// across the tyre, so `1 - depth` stands in for the distance from it.
+uniform float track_tread_spacing : hint_range(0.02, 1.0) = 0.1;
+uniform float track_tread_strength : hint_range(0.0, 2.0) = 0.18;
+uniform float track_chevron_reach : hint_range(0.0, 1.0) = 0.1;
+// Written by TrackMap. Declared in project.godot under [shader_globals].
+global uniform sampler2D track_map;
+global uniform vec2 track_origin;
+global uniform float track_extent;
+global uniform float track_texel;
+global uniform bool track_active;
+
 group_uniforms fill;
 // Stands in for scene ambient, which this planet's sky cannot provide: the
 // light the sunlit ground around you throws back into a shadow. Multiplied by
@@ -185,6 +211,9 @@ varying vec3 world_normal;
 // an obstacle, 0 otherwise, and 0 on anything that is not a MultiMesh instance
 // at all. INSTANCE_CUSTOM only exists in vertex(), hence the varying.
 varying float instance_solid;
+// Track depth under this fragment, 0..1, for light(): compressed regolith
+// loses the opposition surge. Written in fragment(), read in light().
+varying float track_depth;
 
 
 void vertex() {
@@ -204,6 +233,9 @@ void fragment() {
 		base = mix(base, texture(macro_albedo, UV2).rgb, macro_strength);
 	}
 
+	// Everything that bends the normal adds a tilt on the ground plane here,
+	// and the normal is rebuilt once at the end.
+	vec2 tilt = vec2(0.0);
 	if (use_detail) {
 		vec2 ground = world_position.xz;
 		vec2 v = vec2(detail_albedo_variation, detail_grain_variation);
@@ -215,11 +247,57 @@ void fragment() {
 		vec3 fine = texture(detail_normal, ground / detail_tile_m).xyz * 2.0 - 1.0;
 		vec3 coarse = texture(detail_normal,
 			ground / detail_coarse_tile_m + vec2(0.37, 0.11)).xyz * 2.0 - 1.0;
-		vec2 tilt = fine.xy * detail_strength + coarse.xy * detail_coarse_strength;
-		// Planar mapping on the ground plane, so the tangent frame is the world's
-		// X and Z. Good on any slope the rover can drive; a cliff face would
-		// smear, and a cliff is rock's job. The geometric normal stays in
-		// `world_normal` for the scan, which reports the slope as built.
+		tilt += fine.xy * detail_strength + coarse.xy * detail_coarse_strength;
+	}
+
+	// --- Wheel tracks ----------------------------------------------------
+	track_depth = 0.0;
+	if (tracks_enabled && track_active) {
+		vec2 rel = world_position.xz - track_origin;
+		if (all(greaterThanEqual(rel, vec2(0.0)))
+				&& all(lessThan(rel, vec2(track_extent)))) {
+			// The map is toroidal in world space, so the texel a point lands
+			// on does not depend on where the window is - only whether the
+			// point is inside it, which is the check above.
+			vec2 uv = fract(world_position.xz / track_extent);
+			vec3 t = texture(track_map, uv).rgb;
+			if (t.r > 0.01) {
+				float d = t.r;
+				float du = track_texel / track_extent;
+				vec2 grad = vec2(
+					texture(track_map, fract(uv + vec2(du, 0.0))).r
+						- texture(track_map, fract(uv - vec2(du, 0.0))).r,
+					texture(track_map, fract(uv + vec2(0.0, du))).r
+						- texture(track_map, fract(uv - vec2(0.0, du))).r)
+					/ (2.0 * track_texel);
+				// The stored direction is the heading doubled; halve it back.
+				vec2 v = t.gb * 2.0 - 1.0;
+				float heading = atan(v.y, v.x) * 0.5;
+				vec2 travel = vec2(cos(heading), sin(heading));
+				float along = dot(world_position.xz, travel);
+				// Chevrons: ridges across the track, swept back from the
+				// centre line toward both edges. The sweep rides on the
+				// depth, which is deepest on the line and shallower out.
+				float phase = (along + (1.0 - d) * track_chevron_reach)
+					/ track_tread_spacing * TAU;
+				// And gone once a ridge is under three pixels, or it is a
+				// moire at any distance - the map has no mip chain to do it.
+				float tread_fade = 1.0 - smoothstep(1.2, 2.2, fwidth(phase));
+				tilt += travel * cos(phase) * track_tread_strength * d * tread_fade;
+				// The rut: the surface goes down where the depth goes up, so
+				// the normal leans toward the shallower side.
+				tilt += grad * track_rut_depth;
+				base *= 1.0 - track_darkening * d;
+				track_depth = d;
+			}
+		}
+	}
+
+	if (dot(tilt, tilt) > 0.0) {
+		// Planar mapping on the ground plane, so the tangent frame is the
+		// world's X and Z. Good on any slope the rover can drive; a cliff face
+		// would smear, and a cliff is rock's job. The geometric normal stays
+		// in `world_normal` for the scan, which reports the slope as built.
 		vec3 bent = normalize(world_normal + vec3(tilt.x, 0.0, tilt.y));
 		NORMAL = normalize((VIEW_MATRIX * vec4(bent, 0.0)).xyz);
 	}
@@ -337,8 +415,12 @@ void light() {
 		// Phase: cos of the angle between the sun and the eye, seen from the
 		// surface. 1 with the sun straight behind the eye, 0 side-on.
 		float cos_g = clamp(dot(LIGHT, VIEW), 0.0, 1.0);
-		float phase = 1.0 + lunar_backscatter * cos_g * cos_g
-			+ lunar_opposition * pow(cos_g, lunar_opposition_width);
+		// A wheel presses the fairy-castle structure flat, and with it goes
+		// most of the surge: a track reads darker down-sun than the ground
+		// beside it, which is what makes it visible from the cab.
+		float intact = 1.0 - track_depth;
+		float phase = 1.0 + lunar_backscatter * cos_g * cos_g * mix(0.5, 1.0, intact)
+			+ lunar_opposition * intact * pow(cos_g, lunar_opposition_width);
 		DIFFUSE_LIGHT += ls * phase * incoming;
 	}
 }

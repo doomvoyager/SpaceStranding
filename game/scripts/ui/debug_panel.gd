@@ -260,6 +260,12 @@ func _discover() -> Array[Target]:
 		out.append(_group_target(CLUSTER_DRIVING, "Crates",
 			"all %d; writes reach crates that spawn later" % crates.size(), "cargo"))
 
+	var tracks: Array = []
+	_collect(scene, "TrackMap", tracks)
+	if not tracks.is_empty():
+		out.append(_target(CLUSTER_DRIVING, "Wheel tracks",
+			"the map the wheels stamp; the look is on the regolith material", tracks))
+
 	# --- On foot
 	var astronaut := tree.get_first_node_in_group("player")
 	if astronaut != null:
