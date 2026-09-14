@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-03
+verified: 2026-09-14
 godot: res://scripts/world/terrain.gd
 tags: [system, world, scaffolding]
 ---
@@ -318,6 +318,35 @@ shader through **UV2**, which spans one patch 0..1. Nine tiles have nine UV2s,
 so the mask has to be sampled by world position instead. That is rendering
 coupling rather than the height contract, and it belongs with the chunking.
 
+## Where it is going, as of 2026-09-14
+
+Mac's call, in the [[Decision-Log]]: **the real south pole, composed per tile,
+about 25 km across, the Gaea master retired.** The plan, none of it built yet:
+
+1. **Base: LOLA.** NASA's south-pole DEM - 20 m/px for 80-90°S, 5 m/px inside
+   87°S, public domain, GeoTIFF. A window of it baked through
+   `tools/bake-terrain.py`, which already speaks EXR and has tifffile as a
+   dependency.
+2. **Detail below the DEM.** A deterministic layer for what 5-20 m/px cannot
+   hold and the rover sees: craters on the lunar size-frequency law (∝ D⁻²),
+   fresh to soft, regolith undulation at 0.1-0.5 m, boulders seeded from the
+   fresh craters through [[Scatter]]. Amplitudes and densities on F1.
+3. **Authored sections as stamps.** A `TerrainStamp` node: a heightmap, placed
+   with the [[Placement]] gizmos, size, rotation, a blend margin, and its
+   height solved from the base along its rim - the placement rule for a whole
+   patch. Replace for pads, cuts and landing fields; add for hills.
+4. **Composed on the CPU into each tile's buffer**, so render, physics, the
+   map, the [[The-Lattice|Lattice]] and placement read one set of numbers and
+   the seam contract below holds. A new `height_source`, not a new terrain.
+5. **Built around the player.** Rings of tiles at 4, 16 and 64 m with skirts,
+   built off the main thread, collision for the near ring only, and past the
+   horizon the curvature drop in the shared surface shader - the natural
+   cutoff [[The-Planet]] describes, in place of the fog the 09-03 plan assumed.
+
+Two things go before any of it is judged by eye: the sun-shadow probe in
+[[The-Planet]] - at a 5° sun the ground's look *is* its shadows and none render
+today - and the real-ground probe below.
+
 ## Known issues
 
 - [ ] Single patch, no streaming, no LOD. 2 M triangles resident at all times.
@@ -336,9 +365,17 @@ coupling rather than the height contract, and it belongs with the chunking.
 - [ ] The spawn playa is the flattest ground on the map, which makes the
       immediate area bland. Moving the terrain offset trades that against
       spawning somewhere with more character. #next
-- [ ] TODO: pick the real terrain solution. Terrain3D is still the obvious
-      candidate, and the map size question this was gated on now has an answer:
-      4096 m. #next
+- [x] ~~Pick the real terrain solution.~~ Ours, not Terrain3D (09-03), and
+      now composed from the real south pole (09-14) - see "Where it is going".
+- [ ] **Real-ground probe.** Fetch a LOLA window around a candidate site, bake
+      it as a straight swap for the 2 km patch, and report: grade percentiles
+      against the rover's 25°, where the drivable ground is, and frames under
+      the real 5.5° sun with the astronaut and rover on it. Needs the
+      sun-shadow probe first, or the frames lie. Started 2026-09-14. #now
+- [ ] The masters are retired but the baked `world_01_*` files stay in the
+      repo until the LOLA bake replaces them; `_source/` is Mac's to delete.
+      The colour master goes with it: a DEM has no colour, so the ground's
+      colour becomes the mask-driven material queued on 09-03. #next
 - [ ] On the Moon, the horizon as the far cutoff. Measure before building: a
       probe on the real heightmap reporting how much ground curvature hides from
       ordinary positions. Arithmetic says it hides small things and not relief -

@@ -9,6 +9,48 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-14 - The ground is the real south pole, composed; the Gaea master is retired
+
+Mac, once the rover drove right and the question became the world: "a
+procedural but believable lunar surface with embedded authored sections", and
+large. Three calls, made on the proposal recorded in [[Terrain]]:
+
+**The base is NASA's LOLA elevation data**, not an invented moon: 20 m/px for
+80-90°S and 5 m/px inside 87°S, public domain. Real rims, real massifs, and the
+permanently shadowed floors that "light as antagonist" needs. Chosen over a
+crater-population generator because the pole is a real place and the fiction is
+"realistic, 50-80 years out". The generator survives in the plan as the *detail
+layer* below the DEM's resolution - the metre-scale craters, regolith and
+boulders the rover sees and the data does not have.
+
+**About 25 km across**, four times the 12 km settled on 2026-09-03: about 1.7
+hours edge to edge at the governed 4 m/s, room for some 25 legs of the 2-5 km
+trips the loop is built on. The 3x3-of-4096 m *layout* is superseded; the seam
+contract, the chunking-and-culling plan and "ours, not Terrain3D" all stand.
+
+**The Gaea master is retired**, colour master with it. `world_01` was Vesper
+c's ground, shaped by erosion a vacuum never had, and a DEM brings no colour of
+its own - so the ground's colour becomes a mask-driven material later (the
+"colour as a mask" item queued on 09-03), and Gaea becomes the tool for
+authored *sections*: stamps blended into the base, placed with the existing
+gizmos, their height solved from the base along their rim.
+
+**What this reverses.** 09-03 said "the art has to exist before the streaming
+has anything to stream" and put nine authored tiles first. With a base that is
+data the order flips: the base exists on day one, streaming follows, and Mac's
+authoring goes into sections. The measured facts that entry rested on - float32
+to 40 km, cell culling, the 4 m mesh budget - carry over unchanged.
+
+**First, before any of it is judged by eye:** the sun casts no shadow onto the
+ground in the scene today. At a 5° sun the terrain's look *is* its shadows, so
+that probe goes first; then a real LOLA window baked as a straight swap for the
+2 km patch, measured for grade and drivability against the rover's 25° and
+shown under the real sun.
+
+Rejected: showing an invented moon beside the real one first. Mac chose the
+data outright; if the real pole proves too rugged, the answer is authored
+passes, not a different moon.
+
 ## 2026-09-14 - One view key, and each context remembers its own
 
 Mac asked for first and third person on foot and in the rover. Built as one

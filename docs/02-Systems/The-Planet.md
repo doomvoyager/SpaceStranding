@@ -147,4 +147,6 @@ ready and have no callers.
       way for a sun behind it. Unexplained, and load-bearing for any "pure
       black shadows" direction: needs a probe of its own, a bare plane and box
       under the same light, then the Sun's settings bisected.
-      `previews/2026-09-14/view-04_*`, `view-10_*`, `view-diff_plain_*`. #next
+      `previews/2026-09-14/view-04_*`, `view-10_*`, `view-diff_plain_*`.
+      First in line since the terrain decision of 2026-09-14: the real ground
+      cannot be judged without it. #now
