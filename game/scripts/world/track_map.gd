@@ -15,8 +15,15 @@ class_name TrackMap
 ## rolled onto - which still holds whatever was there a window ago - is wiped.
 ## The shader bound-checks against the same origin, so a point outside the
 ## window never reads its alias inside it. 4096 texels at 0.08 m is a 328 m
-## window: tracks persist to about 160 m behind the rover and are forgotten
-## beyond it. A patch-wide persistent layer is a second step, in [[Tracks]].
+## window, and beyond 160 m a track is two pixels wide anyway.
+##
+## **The window forgets; the trail remembers.** Every stamp is also recorded
+## in a `TrackTrail`, bucketed by position, and when the window rolls onto a
+## strip the strip is wiped and then every remembered stamp inside it is
+## painted back. Drive back to ground you crossed an hour ago and the tracks
+## are there as the window arrives, drawn by the same stamps that made them.
+## Persistence over precision was Mac's call; this happens to give both. The
+## trail is the storable curve: `save_trail()` and `load_trail()`.
 ##
 ## **It lives in a SubViewport that is never cleared.** Measured
 ## (`tests/probe_track_viewport.tscn`): a draw survives every frame after it,
@@ -55,6 +62,11 @@ class_name TrackMap
 ## What the window follows and whose wheels stamp. Empty finds the `rover`
 ## group.
 @export var follow_path: NodePath
+
+@export_group("Memory")
+## Record every stamp in the trail and paint it back when the window returns.
+## Off, the map is a window and nothing more.
+@export var remember := true
 
 @export_group("Stamp")
 ## Width of a wheel's mark on the ground, metres: the tyre's tread width.
@@ -99,6 +111,9 @@ var _wheels: Array[VehicleWheel3D] = []
 ## Where each wheel last stamped, so it stamps again only after moving.
 var _last_stamp: Dictionary = {}
 var _stamps_drawn := 0
+var _trail := TrackTrail.new()
+## Stamps painted back from the trail, for the test and the readout.
+var _replayed := 0
 
 
 func _ready() -> void:
@@ -144,14 +159,64 @@ func _physics_process(_delta: float) -> void:
 ## of travel in radians on the XZ plane (either way round), `strength` the
 ## depth 0..1. `length` defaults to `stamp_length`.
 func stamp(world_xz: Vector2, heading: float, strength: float, length := -1.0) -> void:
+	var l := length if length > 0.0 else stamp_length
+	var st := clampf(strength, 0.0, 1.0)
+	if remember:
+		_trail.add(world_xz, heading, st, l)
+	_queue_stamp(world_xz, heading, st, l)
+
+
+func _queue_stamp(world_xz: Vector2, heading: float, strength: float, length: float) -> void:
 	var s := Stamp.new()
 	s.position = world_xz
 	s.heading = heading
-	s.length = length if length > 0.0 else stamp_length
-	s.strength = clampf(strength, 0.0, 1.0)
+	s.length = length
+	s.strength = strength
 	_pending_stamps.append(s)
 	if _canvas != null:
 		_canvas.queue_redraw()
+
+
+## Everything the wheels have ever stamped.
+func trail() -> TrackTrail:
+	return _trail
+
+
+## Stamps painted back from the trail so far.
+func replayed() -> int:
+	return _replayed
+
+
+## Forget every track, on the map and in the trail.
+func forget() -> void:
+	_trail.clear()
+	_pending_stamps.clear()
+	_pending_clears.append(Rect2(0.0, 0.0, texels, texels))
+	if _canvas != null:
+		_canvas.queue_redraw()
+
+
+## Wipe the window and paint the trail back into all of it.
+func replay_window() -> void:
+	_pending_stamps.clear()
+	_pending_clears.append(Rect2(0.0, 0.0, texels, texels))
+	_replay(Rect2(_origin, Vector2.ONE * extent()))
+	if _canvas != null:
+		_canvas.queue_redraw()
+
+
+func save_trail(path: String) -> Error:
+	return _trail.save(path)
+
+
+## Replace the trail with one from `save_trail()`, and paint it in.
+func load_trail(path: String) -> Error:
+	var loaded := TrackTrail.load(path)
+	if loaded == null:
+		return ERR_FILE_CORRUPT
+	_trail = loaded
+	replay_window()
+	return OK
 
 
 ## World XZ of the window's corner.
@@ -282,6 +347,8 @@ func _rebuild() -> void:
 	# empty for the direction channels.
 	_pending_clears.clear()
 	_pending_clears.append(Rect2(0.0, 0.0, texels, texels))
+	_pending_stamps.clear()
+	_replay(Rect2(_origin, Vector2.ONE * extent()))
 	_last_stamp.clear()
 	_canvas.queue_redraw()
 	RenderingServer.global_shader_parameter_set("track_map", _viewport.get_texture())
@@ -310,8 +377,43 @@ func _advance_to(target: Vector2) -> void:
 	if next == _origin:
 		return
 	_pending_clears.append_array(wrap_strips(_origin, next, extent(), texel_size, texels))
+	for r in new_ground(_origin, next, extent(), texels * texel_size):
+		_replay(r)
 	_origin = next
 	RenderingServer.global_shader_parameter_set("track_origin", _origin)
+
+
+## The world rectangles the window has just rolled onto: what was wiped, in
+## metres, one per moved axis, or the whole window after a jump. The other
+## axis spans the *new* window, since that is where the strip now is.
+static func new_ground(old_origin: Vector2, new_origin: Vector2, extent: float,
+		whole_from: float) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var moved := new_origin - old_origin
+	if absf(moved.x) >= whole_from or absf(moved.y) >= whole_from:
+		out.append(Rect2(new_origin, Vector2.ONE * extent))
+		return out
+	if moved.x > 0.0:
+		out.append(Rect2(old_origin.x + extent, new_origin.y, moved.x, extent))
+	elif moved.x < 0.0:
+		out.append(Rect2(new_origin.x, new_origin.y, -moved.x, extent))
+	if moved.y > 0.0:
+		out.append(Rect2(new_origin.x, old_origin.y + extent, extent, moved.y))
+	elif moved.y < 0.0:
+		out.append(Rect2(new_origin.x, new_origin.y, extent, -moved.y))
+	return out
+
+
+## Paint every remembered stamp inside `rect` back in. The rect is grown by a
+## stamp length so a stamp straddling its edge is repainted whole.
+func _replay(rect: Rect2) -> void:
+	if not remember or _trail.size() == 0:
+		return
+	var grown := rect.grow(stamp_length)
+	for i in _trail.in_rect(grown):
+		_queue_stamp(_trail.position_at(i), _trail.heading_at(i),
+			_trail.strength_at(i), _trail.length_at(i))
+		_replayed += 1
 
 
 func _on_draw() -> void:

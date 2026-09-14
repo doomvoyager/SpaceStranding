@@ -4,9 +4,12 @@ extends Node3D
 ## What can be held here is the arithmetic - where a world point lands on the
 ## toroidal map, the heading encoding, when the window moves and which strips
 ## it wipes - and the node's plumbing: that it follows the rover, pushes its
-## globals, and queues stamps and wipes. What cannot is the picture: the
-## dummy renderer never emits `frame_post_draw`, so nothing drawn can be read
-## back, and `track_capture.tscn` is the only witness to the rut and the tread.
+## globals, and queues stamps and wipes - and the trail: that stamps are
+## remembered by cell, found by rectangle, survive a round trip through bytes
+## and a file, and are painted back when the window rolls onto them. What
+## cannot is the picture: the dummy renderer never emits `frame_post_draw`,
+## so nothing drawn can be read back, and `track_capture.tscn` is the only
+## witness to the rut, the tread, and the tracks coming back.
 ##
 ##   engine/Godot_v4.7.1-stable_win64_console.exe --headless --path game res://tests/test_track_map.tscn
 
@@ -16,7 +19,9 @@ var _checks := 0
 
 func _ready() -> void:
 	_arithmetic()
+	_trail()
 	await _node()
+	await _memory()
 	print("%d checks, %d failed" % [_checks, _fails])
 	if _fails == 0:
 		print("PASS")
@@ -86,6 +91,111 @@ func _arithmetic() -> void:
 	_expect("a jump of a window wipes everything", jump.size() == 1
 		and is_equal_approx(_area(jump), float(n) * n))
 	_expect("no move wipes nothing", TrackMap.wrap_strips(origin, origin, extent, ts, n).is_empty())
+
+
+func _trail() -> void:
+	_expect("cells floor toward minus infinity",
+		TrackTrail.cell_of(Vector2(-0.1, 7.9), 8.0) == Vector2i(-1, 0))
+	var trail := TrackTrail.new(8.0)
+	for i in 40:
+		trail.add(Vector2(i * 0.5 - 5.0, 3.0), 0.2, 0.8, 0.36)
+	_expect("forty samples remembered", trail.size() == 40)
+	var hits := trail.in_rect(Rect2(0.0, 0.0, 8.0, 8.0))
+	# x in [0, 8): i*0.5 - 5 >= 0 -> i >= 10; < 8 -> i < 26: sixteen.
+	_expect("a rect finds exactly the samples inside it: %d" % hits.size(), hits.size() == 16)
+	_expect("and not the ones outside", trail.in_rect(Rect2(100.0, 100.0, 8.0, 8.0)).is_empty())
+	# x in [-6, 0): i from 0 to 9, ten of them, across the cell boundary at 0.
+	_expect("across a negative cell too", trail.in_rect(Rect2(-6.0, 0.0, 6.0, 8.0)).size() == 10)
+	_expect("a sample reads back", trail.position_at(0) == Vector2(-5.0, 3.0)
+		and is_equal_approx(trail.heading_at(0), 0.2) and is_equal_approx(trail.strength_at(0), 0.8)
+		and is_equal_approx(trail.length_at(0), 0.36))
+
+	var bytes := trail.to_bytes()
+	var back := TrackTrail.from_bytes(bytes)
+	_expect("bytes round-trip", back != null and back.size() == 40
+		and back.position_at(39) == trail.position_at(39)
+		and back.in_rect(Rect2(0.0, 0.0, 8.0, 8.0)).size() == 16)
+	# Truly corrupt bytes are refused too, but bytes_to_var says so with an
+	# engine error, which is the right noise for a bad save and the wrong noise
+	# for a passing test.
+	_expect("a wrong dictionary is refused",
+		TrackTrail.from_bytes(var_to_bytes({"format": "nope"})) == null)
+	var path := "user://test_track_trail.bin"
+	_expect("saves", trail.save(path) == OK)
+	var loaded := TrackTrail.load(path)
+	_expect("and loads", loaded != null and loaded.size() == 40)
+	_expect("a missing file loads as null", TrackTrail.load("user://no_such_trail.bin") == null)
+	DirAccess.remove_absolute(path)
+
+	# new_ground: the world rects a move rolls onto.
+	var o := Vector2(-64.0, -64.0)
+	var east := TrackMap.new_ground(o, o + Vector2(10.0, 0.0), 128.0, 128.0)
+	_expect("an eastward move rolls onto a strip past the old far edge",
+		east.size() == 1 and east[0].is_equal_approx(Rect2(64.0, -64.0, 10.0, 128.0)))
+	var west := TrackMap.new_ground(o, o + Vector2(-10.0, 0.0), 128.0, 128.0)
+	_expect("a westward move onto a strip at the new near edge",
+		west.size() == 1 and west[0].is_equal_approx(Rect2(-74.0, -64.0, 10.0, 128.0)))
+	var both := TrackMap.new_ground(o, o + Vector2(4.0, -6.0), 128.0, 128.0)
+	_expect("a diagonal move onto two strips in the new window", both.size() == 2
+		and both[0].is_equal_approx(Rect2(64.0, -70.0, 4.0, 128.0))
+		and both[1].is_equal_approx(Rect2(-60.0, -70.0, 128.0, 6.0)))
+	var jump := TrackMap.new_ground(o, o + Vector2(300.0, 0.0), 128.0, 128.0)
+	_expect("a jump rolls onto the whole new window",
+		jump.size() == 1 and jump[0].is_equal_approx(Rect2(236.0, -64.0, 128.0, 128.0)))
+
+
+func _memory() -> void:
+	var rover := Node3D.new()
+	rover.name = "Rover"
+	rover.add_to_group("rover")
+	add_child(rover)
+	var map := TrackMap.new()
+	map.texels = 256
+	map.texel_size = 0.5
+	map.advance_step = 8.0
+	add_child(map)
+	await get_tree().process_frame
+	await get_tree().physics_frame
+
+	map.stamp(Vector2(1.0, 1.0), 0.0, 0.8)
+	_expect("a stamp is remembered", map.trail().size() == 1)
+	var far := map.origin().x + map.extent() + 2.0
+	map.trail().add(Vector2(far, 0.0), 0.5, 0.7, 0.36)
+	var before := map.replayed()
+	rover.global_position = Vector3(50.0, 0.0, 0.0)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	_expect("rolling onto remembered ground paints it back: %d" % (map.replayed() - before),
+		map.replayed() - before == 1)
+	var far_again := map.origin().x + map.extent() + 2.0
+	rover.global_position = Vector3(50.0 + 1000.0, 0.0, 0.0)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	_expect("a jump repaints the whole window, which held nothing", map.replayed() - before == 1)
+	rover.global_position = Vector3(50.0, 0.0, 0.0)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	_expect("and coming back repaints both stamps: %d" % (map.replayed() - before),
+		map.replayed() - before == 3)
+	_expect("far_again is unused but honest", far_again > far)
+
+	var path := "user://test_track_map_trail.bin"
+	_expect("the map saves its trail", map.save_trail(path) == OK)
+	map.forget()
+	_expect("forget empties the trail", map.trail().size() == 0)
+	var mark := map.replayed()
+	_expect("the map loads a trail", map.load_trail(path) == OK)
+	_expect("and paints it back into the window", map.trail().size() == 2 and map.replayed() - mark == 2)
+	_expect("a missing file is an error", map.load_trail("user://no_such.bin") != OK)
+	DirAccess.remove_absolute(path)
+
+	map.remember = false
+	map.stamp(Vector2(2.0, 2.0), 0.0, 0.8)
+	_expect("with remember off nothing is recorded", map.trail().size() == 2)
+
+	map.queue_free()
+	rover.queue_free()
+	await get_tree().process_frame
 
 
 func _node() -> void:

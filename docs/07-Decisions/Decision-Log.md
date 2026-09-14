@@ -22,8 +22,16 @@ which z-fights the ground and is not shader work.
 
 **A window that follows the rover, addressed toroidally.** A world point's
 texel does not depend on where the window is, so a move copies nothing and
-wipes a strip. 328 m at 8 cm, 48 MB. Tracks beyond 160 m behind are forgotten;
-a persistent patch-wide layer is a second step and Mac's call.
+wipes a strip. 328 m at 8 cm, 48 MB.
+
+**The window forgets; the trail remembers** (later the same day, after Mac
+drove out of range: "persistence is more important than precision"). Every
+stamp is recorded by 8 m cell in a `TrackTrail`, and the map paints the
+remembered stamps back into each strip it wipes. Chosen over Mac's own
+suggestion of a stored curve rendered as decals or ribbons, because the
+window already covers everything a track can be seen from, and replaying the
+stamps themselves gives the precision back for free. The trail is the
+storable curve; save and load exist and wait for a save system.
 
 **The tread is drawn, not stored.** The map holds depth and the heading
 doubled; the chevrons are arithmetic in the shader, which is what lets the map

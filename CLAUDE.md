@@ -1054,6 +1054,17 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   cannot check what a system pushed, only what the system says it pushed.
   `test_track_map` skips the read-back loudly. Both measured on the dummy
   renderer; `process_frame` and `physics_frame` still fire.
+- **A driven `VehicleBody3D` undoes a transform write within one physics
+  frame.** With the astronaut aboard and the rover rolling, `global_transform =`
+  read back correctly and the next physics frame put the body where it had
+  been - frozen kinematic or not - while the identical write to the empty,
+  parked rover lands, as `test_rollover_recovery` relies on. Cause not found;
+  `track_capture` climbs out before it moves the rover. Measure before
+  trusting any teleport of a body something is driving.
+- **`_draw()` does run under `--headless`.** The dummy renderer calls the
+  callback and discards what it draws, so a canvas-driven system's bookkeeping
+  (a queue drained in `_draw`) behaves the same headless as windowed; only the
+  pixels are missing. `test_track_map` reports one stamp drawn headless.
 - **`smooth` is a reserved word in Godot's shader language.** Declaring a
   float called that fails with "Expected an identifier or '[' after type",
   pointing at the line and naming nothing.

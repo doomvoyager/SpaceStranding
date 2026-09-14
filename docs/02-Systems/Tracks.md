@@ -28,8 +28,29 @@ valid, and the strip of texels the window has rolled onto - still holding a
 picture from a window ago - is wiped with the empty value. The shader
 bound-checks against `track_origin` so a point outside the window never reads
 its alias inside it. 4096 texels at 0.08 m is a 328 m window and 48 MB of
-texture: tracks persist to about 160 m behind the rover and are forgotten
-beyond it.
+texture, and beyond 160 m a track is two pixels wide anyway.
+
+**The window forgets; the trail remembers.** Mac drove out of range and asked
+for persistence, "more important than precision". `TrackTrail`
+(`scripts/world/track_trail.gd`) records every stamp - position, heading,
+depth, length, sixteen bytes - bucketed into 8 m cells, and when the window
+rolls onto a strip the map wipes it and then paints back every remembered
+stamp inside it (`TrackMap.new_ground()` says which world rectangles those
+are; `_replay()` does the painting). Drive back to ground you crossed an hour
+ago and the tracks are there as the window arrives, drawn by the very stamps
+that made them - so this gives precision too. Measured in `track_capture`:
+the rover moved 600 m away, long enough to wipe everything, and back;
+1,293 stamps were painted back and the from-above frame differs from the
+original by 0.35% of pixels, which is the rover having rolled a little.
+
+The trail is the storable curve: `save_trail()` and `load_trail()` on the
+map, `to_bytes()` and `from_bytes()` underneath, a versioned dictionary of
+packed arrays. A 25 km drive is about 10 MB. Nothing calls them yet - the
+game has no save - and `remember` on the node switches the whole memory off.
+**Rejected: ribbon meshes along the stored curve**, the decal-style version:
+a second material on a split shader, and two strips fighting wherever a
+track crosses itself, to gain visibility at a range where a track is under a
+pixel.
 
 **Three channels.** R is depth. G and B are the direction of travel as
 `0.5 + 0.5 (cos 2t, sin 2t)`, doubled so a wheel going the other way writes the
@@ -72,26 +93,38 @@ the material's uniforms are the shader-uniform gap noted in [[Debug-Panel]].
   encoding and its round trip, when the window advances and by whole texels,
   which strips a move wipes (one, two across the seam, both axes, the whole
   map on a jump), and that the node follows the rover and queues stamps and
-  wipes. Global read-back is skipped headless: the dummy renderer returns
-  null for every global, the scanner's included.
+  wipes. The trail: cells, rectangle queries across cell edges, the byte
+  round trip, save and load, the world rectangles a move rolls onto, and the
+  node painting a remembered stamp back when the window reaches it, after a
+  jump, and from a loaded file. 81 checks. Global read-back is skipped
+  headless: the dummy renderer returns null for every global, the scanner's
+  included.
 - `tests/probe_track_viewport.tscn` - a never-cleared SubViewport keeps every
   draw, starts black, and lands two stamps queued into one redraw. Windowed
   only: headless, `frame_post_draw` never fires.
 - `tests/track_capture.tscn` - drives the rover four seconds straight and
-  three in a turn, then five frames of what it left. `previews/2026-09-14/
-  tracks-after-*`; `tracks-v1-*` is the first pass, with the chevrons keyed to
+  three in a turn, then five frames of what it left; then puts it 600 m away
+  and back and shoots two of them again, printing how many stamps came back
+  and the pixels that differ. `previews/2026-09-14/tracks-after-*` and
+  `tracks-mem-*`; `tracks-v1-*` is the first pass, with the chevrons keyed to
   the world origin and a moire at range, both fixed by hanging the tread off
-  the depth profile and fading it by `fwidth`.
+  the depth profile and fading it by `fwidth`. The rover is moved with the
+  driver out: driven, a transform write was undone by the next physics frame.
 
 ## Open
 
-- [ ] **Persistence beyond the window.** On the Moon a track lasts a million
-      years, and your own tracks from the last trip would be a landmark and a
-      way home. A second, patch-wide map at 1 m per texel holding only the
-      darkening, no tread, written from the same stamps. Mac's call whether
-      it is wanted. #next
-- [ ] **Footprints.** `TrackMap.stamp()` is public; a boot stamp from the
-      astronaut on each step is the same system. Mac's call. #next
+- [x] ~~Persistence beyond the window.~~ The trail, 2026-09-14: the window
+      repaints from memory as it moves. On the Moon a track lasts a million
+      years; now it lasts a session.
+- [ ] **Across sessions.** `save_trail()` and `load_trail()` exist and
+      nothing calls them; the game has no save yet. When it does, the trail
+      is one file in it. #next
+- [ ] The trail only grows. A route driven a hundred times is a hundred
+      layers of stamps in the same cells, all replayed; a cap per cell, or
+      thinning old samples under new ones, when it shows.
+- [ ] **Footprints.** `TrackMap.stamp()` is public and remembered; a boot
+      stamp from the astronaut on each step is the same system. Mac's call.
+      #next
 - [ ] The tread is a first guess: a U-chevron at 10 cm, faint. The real hauler
       has no tyre yet, so the pattern is whatever its wheels turn out to be.
       Mac's.
