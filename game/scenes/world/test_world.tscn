@@ -22,14 +22,14 @@
 
 [sub_resource type="ShaderMaterial" id="SkyMaterial_moon"]
 shader = ExtResource("18_sky")
-shader_parameter/star_intensity = 0.35
-shader_parameter/star_density = 0.4
-shader_parameter/star_cells = 160.0
-shader_parameter/star_size_deg = 0.07
+shader_parameter/star_intensity = 0.1150000054625
+shader_parameter/star_density = 0.01200000057
+shader_parameter/star_cells = 160.00000665
+shader_parameter/star_size_deg = 0.03800000040797
 shader_parameter/star_tint = Color(0.88, 0.92, 1, 1)
 shader_parameter/sun_disc_energy = 40.0
-shader_parameter/sun_disc_softness = 0.25
-shader_parameter/sun_glare_energy = 1.2
+shader_parameter/sun_disc_softness = 0.2000000095
+shader_parameter/sun_glare_energy = 0.400000019
 shader_parameter/sun_glare_width_deg = 1.5
 
 [sub_resource type="Sky" id="Sky_moon"]
