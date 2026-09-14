@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://deboldmeqejbe" path="res://scripts/player/astronaut.gd" id="1_astronaut"]
 [ext_resource type="Script" uid="uid://dfpjydpesqij0" path="res://scripts/cargo/cargo_rack.gd" id="2_rack"]
 [ext_resource type="PackedScene" uid="uid://ba8xrig0astro" path="res://scenes/player/astronaut_rig.tscn" id="3_rig"]
+[ext_resource type="Script" path="res://scripts/player/footprints.gd" id="9_footprints"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -20,6 +21,9 @@ shape = SubResource("CapsuleShape3D_body")
 [node name="Body" type="Node3D" parent="." unique_id=871382362]
 
 [node name="Rig" parent="Body" unique_id=2012498549 instance=ExtResource("3_rig")]
+
+[node name="Footprints" type="Node3D" parent="."]
+script = ExtResource("9_footprints")
 
 [node name="HeadLamp" type="SpotLight3D" parent="Body" unique_id=188112210]
 transform = Transform3D(1, 0, 0, 0, 0.98176897, 0.19007845, 0, -0.19007845, 0.98176897, 0, 1.66, -0.26175392)

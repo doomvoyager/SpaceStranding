@@ -40,8 +40,8 @@ class_name TrackMap
 ## piling up, and the empty map is `(0, 0.5, 0.5)` so a soft edge does not drag
 ## the direction toward a corner.
 ##
-## Anything not a wheel can stamp too - `stamp()` is public - which is where
-## footprints would go.
+## Anything not a wheel can stamp too - `stamp()` is public, and takes a
+## length and a width - which is where `Footprints` puts the boots.
 
 @export_group("Map")
 ## Texels along each side. The window is `texels * texel_size` metres across;
@@ -96,6 +96,7 @@ class Stamp:
 	var position: Vector2
 	var heading: float
 	var length: float
+	var width: float
 	var strength: float
 
 
@@ -117,6 +118,8 @@ var _replayed := 0
 
 
 func _ready() -> void:
+	# How anything else that stamps - the boots - finds the map.
+	add_to_group("track_map")
 	_stamp_texture = _make_stamp_texture()
 	_rebuild()
 	_find_follow()
@@ -157,20 +160,25 @@ func _physics_process(_delta: float) -> void:
 
 ## Press a mark into the map: `world_xz` is the centre, `heading` the direction
 ## of travel in radians on the XZ plane (either way round), `strength` the
-## depth 0..1. `length` defaults to `stamp_length`.
-func stamp(world_xz: Vector2, heading: float, strength: float, length := -1.0) -> void:
+## depth 0..1. `length` and `width` default to the tyre's, `stamp_length` and
+## `track_width`; a boot passes its own.
+func stamp(world_xz: Vector2, heading: float, strength: float,
+		length := -1.0, width := -1.0) -> void:
 	var l := length if length > 0.0 else stamp_length
+	var w := width if width > 0.0 else track_width
 	var st := clampf(strength, 0.0, 1.0)
 	if remember:
-		_trail.add(world_xz, heading, st, l)
-	_queue_stamp(world_xz, heading, st, l)
+		_trail.add(world_xz, heading, st, l, w)
+	_queue_stamp(world_xz, heading, st, l, w)
 
 
-func _queue_stamp(world_xz: Vector2, heading: float, strength: float, length: float) -> void:
+func _queue_stamp(world_xz: Vector2, heading: float, strength: float,
+		length: float, width: float) -> void:
 	var s := Stamp.new()
 	s.position = world_xz
 	s.heading = heading
 	s.length = length
+	s.width = width
 	s.strength = strength
 	_pending_stamps.append(s)
 	if _canvas != null:
@@ -412,7 +420,7 @@ func _replay(rect: Rect2) -> void:
 	var grown := rect.grow(stamp_length)
 	for i in _trail.in_rect(grown):
 		_queue_stamp(_trail.position_at(i), _trail.heading_at(i),
-			_trail.strength_at(i), _trail.length_at(i))
+			_trail.strength_at(i), _trail.length_at(i), _trail.width_at(i))
 		_replayed += 1
 
 
@@ -427,7 +435,7 @@ func _on_draw() -> void:
 		var enc := encode_heading(s.heading)
 		var colour := Color(s.strength, enc.x, enc.y, 1.0)
 		var px := pixel_of(s.position, texel_size, texels)
-		var size := Vector2(s.length, track_width) / texel_size
+		var size := Vector2(s.length, s.width) / texel_size
 		# A stamp at the seam has to land on both sides of it.
 		for dx in [0.0, -n, n]:
 			for dy in [0.0, -n, n]:

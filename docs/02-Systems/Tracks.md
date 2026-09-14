@@ -78,6 +78,31 @@ soft edge does not pull the direction toward a corner.
 **Skid** deepens a stamp: `get_skidinfo()` is 1 with grip and 0 sliding, and
 `skid_depth` is added at full slide.
 
+## Footprints
+
+`Footprints` (`scripts/player/footprints.gd`, a child of the astronaut) puts
+the boots into the same map through `stamp()`, which takes a length and a
+width since a boot is not a tyre. **It reads the skeleton, not the
+animation** - Mac has new animations coming and asked what they would cost
+the prints: nothing. Every physics tick the two toe bones' world positions
+are taken, a ray under each finds the ground, and a foot is *down* when the
+toe is within `contact_height` of it and moving slower than `contact_speed`
+across it. Up to down is a landing, and a landing stamps one boot, centred
+under the foot and headed heel to toe, if the foot has moved `min_step` from
+its last print. Whatever the clip does with the feet is where the prints go;
+what a new rig has to keep is the four bone names, which are exports, and
+its feet on the ground, which a slider forgives. Only ground in the
+`terrain` group takes a print - a facility deck does not - and nothing
+stamps while the astronaut is hidden aboard the rover.
+
+Measured on the Mixamo walk: the toe bottoms 4-7 cm *below* the floor; the
+planted foot slides at up to about 1 m/s under a body doing 3 m/s, which at a
+0.8 m/s threshold double-stamped a foot every few strides, so the threshold
+is 1.5 and the step 0.5 m. Dropped half a metre onto the floor, both feet
+print, which is right. A boot at 0.33 by 0.17 m is four texels by two on the
+8 cm map, so a print is a dash at range and a boot up close; finer texels
+cost window.
+
 ## Where the numbers are
 
 Everything opens in the inspector. On the `TrackMap` node: the window
@@ -99,6 +124,15 @@ the material's uniforms are the shader-uniform gap noted in [[Debug-Panel]].
   jump, and from a loaded file. 81 checks. Global read-back is skipped
   headless: the dummy renderer returns null for every global, the scanner's
   included.
+- `tests/test_footprints.tscn` - the landing rule and the print pose, then
+  the real astronaut scene walked four seconds on a floor in the `terrain`
+  group beside a map: it finds the skeleton and both feet, the drop onto the
+  floor prints once per foot and standing prints nothing, walking leaves
+  prints that alternate feet a stride apart with a boot's width and length
+  in the trail, and standing still afterwards adds none. 18 checks.
+- `tests/footprint_capture.tscn` - walks the astronaut four seconds and two
+  sideways, then four frames off the actual print positions, down-sun.
+  `previews/2026-09-14/footprints-after-*`.
 - `tests/probe_track_viewport.tscn` - a never-cleared SubViewport keeps every
   draw, starts black, and lands two stamps queued into one redraw. Windowed
   only: headless, `frame_post_draw` never fires.
@@ -122,9 +156,10 @@ the material's uniforms are the shader-uniform gap noted in [[Debug-Panel]].
 - [ ] The trail only grows. A route driven a hundred times is a hundred
       layers of stamps in the same cells, all replayed; a cap per cell, or
       thinning old samples under new ones, when it shows.
-- [ ] **Footprints.** `TrackMap.stamp()` is public and remembered; a boot
-      stamp from the astronaut on each step is the same system. Mac's call.
-      #next
+- [x] ~~Footprints.~~ `Footprints` on the astronaut, 2026-09-14, off the
+      skeleton so new animations cost nothing.
+- [ ] A boot is two texels wide on the 8 cm map. If prints matter up close,
+      6 cm texels (246 m window) or a second, finer map for the boots.
 - [ ] The tread is a first guess: a U-chevron at 10 cm, faint. The real hauler
       has no tyre yet, so the pattern is whatever its wheels turn out to be.
       Mac's.

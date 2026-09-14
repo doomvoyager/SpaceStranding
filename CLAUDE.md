@@ -250,6 +250,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_vi
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_track_map.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_footprints.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -329,10 +333,17 @@ prefixes the files, `--lamp` keeps the head lamp, `--lights` keeps every light,
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/regolith_capture.tscn -- --tag=after
 ```
 
-Drive the rover and photograph the tracks it left, five frames, sun only:
+Drive the rover and photograph the tracks it left, then leave and come back
+for two more; sun only:
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/track_capture.tscn -- --tag=after
+```
+
+Walk the astronaut and photograph the boot prints, four frames, sun only:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/footprint_capture.tscn -- --tag=after
 ```
 
 **Every rendered image that gets looked at is kept, in `previews/`.** A capture

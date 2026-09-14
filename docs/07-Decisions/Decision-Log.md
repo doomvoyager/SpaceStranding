@@ -43,6 +43,12 @@ channels.
 no opposition surge under it - the reflectance model from the regolith pass is
 what makes the track read down-sun.
 
+**Footprints read the skeleton, not the animation.** Mac has new animations
+coming and asked what they would cost the prints. A method-call track at
+heel-down in every clip would cost re-authoring each one; the toe bones'
+positions against the ground cost nothing, so `Footprints` watches the
+bones. What a new rig owes it is four bone names on exports.
+
 **Verified on the way**, in `CLAUDE.md`: a never-cleared SubViewport keeps
 every draw and starts black; headless, `frame_post_draw` never fires and every
 shader global reads back null.

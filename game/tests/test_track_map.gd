@@ -98,7 +98,7 @@ func _trail() -> void:
 		TrackTrail.cell_of(Vector2(-0.1, 7.9), 8.0) == Vector2i(-1, 0))
 	var trail := TrackTrail.new(8.0)
 	for i in 40:
-		trail.add(Vector2(i * 0.5 - 5.0, 3.0), 0.2, 0.8, 0.36)
+		trail.add(Vector2(i * 0.5 - 5.0, 3.0), 0.2, 0.8, 0.36, 0.32)
 	_expect("forty samples remembered", trail.size() == 40)
 	var hits := trail.in_rect(Rect2(0.0, 0.0, 8.0, 8.0))
 	# x in [0, 8): i*0.5 - 5 >= 0 -> i >= 10; < 8 -> i < 26: sixteen.
@@ -108,12 +108,13 @@ func _trail() -> void:
 	_expect("across a negative cell too", trail.in_rect(Rect2(-6.0, 0.0, 6.0, 8.0)).size() == 10)
 	_expect("a sample reads back", trail.position_at(0) == Vector2(-5.0, 3.0)
 		and is_equal_approx(trail.heading_at(0), 0.2) and is_equal_approx(trail.strength_at(0), 0.8)
-		and is_equal_approx(trail.length_at(0), 0.36))
+		and is_equal_approx(trail.length_at(0), 0.36) and is_equal_approx(trail.width_at(0), 0.32))
 
 	var bytes := trail.to_bytes()
 	var back := TrackTrail.from_bytes(bytes)
 	_expect("bytes round-trip", back != null and back.size() == 40
 		and back.position_at(39) == trail.position_at(39)
+		and is_equal_approx(back.width_at(39), 0.32)
 		and back.in_rect(Rect2(0.0, 0.0, 8.0, 8.0)).size() == 16)
 	# Truly corrupt bytes are refused too, but bytes_to_var says so with an
 	# engine error, which is the right noise for a bad save and the wrong noise
@@ -160,7 +161,7 @@ func _memory() -> void:
 	map.stamp(Vector2(1.0, 1.0), 0.0, 0.8)
 	_expect("a stamp is remembered", map.trail().size() == 1)
 	var far := map.origin().x + map.extent() + 2.0
-	map.trail().add(Vector2(far, 0.0), 0.5, 0.7, 0.36)
+	map.trail().add(Vector2(far, 0.0), 0.5, 0.7, 0.36, 0.32)
 	var before := map.replayed()
 	rover.global_position = Vector3(50.0, 0.0, 0.0)
 	await get_tree().physics_frame
@@ -189,9 +190,18 @@ func _memory() -> void:
 	_expect("a missing file is an error", map.load_trail("user://no_such.bin") != OK)
 	DirAccess.remove_absolute(path)
 
+	map.remember = true
+	map.stamp(Vector2(2.0, 2.0), 0.0, 0.9, 0.32, 0.13)
+	var last := map.trail().size() - 1
+	_expect("a boot's own length and width are remembered",
+		is_equal_approx(map.trail().length_at(last), 0.32)
+		and is_equal_approx(map.trail().width_at(last), 0.13))
+	map.stamp(Vector2(2.0, 2.0), 0.0, 0.9)
+	_expect("and a wheel's default to the tyre",
+		is_equal_approx(map.trail().width_at(last + 1), map.track_width))
 	map.remember = false
 	map.stamp(Vector2(2.0, 2.0), 0.0, 0.8)
-	_expect("with remember off nothing is recorded", map.trail().size() == 2)
+	_expect("with remember off nothing is recorded", map.trail().size() == 4)
 
 	map.queue_free()
 	rover.queue_free()

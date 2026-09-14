@@ -266,6 +266,12 @@ func _discover() -> Array[Target]:
 		out.append(_target(CLUSTER_DRIVING, "Wheel tracks",
 			"the map the wheels stamp; the look is on the regolith material", tracks))
 
+	var boots: Array = []
+	_collect(scene, "Footprints", boots)
+	if not boots.is_empty():
+		out.append(_target(CLUSTER_ON_FOOT, "Footprints",
+			"when a foot counts as down, and the boot it presses", boots))
+
 	# --- On foot
 	var astronaut := tree.get_first_node_in_group("player")
 	if astronaut != null:

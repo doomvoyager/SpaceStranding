@@ -9,14 +9,15 @@ class_name TrackTrail
 ## precision was Mac's call (2026-09-14), and this gives both: the samples
 ## *are* the stamps, so a replayed track is the track that was there.
 ##
-## Sixteen bytes a sample, six wheels stamping every 12 cm: a 25 km drive is
-## about 10 MB. `to_bytes()` and `from_bytes()` are the whole save format, a
+## Twenty bytes a sample, six wheels stamping every 12 cm: a 25 km drive is
+## about 12 MB. `to_bytes()` and `from_bytes()` are the whole save format, a
 ## versioned dictionary of packed arrays; `save()` and `load()` wrap them in
 ## a file. Nothing calls them yet - the game has no save - but the curve is
 ## storable, which was the other half of the ask.
 
 const FORMAT := "SSTRAIL"
-const VERSION := 1
+## 2 added the width, for boots (2026-09-14). No 1 was ever written to disk.
+const VERSION := 2
 
 ## Metres per bucket. The map wipes strips 8 m wide, so a strip is a row of
 ## cells and the query touches no more cells than it has to.
@@ -26,6 +27,7 @@ var _positions := PackedVector2Array()
 var _headings := PackedFloat32Array()
 var _strengths := PackedFloat32Array()
 var _lengths := PackedFloat32Array()
+var _widths := PackedFloat32Array()
 ## Vector2i cell -> PackedInt32Array of sample indices.
 var _cells: Dictionary = {}
 
@@ -35,12 +37,14 @@ func _init(cell := 8.0) -> void:
 
 
 ## Remember one stamp. Returns its index.
-func add(position: Vector2, heading: float, strength: float, length: float) -> int:
+func add(position: Vector2, heading: float, strength: float, length: float,
+		width: float) -> int:
 	var index := _positions.size()
 	_positions.append(position)
 	_headings.append(heading)
 	_strengths.append(strength)
 	_lengths.append(length)
+	_widths.append(width)
 	var key := cell_of(position, cell_size)
 	if not _cells.has(key):
 		_cells[key] = PackedInt32Array()
@@ -70,6 +74,10 @@ func length_at(i: int) -> float:
 	return _lengths[i]
 
 
+func width_at(i: int) -> float:
+	return _widths[i]
+
+
 ## Indices of every sample whose position lies inside `rect`, in world XZ.
 ## A stamp is up to a length across, so callers wanting everything that
 ## *touches* a rect should grow it by that first.
@@ -95,6 +103,7 @@ func clear() -> void:
 	_headings.clear()
 	_strengths.clear()
 	_lengths.clear()
+	_widths.clear()
 	_cells.clear()
 
 
@@ -114,6 +123,7 @@ func to_bytes() -> PackedByteArray:
 		"headings": _headings,
 		"strengths": _strengths,
 		"lengths": _lengths,
+		"widths": _widths,
 	})
 
 
@@ -128,15 +138,18 @@ static func from_bytes(bytes: PackedByteArray) -> TrackTrail:
 	var headings = data.get("headings")
 	var strengths = data.get("strengths")
 	var lengths = data.get("lengths")
+	var widths = data.get("widths")
 	if not (positions is PackedVector2Array and headings is PackedFloat32Array
-			and strengths is PackedFloat32Array and lengths is PackedFloat32Array):
+			and strengths is PackedFloat32Array and lengths is PackedFloat32Array
+			and widths is PackedFloat32Array):
 		return null
 	var n: int = positions.size()
-	if headings.size() != n or strengths.size() != n or lengths.size() != n:
+	if headings.size() != n or strengths.size() != n or lengths.size() != n \
+			or widths.size() != n:
 		return null
 	var trail := TrackTrail.new(float(data.get("cell_size", 8.0)))
 	for i in n:
-		trail.add(positions[i], headings[i], strengths[i], lengths[i])
+		trail.add(positions[i], headings[i], strengths[i], lengths[i], widths[i])
 	return trail
 
 

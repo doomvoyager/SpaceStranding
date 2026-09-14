@@ -17,11 +17,20 @@
 [ext_resource type="Script" uid="uid://cunrbhjlysnt8" path="res://scripts/world/coverage_map.gd" id="15_coverage"]
 [ext_resource type="PackedScene" path="res://scenes/ui/map_panel.tscn" id="16_map"]
 [ext_resource type="Script" uid="uid://bq1wrnp7w1d" path="res://scripts/world/route_marks.gd" id="17_marks"]
-[ext_resource type="Shader" path="res://shaders/sky.gdshader" id="18_sky"]
-[ext_resource type="Script" path="res://scripts/world/track_map.gd" id="19_tracks"]
+[ext_resource type="Shader" uid="uid://bhm0l1iguxh04" path="res://shaders/sky.gdshader" id="18_sky"]
+[ext_resource type="Script" uid="uid://dkb46r51akeds" path="res://scripts/world/track_map.gd" id="19_tracks"]
 
 [sub_resource type="ShaderMaterial" id="SkyMaterial_moon"]
 shader = ExtResource("18_sky")
+shader_parameter/star_intensity = 0.35
+shader_parameter/star_density = 0.4
+shader_parameter/star_cells = 160.0
+shader_parameter/star_size_deg = 0.07
+shader_parameter/star_tint = Color(0.88, 0.92, 1, 1)
+shader_parameter/sun_disc_energy = 40.0
+shader_parameter/sun_disc_softness = 0.25
+shader_parameter/sun_glare_energy = 1.2
+shader_parameter/sun_glare_width_deg = 1.5
 
 [sub_resource type="Sky" id="Sky_moon"]
 sky_material = SubResource("SkyMaterial_moon")
@@ -41,13 +50,11 @@ glow_enabled = true
 glow_intensity = 0.5
 glow_strength = 0.04
 glow_bloom = 0.1
-fog_enabled = false
 fog_light_color = Color(0.72280014, 0.7002148, 0.87511814, 1)
 fog_light_energy = 0.44
 fog_sun_scatter = 0.16
 fog_density = 0.002
 fog_aerial_perspective = 0.378
-volumetric_fog_enabled = false
 volumetric_fog_density = 0.005
 
 [sub_resource type="CylinderMesh" id="CylinderMesh_beacon"]
@@ -205,6 +212,6 @@ script = ExtResource("17_marks")
 [node name="Scanner" type="Node3D" parent="." unique_id=1512253794]
 script = ExtResource("13_scanner")
 
-[node name="TrackMap" type="Node3D" parent="."]
+[node name="TrackMap" type="Node3D" parent="." unique_id=1075643283]
 script = ExtResource("19_tracks")
 follow_path = NodePath("../Rover")
