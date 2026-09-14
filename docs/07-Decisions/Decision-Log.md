@@ -92,6 +92,17 @@ It either moves the chase pivot 0.3 m up to the eye line or gives the eye a
 0.3 m neck that swings it forward as you look down. Writing the pitch to both
 cameras from `_pitch_by()` costs one line and no scene change.
 
+**Later the same day - the layer mechanism was wrong, and Mac caught it.** "In
+the rover FPP view, rover interior and rover shadows should be visible." The
+interior was always going to be a modelling job; the shadow was a bug: a
+camera's cull mask culls shadow casters from its own view, so a hull the eye
+does not see is a hull that casts nothing for the driver, and the suit likewise
+on foot. Measured in `tests/probe_sun_shadow.tscn` - twenty variants, three of
+them confounded by geometry before the rule was clean. **The exterior and the
+suit are now `SHADOWS_ONLY` while the eye is up**, and both eyes see every
+layer. Layer 3 "Rover hull" stays as the *marker* of what is exterior, so an
+authored interior needs no code. The "Suit" layer is gone.
+
 ## 2026-09-13 - The rover is governed, and tuned in newtons
 
 Mac: more control over the rover, especially mass, and slower, so you have to

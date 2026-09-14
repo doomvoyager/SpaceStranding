@@ -35,12 +35,6 @@ class_name Astronaut
 	set(value):
 		first_person = value
 		_show_view()
-## Render layers the suit is drawn on. The first-person eye leaves them out of
-## its cull mask, so the view is not the inside of the helmet. Layers gate
-## cameras only: the lights still see the suit, and moving it here changed the
-## chase camera's frame by nothing - its shadows included - measured in
-## `tests/view_capture.tscn`.
-@export_flags_3d_render var suit_layers := 2
 @export var mouse_sensitivity := 0.0022
 ## Right-stick turn rate, radians/sec. A stick holds a position rather than
 ## emitting deltas, so this is a speed where the mouse figure is a multiplier.
@@ -87,6 +81,8 @@ class_name Astronaut
 ## build an astronaut without one - the controller is what is under test there,
 ## and a missing mesh should not be a crash.
 @onready var _rig: AstronautRig = get_node_or_null("Body/Rig") as AstronautRig
+## Every mesh of the figure, for the view to draw or to leave casting only.
+var _suit: Array[GeometryInstance3D] = []
 
 var _time_since_grounded := 0.0
 var _mouse_captured := false
@@ -103,23 +99,19 @@ var _recovery_held := 0.0
 func _ready() -> void:
 	add_to_group("player")
 	_capture_mouse(true)
-	_dress_suit()
+	_collect_suit()
 	_show_view()
 
 
-## Put the figure's meshes on the suit layers, and take those layers out of
-## the eye's mask.
-##
-## Done here rather than in the rig scene because the meshes live inside the
-## imported model, which is meant to stay a drop-in: a layer authored on an
-## editable child would be an override that breaks on the next re-export. The
-## layer itself is an export above, so the choice is still in the inspector.
-func _dress_suit() -> void:
-	_eye.cull_mask = _eye.cull_mask & ~suit_layers
+## Find the figure's meshes. Walked at runtime rather than referenced from the
+## rig scene because they live inside the imported model, which is meant to
+## stay a drop-in for a re-export.
+func _collect_suit() -> void:
+	_suit.clear()
 	if _rig == null:
 		return
 	for node in _rig.find_children("*", "GeometryInstance3D", true, false):
-		(node as GeometryInstance3D).layers = suit_layers
+		_suit.append(node as GeometryInstance3D)
 
 
 func _capture_mouse(captured: bool) -> void:
@@ -896,12 +888,23 @@ func eye() -> Camera3D:
 ## case the choice is kept for the climb out. `make_current()` only on a real
 ## change: it reaches into the viewport, and a rig that re-asserted its camera
 ## every frame would fight any capture scene that had borrowed the view.
+##
+## **In first person the suit is not drawn but still casts.** It is hidden by
+## `SHADOW_CASTING_SETTING_SHADOWS_ONLY`, not by a render layer the eye culls:
+## a camera's cull mask culls shadow casters from its own view as well, so the
+## layer version left the figure with no shadow on the ground in front of it -
+## measured in `tests/probe_sun_shadow.tscn`, after Mac saw the same from the
+## rover's cab.
 func _show_view() -> void:
 	if not is_node_ready() or _driving:
 		return
 	var camera := view_camera()
 	if not camera.current:
 		camera.make_current()
+	for mesh in _suit:
+		mesh.cast_shadow = (
+			GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY if first_person
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
 
 
 # --- Vehicles -----------------------------------------------------------

@@ -173,7 +173,6 @@ toggle_view={
 
 [layer_names]
 
-3d_render/layer_2="Suit"
 3d_render/layer_3="Rover hull"
 
 [physics]

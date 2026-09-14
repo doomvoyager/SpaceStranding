@@ -6,9 +6,10 @@ extends Node3D
 ##
 ##   - The eye is at the visor, not the chest: between the head bone and the
 ##     crown, read off the skeleton rather than typed into the test.
-##   - The suit is on its own render layers, the eye cannot see them and the
-##     chase camera can. (That the *sun* still can is a render question -
-##     `view_capture.tscn`.)
+##   - In first person the suit is not drawn but still casts: every mesh of it
+##     is SHADOWS_ONLY, and the eye's cull mask still includes its layers. Not
+##     a cull mask on the eye - a camera's cull mask culls shadow casters from
+##     its own view too, measured in `probe_sun_shadow.tscn`.
 ##   - Switching views changes nothing about what E would do: the aim reads
 ##     the pivot both cameras hang off.
 ##   - Pitch reaches both cameras, clamped once.
@@ -16,7 +17,7 @@ extends Node3D
 ##     turn while standing still.
 ##   - Boarding shows the rover's own remembered view, not the astronaut's; the
 ##     rover's eye rides the chassis unclamped while the chase pivot is clamped;
-##     the eye does not see the hull.
+##     the hull is shadows-only from the cab and drawn again on the way out.
 ##   - Climbing out restores the astronaut's view, facing the way the driver was
 ##     looking.
 ##   - Behind a panel the key does nothing, and setting `first_person` the way
@@ -73,7 +74,7 @@ func _physics_process(_delta: float) -> void:
 		F_SETUP:
 			_check_starts_third_person()
 			_check_eye_is_at_the_visor()
-			_check_suit_is_on_its_own_layers()
+			_check_suit(GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "in third person")
 			_astronaut.aim_at(_rover.global_position)
 			_expect(_astronaut.interact_prompt() == "Board the rover",
 				"before the toggle E should board the rover; the prompt is \"%s\""
@@ -81,6 +82,7 @@ func _physics_process(_delta: float) -> void:
 			_press("toggle_view")
 		F_FIRST:
 			_check_first_person_on_foot()
+			_check_suit(GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, "in first person")
 			_check_pitch_reaches_both()
 			# Look along +X and give the body time to come round.
 			_astronaut.aim_at(_astronaut.global_position + Vector3(100.0, 0.0, 0.0))
@@ -103,14 +105,16 @@ func _physics_process(_delta: float) -> void:
 			_rover.enter(_astronaut)
 		F_BOARDED:
 			_check_boarding_shows_the_rovers_view()
-			_check_hull_is_on_its_own_layer()
+			_check_hull(GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "in the rover's third person")
 			_press("toggle_view")
 		F_ROVER_FIRST:
 			_check_first_person_in_the_cab()
+			_check_hull(GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, "from the cab")
 			_check_eye_rides_the_chassis()
 			_leave_looking_left()
 		F_EXITED:
 			_check_climbing_out()
+			_check_hull(GeometryInstance3D.SHADOW_CASTING_SETTING_ON, "after climbing out")
 			_finish()
 
 
@@ -138,18 +142,19 @@ func _check_eye_is_at_the_visor() -> void:
 		"the eye sits %.2f m up, outside the head (%.2f to %.2f)" % [eye, head, crown])
 
 
-func _check_suit_is_on_its_own_layers() -> void:
+## Every mesh of the figure casts the way the view asks, and the eye's mask
+## still covers it - a caster the camera culls casts nothing into its view.
+func _check_suit(mode: GeometryInstance3D.ShadowCastingSetting, when: String) -> void:
 	var rig := _astronaut.get_node("Body/Rig")
 	var meshes := rig.find_children("*", "GeometryInstance3D", true, false)
 	_expect(not meshes.is_empty(), "no meshes under the rig to check")
 	for m in meshes:
 		var g := m as GeometryInstance3D
-		_expect(g.layers == _astronaut.suit_layers,
-			"%s is on layers %d, not the suit's %d" % [g.name, g.layers, _astronaut.suit_layers])
-	_expect((_astronaut.eye().cull_mask & _astronaut.suit_layers) == 0,
-		"the eye can see the suit layers")
-	_expect((_astronaut.view_camera().cull_mask & _astronaut.suit_layers) != 0,
-		"the chase camera cannot see the suit")
+		_expect(g.cast_shadow == mode,
+			"%s: %s casts as %d, expected %d" % [when, g.name, g.cast_shadow, mode])
+		_expect((_astronaut.eye().cull_mask & g.layers) != 0,
+			"%s: the eye's cull mask leaves out %s's layers, which would cull its shadow"
+				% [when, g.name])
 
 
 func _check_first_person_on_foot() -> void:
@@ -207,17 +212,21 @@ func _check_boarding_shows_the_rovers_view() -> void:
 			% _describe(_current()))
 
 
-func _check_hull_is_on_its_own_layer() -> void:
-	var skipped: int = ~_rover.eye().cull_mask & 0xFFFFF
-	_expect(skipped != 0, "the rover's eye skips no render layer")
-	var meshes := _rover.find_children("*", "GeometryInstance3D", true, false)
-	_expect(not meshes.is_empty(), "no meshes under the rover to check")
-	for m in meshes:
+## Every mesh on the hull layers casts the way the view asks, the eye's mask
+## still covers them, and there is at least one - a scene with no marked
+## exterior would pass a check over an empty list.
+func _check_hull(mode: GeometryInstance3D.ShadowCastingSetting, when: String) -> void:
+	var marked := 0
+	for m in _rover.find_children("*", "GeometryInstance3D", true, false):
 		var g := m as GeometryInstance3D
-		_expect(g.layers != 0 and (g.layers & ~skipped) == 0,
-			"%s is on layers %d, which the driver's eye can see" % [g.name, g.layers])
-		_expect((_rover.view_camera().cull_mask & g.layers) != 0,
-			"%s is on layers %d, which the chase camera cannot see" % [g.name, g.layers])
+		if (g.layers & _rover.hull_layers) == 0:
+			continue
+		marked += 1
+		_expect(g.cast_shadow == mode,
+			"%s: %s casts as %d, expected %d" % [when, g.name, g.cast_shadow, mode])
+		_expect((_rover.eye().cull_mask & g.layers) != 0,
+			"%s: the driver's eye culls %s's layers, which would cull its shadow" % [when, g.name])
+	_expect(marked > 0, "no rover mesh is on the hull layers %d" % _rover.hull_layers)
 
 
 func _check_first_person_in_the_cab() -> void:
@@ -329,7 +338,7 @@ func _expect(condition: bool, message: String) -> void:
 
 func _finish() -> void:
 	if _failures.is_empty():
-		print("PASS: one key, two views, each context remembering its own; the eye at the visor, the suit and the hull hidden from it, the aim untouched.")
+		print("PASS: one key, two views, each context remembering its own; the eye at the visor, the suit and the hull shadows-only from it, the aim untouched.")
 		# quit() only schedules the exit, so this must return.
 		get_tree().quit(0)
 		return

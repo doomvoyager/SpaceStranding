@@ -134,19 +134,14 @@ ready and have no callers.
       and the reason relays exist. Mac's call whether and how. #question
 - [ ] TODO: "no GPS" wants a reason. ESA and NASA are both building south-pole
       lunar navigation now. #question
-- [ ] **The sun casts no shadow onto the ground in `test_world`.** Found
-      2026-09-14 by the view capture's controls: with `sun_elevation_deg`
-      raised to 35, neither the suit, the crates nor a facility box shadowed
-      the regolith - nor a plain grey `StandardMaterial3D` swapped in for it -
-      while the suit's `cast_shadow` still moved its own self-shadow edges. So
-      it is not the terrain shader and not the render layers. `Sun` has
-      `shadow_enabled`, is the only light in the scene with shadows on, and is
-      re-aimed from `(0, 400, 0)` by `_align_sun()`. One more oddity: the
-      crates at the bottom right of the third-person frame trail dark shapes
-      that read as shadows, running left and *toward* the camera - the wrong
-      way for a sun behind it. Unexplained, and load-bearing for any "pure
-      black shadows" direction: needs a probe of its own, a bare plane and box
-      under the same light, then the Sun's settings bisected.
-      `previews/2026-09-14/view-04_*`, `view-10_*`, `view-diff_plain_*`.
-      First in line since the terrain decision of 2026-09-14: the real ground
-      cannot be judged without it. #now
+- [x] ~~The sun casts no shadow onto the ground in `test_world`.~~ It does -
+      `tests/probe_sun_shadow.tscn`, 2026-09-14: a box on the playa moves 0.80%
+      of the frame when it stops casting, 0.15% under the real 5.5° sun, the
+      suit 0.24% from a side camera, and the 2 km heightmap shadows itself.
+      What the view capture had measured was three artefacts at once: the
+      chase camera's figure standing in front of its own shadow, the head lamp
+      filling it in, and - the real finding - **the first-person eye culling
+      the suit's layer and with it the suit's shadow**. See the engine fact in
+      `CLAUDE.md` and [[Astronaut-Traversal]]. The crates' "wrong-way"
+      shadows were perspective: a shadow running away from the camera from a
+      crate in the bottom corner runs up-left toward the vanishing point. #now

@@ -146,15 +146,24 @@ rolled 40°, the eye tilts 40.0 and the chase pivot 18.0. The
 `previews/2026-09-14/view-15_*` / `view-16_*` pair is the same 30° roll seen
 from both.
 
-**The eye does not see the rover.** The hull, the nose wedge, the rack deck, the
-brake light bar and the six wheel meshes are on render layer 3, "Rover hull",
-and the eye's cull mask leaves it out - both authored in the scene, where a
-mesh's layer belongs. The blockout cab is 0.77 m deck to roof and the nose
-wedge rises to its roofline, so an eye anywhere inside it looks straight at the
-inside of a slab: `view-14_rover_first_hull_visible` is that frame. Lifting the
-eye above the roof was the alternative, and reads as standing on it. An
-authored interior goes on a layer the eye keeps; the exterior stays on 3.
-GrimdarkTank's gunner sight culls its tank the same way.
+**The eye does not draw the rover, but the rover still casts.** The hull, the
+nose wedge, the rack deck, the brake light bar and the six wheel meshes are on
+render layer 3, "Rover hull" - `hull_layers` on the script, authored per mesh
+in the scene - and while the eye is up they are `SHADOW_CASTING_SETTING_
+SHADOWS_ONLY`, `ON` again when the view flips back or the driver climbs out.
+The blockout cab is 0.77 m deck to roof and the nose wedge rises to its
+roofline, so an eye anywhere inside it looks straight at the inside of a slab:
+`view-14_rover_first_hull_drawn` is that frame. Lifting the eye above the roof
+was the alternative, and reads as standing on it. An authored interior stays
+off layer 3 and is drawn from the cab.
+
+**The layer is the marker, not the mechanism.** The first version culled layer
+3 from the eye's mask, which is GrimdarkTank's gunner-sight arrangement - and
+Mac saw at once that the rover cast no shadow from the cab. A camera's cull
+mask culls shadow casters from its own view, measured in
+`tests/probe_sun_shadow.tscn`; with the hull shadows-only instead, a cab frame
+pitched down at the ground beside the nose changes by 29.6% when the hull is
+hidden outright, which is the rover's shadow.
 
 **Where the eye sits is Mac's.** A seated eye would be 1.1-1.2 m above the
 floor and the cab is 0.77 m tall; 1.12 m is a low, reclined seat, and the node

@@ -188,6 +188,11 @@ const ENGINE_FORCE_SIGN := -1.0
 		first_person = value
 		if driver != null:
 			_show_view()
+## Render layers that mark the rover's *exterior*: what the driver's eye does
+## not draw. Layer 3, "Rover hull", on every blockout mesh in the scene. An
+## authored interior stays off these layers and is drawn from the cab. The
+## layer is only the marker - see `_show_view()` for how the hull is hidden.
+@export_flags_3d_render var hull_layers := 4
 @export var mouse_sensitivity := 0.0022
 ## Right-stick turn rate, radians/sec.
 @export var stick_sensitivity := 2.6
@@ -246,6 +251,8 @@ var _steer_target := 0.0
 ## Every wheel, and how many of them are driven, for sharing the forces out.
 var _wheels: Array[VehicleWheel3D] = []
 var _driven := 0
+## The meshes on `hull_layers`: the exterior, drawn or left casting only.
+var _hull: Array[GeometryInstance3D] = []
 
 
 func _ready() -> void:
@@ -262,6 +269,10 @@ func _ready() -> void:
 			_wheels.append(wheel)
 			if wheel.use_as_traction:
 				_driven += 1
+	for node in find_children("*", "GeometryInstance3D", true, false):
+		var mesh := node as GeometryInstance3D
+		if (mesh.layers & hull_layers) != 0:
+			_hull.append(mesh)
 	refresh_load()
 	# Parked, the way `exit()` leaves it. Nothing set the brake until somebody
 	# climbed out, so a rover that started the level empty sat on a free wheel -
@@ -863,6 +874,7 @@ func exit() -> void:
 	# with its brake light burning would be reporting a driver that has gone.
 	_set_brake_light(false)
 	view_camera().current = false
+	_draw_hull(true)
 	astronaut.disembark(exit_position(), heading)
 
 
@@ -872,14 +884,17 @@ func exit() -> void:
 ## `V` / D-pad up. The rover remembers its own view, separately from the
 ## astronaut's, so you can drive from the cab and walk over the shoulder.
 ##
-## **The eye does not see the rover.** The hull, the rack deck, the brake light
-## bar and the wheels are on render layer 3, "Rover hull", and the eye's cull
-## mask leaves that bit out - both authored in the scene. The blockout cab is a
-## box 0.77 m deck to roof with a nose wedge rising to its roofline, so any eye
-## inside it looks straight at the inside of a slab. An authored interior goes
-## on a layer the eye keeps; the exterior stays on 3. Layers gate cameras only,
-## so the lights still see the hull and it shadows as it did -
-## `tests/view_capture.tscn` measured that for the suit.
+## **The eye does not draw the rover, but the rover still casts.** The hull,
+## the rack deck, the brake light bar and the wheels are on render layer 3,
+## "Rover hull", and while the eye is up they are `SHADOWS_ONLY`. The blockout
+## cab is a box 0.77 m deck to roof with a nose wedge rising to its roofline,
+## so any eye inside it looks straight at the inside of a slab. An authored
+## interior stays off layer 3 and is drawn from the cab.
+##
+## Not a cull mask on the eye, which was the first version: a camera's cull
+## mask culls shadow casters from its own view too, so the rover cast no shadow
+## for its driver - Mac saw it from the cab, `tests/probe_sun_shadow.tscn`
+## measured it. Shadows-only keeps the shadow and loses the hull.
 
 func toggle_view() -> void:
 	first_person = not first_person
@@ -915,11 +930,20 @@ func view_heading() -> float:
 	return atan2(-fwd.x, -fwd.z)
 
 
-## Put the chosen camera on screen. Only on a real change - see the astronaut's
-## `_show_view()` for why.
+## Put the chosen camera on screen, and the hull with it or not. Only on a real
+## change - see the astronaut's `_show_view()` for why.
 func _show_view() -> void:
 	if not is_node_ready():
 		return
 	var camera := view_camera()
 	if not camera.current:
 		camera.make_current()
+	_draw_hull(not first_person)
+
+
+## Draw the exterior, or leave it casting shadows only.
+func _draw_hull(drawn: bool) -> void:
+	for mesh in _hull:
+		mesh.cast_shadow = (
+			GeometryInstance3D.SHADOW_CASTING_SETTING_ON if drawn
+			else GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)

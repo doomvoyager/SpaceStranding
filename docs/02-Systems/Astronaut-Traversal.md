@@ -178,15 +178,20 @@ both through `_pitch_by()`, clamped once. The eye is 1.80 m above the feet -
 the skeleton's head bone rests at 1.70 and the crown at 2.03,
 `tests/probe_eye_height.tscn` - and the test asserts it stays between them.
 
-**The suit is hidden from the eye by a render layer, not by visibility.** Every
-mesh under the rig goes on `suit_layers` (2, "Suit") in `_dress_suit()`, and
-the eye's cull mask drops that bit; with the suit visible, first person is the
-inside of the helmet (`previews/2026-09-14/view-03_*`). Done from code because
-the meshes live inside the imported model, which is meant to stay a drop-in;
-the layer is an export, so the choice is still in the inspector. Layers gate
-cameras only: moving the suit changed the chase camera's frame by nothing -
-0.01% of pixels, against a 0.01% noise floor - while turning the same meshes'
-`cast_shadow` off did (0.07%, along the suit's own shadow edges).
+**In first person the suit is not drawn but still casts.** Every mesh under
+the rig is `SHADOW_CASTING_SETTING_SHADOWS_ONLY` while the eye is up and `ON`
+otherwise, set in `_show_view()`; with the suit drawn, first person is the
+inside of the helmet (`previews/2026-09-14/view-03_*`). Walked at runtime
+because the meshes live inside the imported model, which is meant to stay a
+drop-in.
+
+The first version hid the suit by putting it on a render layer the eye's cull
+mask left out, and that took its shadow with it: **a camera's cull mask culls
+shadow casters from its own view**, measured in `tests/probe_sun_shadow.tscn`
+after Mac saw the rover cast nothing from the cab. Shadows-only keeps the
+shadow and loses the helmet: with the sun raised to 35° and the eye pitched at
+the ground ahead, hiding the suit outright moves 5.4% of the eye's frame -
+your own shadow, `previews/2026-09-14/view-07_*` against `view-08_*`.
 
 **In first person the body faces where you look.** Third person keeps turning
 it to face travel. Without this, turning your head in first person swings the

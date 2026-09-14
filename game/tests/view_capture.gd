@@ -1,22 +1,24 @@
 extends Node3D
 ## The two views, on foot and in the rover, as the player sees them - plus the
-## frames that justify the layer work.
+## frames that justify hiding by shadows-only.
 ##
-## The headless test proves which camera is on screen and which layers it
-## skips. What it cannot see is what the eye actually gets: whether the suit's
-## shadow is still on the ground once the suit is hidden from the camera, and
-## what the driver's eye would be staring at if the hull were not culled. So
-## two sets of controls:
+## The headless test proves which camera is on screen and how each mesh
+## casts. What it cannot see is what the eye actually gets: whether your own
+## shadow is on the ground in front of you once the suit is shadows-only, and
+## what the driver's eye would be staring at if the hull were drawn. So two
+## sets of controls:
 ##
 ##   - **The shadow.** Under the real 5.5 degree sun a figure's shadow is a
 ##     nine-percent darkening nobody can see, so the sun is raised to 35 for
-##     these frames, and the animation is frozen so nothing but the setting
-##     changes between shots. The third-person frame is captured with the suit
-##     on its own layer, on layer 1, and with `cast_shadow` off: the first two
-##     should be identical and the third should not, or the instrument could
-##     not see a shadow go and the identical pair proves nothing.
-##   - **The hull.** The rover's eye is captured with its cull mask restored,
-##     which is the blockout wedge it would otherwise be looking at.
+##     these frames, the animation is frozen and the head lamp is off, so that
+##     nothing but the setting changes between shots. From the eye, the suit
+##     shadows-only against the suit hidden outright: the difference is your
+##     shadow. From the chase camera, casting against not: the instrument's
+##     own control - it has to be seen to see a shadow go before its zeros
+##     mean anything.
+##   - **The hull.** The rover's eye with the hull drawn, which is the blockout
+##     wedge it would otherwise be looking at; and pitched down with the hull
+##     shadows-only against hidden, which is the rover's own shadow.
 ##
 ## Must run as a scene, windowed. --headless is the dummy renderer and writes
 ## no image:
@@ -66,10 +68,10 @@ func _ready() -> void:
 	await _shot("01_foot_third")
 	_astronaut.first_person = true
 	await _shot("02_foot_first")
-	# The suit back on layer 1, seen by every camera: the eye is inside the helmet.
-	_set_suit_layers(1)
-	await _shot("03_foot_first_suit_visible")
-	_set_suit_layers(_astronaut.suit_layers)
+	# The suit drawn from the eye: the inside of the helmet.
+	_set_suit_casting(GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
+	await _shot("03_foot_first_suit_drawn")
+	_set_suit_casting(GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 
 	await _shadow_controls()
 
@@ -80,11 +82,31 @@ func _ready() -> void:
 	_rover.first_person = true
 	await _shot("13_rover_first")
 
-	# Control: the eye allowed to see the hull.
-	var mask := _rover.eye().cull_mask
-	_rover.eye().cull_mask = 0xFFFFF
-	await _shot("14_rover_first_hull_visible")
-	_rover.eye().cull_mask = mask
+	# Control: the hull drawn from the cab.
+	_rover._draw_hull(true)
+	await _shot("14_rover_first_hull_drawn")
+	_rover._draw_hull(false)
+
+	# The rover's own shadow, from the cab: pitched down at the ground beside
+	# the nose, the hull shadows-only against hidden outright.
+	var real_sun: float = World.sun_elevation_deg
+	World.sun_elevation_deg = CONTROL_SUN
+	_rover.freeze = true
+	_rover._look_yaw = 0.0
+	_rover.get_node("CamPivot/SpringArm3D").rotation.x = deg_to_rad(-50.0)
+	_rover._aim_eye()
+	await _settle(10)
+	var cab := await _shot("17_rover_first_own_shadow")
+	for mesh in _rover._hull:
+		mesh.visible = false
+	var cab_hidden := await _shot("18_rover_first_own_shadow_hull_hidden")
+	for mesh in _rover._hull:
+		mesh.visible = true
+	_report("from the cab, hull shadows-only vs hidden", cab, cab_hidden, "diff_cab_shadow")
+	_rover.get_node("CamPivot/SpringArm3D").rotation.x = 0.0
+	_rover._aim_eye()
+	World.sun_elevation_deg = real_sun
+	await _settle(10)
 
 	# On a side slope, frozen so the pose holds: the eye rolls with the cab,
 	# the chase camera stops at its limit.
@@ -126,66 +148,31 @@ func _shadow_controls() -> void:
 	await _settle(10)
 
 	_astronaut.first_person = false
-	var on_suit_layer := await _shot("04_shadow_third_suit_layer")
-	var again := await _shot("05_shadow_third_suit_layer_again")
-	_set_suit_layers(1)
-	var on_layer_1 := await _shot("06_shadow_third_layer_1")
-	_set_suit_layers(_astronaut.suit_layers)
-	_set_suit_shadows(false)
-	var no_shadow := await _shot("07_shadow_third_no_shadow")
-	_set_suit_shadows(true)
+	var third := await _shot("04_shadow_third")
+	var again := await _shot("05_shadow_third_again")
+	_set_suit_casting(GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	var third_no_shadow := await _shot("06_shadow_third_no_shadow")
+	_set_suit_casting(GeometryInstance3D.SHADOW_CASTING_SETTING_ON)
 
-	# And from the eye, which cannot see the suit: its shadow should still be
-	# on the ground, and go when casting is turned off.
+	# From the eye the suit is shadows-only, so hiding it outright is what
+	# takes the shadow away and nothing else.
 	_astronaut.first_person = true
-	var eye_casting := await _shot("08_shadow_first")
-	_set_suit_shadows(false)
-	var eye_no_shadow := await _shot("09_shadow_first_no_shadow")
-	_set_suit_shadows(true)
-
-	# The same two frames over a plain StandardMaterial3D ground. The second
-	# run of this found no shadow on the regolith from anything - not the suit,
-	# not the crates, not the facility - so this separates "the layer" from
-	# "the terrain shader" before either gets blamed.
-	var plain := StandardMaterial3D.new()
-	# Mid grey. White saturated under the scene's ambient before the sun had a
-	# say, and a saturated frame shows no shadow whatever the light does.
-	plain.albedo_color = Color(0.25, 0.25, 0.25)
-	plain.roughness = 1.0
-	var regolith := _swap_ground(plain)
-	await _settle(5)
-	var plain_casting := await _shot("10_shadow_first_plain_ground")
-	_set_suit_shadows(false)
-	var plain_no_shadow := await _shot("11_shadow_first_plain_ground_no_shadow")
-	_set_suit_shadows(true)
-	_swap_ground(regolith)
+	var eye := await _shot("07_shadow_first")
+	_set_suit_visible(false)
+	var eye_hidden := await _shot("08_shadow_first_suit_hidden")
+	_set_suit_visible(true)
 
 	print("shadow control at a %.0f deg sun, lamp off - pixels moved by more than %d/255:"
 		% [CONTROL_SUN, CHANGE])
-	_report("same settings twice (noise floor)", on_suit_layer, again, "")
-	_report("suit on layer %d vs layer 1" % _astronaut.suit_layers, on_suit_layer, on_layer_1, "diff_layer")
-	_report("suit casting a shadow vs not", on_suit_layer, no_shadow, "diff_no_shadow")
-	_report("from the eye, casting vs not", eye_casting, eye_no_shadow, "diff_first_no_shadow")
-	_report("plain ground, casting vs not", plain_casting, plain_no_shadow, "diff_plain_ground_no_shadow")
+	_report("same settings twice (noise floor)", third, again, "")
+	_report("chase camera, suit casting vs not", third, third_no_shadow, "diff_third_no_shadow")
+	_report("from the eye, shadows-only vs hidden", eye, eye_hidden, "diff_first_shadow")
 
 	_astronaut._pitch_by(deg_to_rad(16.0))
 	lamp.visible = true
 	rig.set_animating(true)
 	World.sun_elevation_deg = real_sun
 	await _settle(10)
-
-
-## Put `material` on every terrain node that has a `surface_material`, and
-## return what the first one had so it can be put back.
-func _swap_ground(material: Material) -> Material:
-	var previous: Material = null
-	for node in get_tree().root.find_children("*", "Node3D", true, false):
-		if not ("surface_material" in node):
-			continue
-		if previous == null:
-			previous = node.surface_material
-		node.surface_material = material
-	return previous
 
 
 func _report(label: String, a: Image, b: Image, diff_name: String) -> void:
@@ -204,17 +191,15 @@ func _suit_meshes() -> Array[Node]:
 	return _astronaut.get_node("Body/Rig").find_children("*", "GeometryInstance3D", true, false)
 
 
-func _set_suit_layers(layers: int) -> void:
+func _set_suit_casting(mode: GeometryInstance3D.ShadowCastingSetting) -> void:
 	for node in _suit_meshes():
-		(node as GeometryInstance3D).layers = layers
+		(node as GeometryInstance3D).cast_shadow = mode
 
 
-func _set_suit_shadows(cast: bool) -> void:
+func _set_suit_visible(shown: bool) -> void:
 	for node in _suit_meshes():
-		(node as GeometryInstance3D).cast_shadow = (
-			GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast
-			else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		)
+		(node as GeometryInstance3D).visible = shown
+
 
 
 func _shot(shot_name: String) -> Image:
