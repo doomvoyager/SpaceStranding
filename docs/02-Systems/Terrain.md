@@ -499,16 +499,31 @@ finding the terrain and not a tile, and the real file's header.
 
 ## Known issues
 
-- [ ] **Striations on the far crater walls.** Fine parallel lines on the
-      shadowed slopes 2-8 km out; the old patch never drew that ground.
-      **Not the data:** the wall re-lit from the heights and a 9-sample
-      high-pass of them (`lola-24k-wall-relit.png`, `-highpass.png`) show
-      per-pixel speckle of 0.54 m and no lines at all. So it is the
-      renderer - the shadow map at grazing incidence on a 32 to 128 m mesh,
-      or the detail normal map aliasing at range - and the sun-shadow probe
-      is the instrument. The speckle itself is worth knowing about: the 5 m
-      product carries about half a metre of noise per sample, which the
-      detail layer will want to smooth before it adds anything.
+- [ ] **Striations past every crest, and a pale sheet on the far walls.**
+      Two things, found with `probe_far_sheet.tscn` (2026-09-15, windowed,
+      from the rim and from the plain; frames `previews/2026-09-15/far-sheet-*`).
+      **The striations are the data's noise, lit at grazing incidence.** They
+      survive Lambert in place of the lunar term, the skirts hidden, and the
+      detail normal map off, and they sit on the face just past a crest -
+      the terminator, where the sun rays run along the ground. The 5 m
+      product carries 0.54 m of per-sample speckle (the high-pass,
+      `2026-09-14/lola-24k-wall-highpass.png`), which is a 6° tilt per
+      sample: invisible on ground the sun hits squarely, and at the
+      terminator each bump's sun side lights up while the rest stays dark,
+      in the DEM's own rows and columns, which perspective draws as lines
+      converging on the horizon. The fix belongs at the bake - a small
+      Gaussian in `lola-window.py` - or in the detail layer, which will have
+      to smooth before it adds; not in the renderer.
+      **The pale sheet is the lunar term at grazing view.** Lommel-Seeliger
+      as written, `2 n_l / max(n_l + n_v, 0.02)`, goes to 2 - twice Lambert
+      at normal incidence - wherever the eye sees the ground edge-on and the
+      sun catches it at all, and steps to 0 at the terminator, so a far
+      wall reads as a flat white sheet with a knife edge against the dark.
+      Under Lambert the same wall is dark grey. Pure Lommel-Seeliger
+      limb-brightens; the real Moon's disc does not, because roughness
+      takes it back. A floor on `n_v`, or a blend toward Lambert as the
+      view grazes, is the proposal in [[The-Planet]]. Mac saw both from the
+      rover the moment the far plane went out to 30 km.
 - [ ] The detail layer below the DEM, and stamps: the composition slot is
       `Heightfield`, and nothing composes yet. 5 m data under a 4 m mesh is
       still a sheet underfoot.

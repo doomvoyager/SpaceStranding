@@ -94,6 +94,16 @@ inspector:
   close, and a grazing sun needs something to rake across. A stand-in for the
   detail layer queued in [[Terrain]], not a replacement.
 
+**Open, 2026-09-15: the lunar term limb-brightens.** With the cameras out to
+30 km, a far crater wall seen edge-on reads as a flat white sheet with a
+knife-edge terminator. `2 n_l / max(n_l + n_v, 0.02)` goes to 2 wherever
+`n_v` is near zero and the sun catches the ground at all. Pure
+Lommel-Seeliger does that; the real disc is flat because macroscopic
+roughness takes the limb back. Proposed, not built: a `lunar_view_floor`
+uniform on the material, `max(n_v, floor)` at about 0.25, or a blend toward
+Lambert as the view grazes - both tunable on F1, judged from the rim with
+`probe_far_sheet.tscn`. Frames in `previews/2026-09-15/far-sheet-*`.
+
 The frames are `previews/2026-09-14/regolith-before-*` against `regolith-after-*`,
 seven views each: down-sun, up-sun, cross-sun, the feet, the rim, from 150 m,
 the sky. The sweep in between (`v1`..`v5`) is there too, with the salmon
