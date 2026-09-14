@@ -254,6 +254,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_tr
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_footprints.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_wheel_dust.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -344,6 +348,12 @@ Walk the astronaut and photograph the boot prints, four frames, sun only:
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/footprint_capture.tscn -- --tag=after
+```
+
+Drive the rover and photograph the dust while it flies, five frames, sun only:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/dust_capture.tscn -- --tag=after
 ```
 
 **Every rendered image that gets looked at is kept, in `previews/`.** A capture
@@ -1076,6 +1086,18 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   callback and discards what it draws, so a canvas-driven system's bookkeeping
   (a queue drained in `_draw`) behaves the same headless as windowed; only the
   pixels are missing. `test_track_map` reports one stamp drawn headless.
+- **A particle born on a collision field with hide-on-contact dies at
+  birth.** Emitters parked at a wheel's contact point, over a
+  `GPUParticlesCollisionHeightField3D` of the ground, reported six wheels
+  throwing while almost nothing was in the air: a grain that starts on the
+  field is already in contact. Lift the birth point off the surface;
+  `WheelDust` uses 10 cm. Nothing warns.
+- **`Rover.enter()` makes the rover's camera current**, so a capture that
+  set its own camera before boarding shoots every frame from the chase view
+  afterward - and `Astronaut.disembark()` does the same for the astronaut's.
+  Set `current` on the capture camera *after* any boarding or exit, and
+  again before each shot if in doubt. Cost one sheet each in
+  `dust_capture` and `track_capture`.
 - **`smooth` is a reserved word in Godot's shader language.** Declaring a
   float called that fails with "Expected an identifier or '[' after type",
   pointing at the line and naming nothing.

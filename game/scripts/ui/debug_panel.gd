@@ -250,6 +250,12 @@ func _discover() -> Array[Target]:
 			w.allow = WHEEL_PROPERTIES
 			out.append(w)
 
+		var dust: Array = []
+		_collect(rover, "WheelDust", dust)
+		if not dust.is_empty():
+			out.append(_target(CLUSTER_DRIVING, "Wheel dust",
+				"how much the tyres throw and how; the grain is on its material", dust))
+
 	var racks: Array = []
 	_collect(scene, "CargoRack", racks)
 	if not racks.is_empty():

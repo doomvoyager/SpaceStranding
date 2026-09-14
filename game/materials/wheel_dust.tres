@@ -1,0 +1,22 @@
+[gd_resource type="ParticleProcessMaterial" format=3]
+
+; Regolith off the wheels, in a vacuum: no drag, no damping, and gravity is
+; written by WheelDust from World. The throw speed is written per wheel per
+; tick; what lives here is the shape of a spray and what a grain is.
+
+[resource]
+resource_name = "Wheel dust"
+direction = Vector3(0, 0, -1)
+spread = 16.0
+initial_velocity_min = 1.0
+initial_velocity_max = 3.0
+gravity = Vector3(0, -1.62, 0)
+damping_min = 0.0
+damping_max = 0.0
+scale_min = 0.5
+scale_max = 1.5
+color = Color(0.86, 0.84, 0.8, 1)
+emission_shape = 1
+emission_sphere_radius = 0.05
+collision_mode = 2
+collision_use_scale = false
