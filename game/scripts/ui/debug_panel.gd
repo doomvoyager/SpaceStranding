@@ -295,7 +295,7 @@ func _discover() -> Array[Target]:
 	var terrain: Array = []
 	_collect(scene, "ProceduralTerrain", terrain)
 	if not terrain.is_empty():
-		var t := _target(CLUSTER_WORLD, "Terrain", "rebuilds on release", terrain)
+		var t := _target(CLUSTER_WORLD, "Terrain patch", "rebuilds on release", terrain)
 		t.deferred = true
 		out.append(t)
 
@@ -309,6 +309,17 @@ func _discover() -> Array[Target]:
 	if not field.is_empty():
 		var t := _target(CLUSTER_WORLD, "Terrain field",
 			"relays the whole grid; rebuilds on release", field)
+		t.deferred = true
+		out.append(t)
+
+	# The streamed ground is a third class again - see the note above. It is
+	# the world's ground, so it takes the plain "Terrain" title; the single
+	# patch only turns up in test scenes now.
+	var streamed: Array = []
+	_collect(scene, "StreamedTerrain", streamed)
+	if not streamed.is_empty():
+		var t := _target(CLUSTER_WORLD, "Terrain",
+			"tile rings and skirts; rebuilds on release", streamed)
 		t.deferred = true
 		out.append(t)
 

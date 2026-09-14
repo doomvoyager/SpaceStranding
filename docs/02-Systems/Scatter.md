@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-08-31
+verified: 2026-09-15
 godot: res://scripts/world/rock_scatter.gd
 tags: [system, world, performance]
 ---
@@ -155,9 +155,13 @@ which at least complains.
 
 ## Known issues
 
-- [ ] The scatter covers one 512 m patch and rebuilds all of it at once. Fine
-      here, will not survive a streamed map - cells are already the right unit
-      to stream, but nothing streams them.
+- [ ] The scatter throws `count` over a square of `radius` around `centre`
+      - 2050 m around the world origin, the old 4.1 km patch - and rebuilds
+      all of it at once. **The ground is 24.6 km across since 2026-09-14**,
+      and the same count over all of it would be fifteen rocks a square
+      kilometre, none in sight of anywhere; the square keeps the spawn as it
+      was and leaves the rest of the world bare. Cells are already the right
+      unit to stream around the player, and nothing streams them. #next
 - [ ] `rock_positions()` exists partly because a MultiMesh cannot be asked
       where its instances are from outside the renderer. Nothing but the test
       reads it yet.

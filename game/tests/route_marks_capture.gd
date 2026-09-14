@@ -18,7 +18,7 @@ extends Node3D
 const WORLD := preload("res://scenes/world/test_world.tscn")
 const OUT_DIR := "user://route"
 
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _astronaut: Astronaut
 var _marks: RouteMarks
 var _scanner: Node

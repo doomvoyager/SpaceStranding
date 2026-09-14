@@ -13,7 +13,7 @@ extends Node3D
 const WORLD := preload("res://scenes/world/test_world.tscn")
 const OUT_DIR := "user://footprints"
 
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _cam: Camera3D
 var _tag := ""
 
@@ -27,7 +27,7 @@ func _ready() -> void:
 	add_child(world)
 	for i in 60:
 		await get_tree().physics_frame
-	_terrain = world.find_child("Terrain", true, false) as ProceduralTerrain
+	_terrain = world.find_child("Terrain", true, false) as TerrainSource
 	var astronaut := world.find_child("Astronaut", true, false) as Astronaut
 	var boots := astronaut.find_child("Footprints", true, false) as Footprints
 	var hud := world.find_child("HUD", true, false) as CanvasLayer

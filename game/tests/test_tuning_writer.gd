@@ -331,11 +331,11 @@ func _check_real_project_resolution() -> void:
 	var wheels: Array[Node] = []
 	_collect(rover, "VehicleWheel3D", wheels)
 
-	_expect_home(terrain, "size", "res://scenes/world/test_world.tscn",
+	# The streamed terrain since 2026-09-14: the scene names the heightfield,
+	# and the tile layout is the script's.
+	_expect_home(terrain, "heightfield_path", "res://scenes/world/test_world.tscn",
 		"authored as a node override in the world scene")
-	# `height_floor` since 2026-09-14: the real pole's relief put `height_span`
-	# into the scene as well.
-	_expect_home(terrain, "height_floor", "res://scripts/world/terrain.gd",
+	_expect_home(terrain, "leaf_spacing", "res://scripts/world/streamed_terrain.gd",
 		"left at the script default")
 	_expect_home(World, "surface_gravity", "res://scripts/core/world_constants.gd",
 		"a script autoload has no scene to be overridden in")

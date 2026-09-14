@@ -43,6 +43,21 @@ signal scattered(placed: int)
 	set(v):
 		count = v
 		_queue_rebuild()
+## Half the side of the square the rocks are thrown over, centred on
+## `centre`; 0 uses the whole ground. **The ground is 24.6 km across since
+## 2026-09-14**, and `count` over all of it is fifteen rocks a square
+## kilometre - none in sight of anywhere. 2050 is the old 4.1 km patch, so
+## the spawn looks as it did. Scattering around the *player* rather than the
+## origin is the Scatter note's next item, not this one's.
+@export_range(0.0, 20000.0, 50.0) var radius := 2050.0:
+	set(v):
+		radius = v
+		_queue_rebuild()
+## World X/Z the square is centred on.
+@export var centre := Vector2.ZERO:
+	set(v):
+		centre = v
+		_queue_rebuild()
 ## Named to avoid shadowing GDScript's built-in seed(), as in terrain.gd.
 @export var noise_seed := 20260831:
 	set(v):
@@ -277,6 +292,9 @@ func _scatter() -> Dictionary:
 	# the patch edge, where the height lookup clamps and leaves them hanging.
 	# `extent()` is now the one place that question is answered — see terrain.gd.
 	var ground := _terrain.extent()
+	if radius > 0.0:
+		ground = ground.intersection(Rect2(centre - Vector2(radius, radius),
+			Vector2(radius, radius) * 2.0))
 	var cos_limit := cos(deg_to_rad(max_slope_deg))
 	var lo := minf(size_min, size_max)
 	var hi := maxf(size_min, size_max)

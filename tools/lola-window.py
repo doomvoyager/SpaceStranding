@@ -208,6 +208,36 @@ def previews(z, spacing, prefix, sun_elevation_deg, threshold):
     print(f"  previews: {prefix}-hill.png, -slope.png, -height.png")
 
 
+RAW_MAGIC = b"SSHF"
+
+
+def write_raw(path, z, spacing):
+    """The heightfield as the game reads it: a 32-byte header, then float32 rows.
+
+    Not an EXR, because Godot's importer expands one float channel to three -
+    a 4917 px window would become 290 MB of texture - and because a texture is
+    the wrong shape for a heightfield the whole world has to be able to query.
+    `StreamedTerrain` reads this with FileAccess in one call. Little-endian
+    float32, north up: row 0 is the northern edge, column 0 the western.
+
+        0   "SSHF"        4 bytes
+        4   width         u32, samples per row
+        8   height        u32, rows
+        12  spacing       f32, metres between samples
+        16  lowest        f32, metres
+        20  highest       f32, metres
+        24  reserved      8 bytes, zero
+        32  samples       width * height * float32, row-major
+    """
+    z = np.ascontiguousarray(z, dtype="<f4")
+    with open(path, "wb") as f:
+        f.write(RAW_MAGIC)
+        f.write(np.array([z.shape[1], z.shape[0]], "<u4").tobytes())
+        f.write(np.array([spacing, float(z.min()), float(z.max())], "<f4").tobytes())
+        f.write(bytes(8))
+        f.write(z.tobytes())
+
+
 def exr_writer():
     spec = importlib.util.spec_from_file_location("bake_terrain", REPO / "tools" / "bake-terrain.py")
     mod = importlib.util.module_from_spec(spec)
@@ -226,6 +256,7 @@ def main():
     ap.add_argument("--resample", type=int, default=0,
                     help="resample the window to this many pixels a side (1025 for 4 m over 4100 m)")
     ap.add_argument("--out", help="EXR to write, in raw metres")
+    ap.add_argument("--raw", help="heightfield file to write for StreamedTerrain (see write_raw)")
     ap.add_argument("--preview", help="prefix for the three preview PNGs")
     ap.add_argument("--sun", type=float, default=5.5, help="sun elevation for the hillshade")
     ap.add_argument("--threshold", type=float, default=25.0, help="the rover's slope limit, degrees")
@@ -253,6 +284,11 @@ def main():
 
     if args.preview:
         previews(z, spacing, args.preview, args.sun, args.threshold)
+
+    if args.raw:
+        write_raw(args.raw, z, spacing)
+        print(f"wrote {args.raw}: {z.shape[1]} x {z.shape[0]} at {spacing:g} m, "
+              f"{(z.shape[1] - 1) * spacing:g} m across, {pathlib.Path(args.raw).stat().st_size / 1e6:.1f} MB")
 
     if args.out:
         exr_writer()(args.out, z)

@@ -15,13 +15,13 @@ func _ready() -> void:
 	for i in 60:
 		await get_tree().physics_frame
 
-	var terrain := world.find_child("Terrain", true, false) as ProceduralTerrain
+	var terrain := world.find_child("Terrain", true, false) as TerrainSource
 	var scatter := world.find_child("RockScatter", true, false) as RockScatter
 	var positions := scatter.rock_positions()
 	var sizes := scatter.rock_sizes()
 
 	print("terrain size %.0f, so positions should sit inside +/- %.0f"
-		% [terrain.size, terrain.size * 0.5])
+		% [terrain.extent().size.x, terrain.extent().size.x * 0.5])
 	print("scatter node global origin %s" % scatter.global_position)
 	print("%d positions, %d sizes" % [positions.size(), sizes.size()])
 

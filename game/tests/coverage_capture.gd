@@ -29,7 +29,7 @@ const OUT_DIR := "user://coverage"
 ## map.
 const HEARTH := Vector3(8.0, 0.0, -15.9)
 
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _map: CoverageMap
 var _cam: Camera3D
 
@@ -40,7 +40,7 @@ func _ready() -> void:
 	add_child(world)
 	for i in 8:
 		await get_tree().process_frame
-	_terrain = world.find_child("Terrain", true, false) as ProceduralTerrain
+	_terrain = world.find_child("Terrain", true, false) as TerrainSource
 	_map = world.find_child("CoverageMap", true, false) as CoverageMap
 	if _terrain == null or _map == null:
 		printerr("CAPTURE: no terrain or no coverage map in the world scene")

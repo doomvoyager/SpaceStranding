@@ -21,7 +21,7 @@ const SHOTS := [
 	["03_cull_edge", Vector3(0.0, 30.0, 0.0), Vector3(120.0, -30.0, -120.0)],
 ]
 
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _scatter: RockScatter
 var _cam: Camera3D
 
@@ -34,7 +34,7 @@ func _ready() -> void:
 	# Terrain builds in its own _ready and the mesh lands a frame later.
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_terrain = world.find_child("Terrain", true, false) as ProceduralTerrain
+	_terrain = world.find_child("Terrain", true, false) as TerrainSource
 
 	_scatter = world.find_child("RockScatter", true, false) as RockScatter
 	if _scatter == null:
@@ -102,10 +102,7 @@ func _capture(shot_name: String, offset: Vector3, look: Vector3) -> void:
 
 
 func _ground_at(wx: float, wz: float) -> float:
-	var local := _terrain.to_local(Vector3(wx, 0.0, wz))
-	return _terrain.to_global(
-		Vector3(local.x, _terrain.height_at(local.x, local.z), local.z)
-	).y
+	return _terrain.world_surface_at(wx, wz).y
 
 
 func _find_cameras(n: Node, out: Array[Camera3D] = []) -> Array[Camera3D]:

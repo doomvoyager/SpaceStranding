@@ -13,7 +13,7 @@ const OUT_DIR := "user://look_dev"
 ## Off isolates the shader's own output from volumetric fog's frame jitter.
 @export var volumetric_fog := true
 
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _cam: Camera3D
 
 
@@ -25,7 +25,7 @@ func _ready() -> void:
 	# Terrain builds in its own _ready and the mesh lands a frame later.
 	await get_tree().process_frame
 	await get_tree().process_frame
-	_terrain = world.find_child("Terrain", true, false) as ProceduralTerrain
+	_terrain = world.find_child("Terrain", true, false) as TerrainSource
 
 	# Any camera baked into the astronaut or rover would otherwise win.
 	for c in _find_cameras(world):
@@ -85,7 +85,7 @@ func _add_hull_props() -> void:
 
 
 func _ground(x: float, z: float) -> float:
-	return _terrain.height_at(x, z) if _terrain != null else 0.0
+	return _terrain.world_height_at(x, z) if _terrain != null else 0.0
 
 
 func _shot(name: String, eye: Vector3, look: Vector3) -> void:

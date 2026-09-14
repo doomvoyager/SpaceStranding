@@ -2,8 +2,7 @@
 
 [ext_resource type="Script" uid="uid://brecirucyovjd" path="res://scripts/world/test_world.gd" id="1_world"]
 [ext_resource type="PackedScene" uid="uid://kmvii0ij0k7g" path="res://scenes/postprocessing_effects.tscn" id="2_f38oy"]
-[ext_resource type="Texture2D" uid="uid://baawch65tr3i5" path="res://assets/terrain/lola_pole_4100.exr" id="2_heightmap"]
-[ext_resource type="Script" uid="uid://v6n8lwttprn0" path="res://scripts/world/terrain.gd" id="2_terrain"]
+[ext_resource type="Script" uid="uid://cf4oaqy3bsyg4" path="res://scripts/world/streamed_terrain.gd" id="2_terrain"]
 [ext_resource type="PackedScene" uid="uid://b7p7lge6nwgn8" path="res://scenes/player/astronaut.tscn" id="3_astronaut"]
 [ext_resource type="PackedScene" uid="uid://r6qgw87guhki" path="res://scenes/vehicle/rover.tscn" id="4_rover"]
 [ext_resource type="PackedScene" path="res://scenes/cargo/crate.tscn" id="5_crate"]
@@ -90,15 +89,9 @@ directional_shadow_max_distance = 320.0
 directional_shadow_pancake_size = 40.0
 
 [node name="Terrain" type="Node3D" parent="." unique_id=1919902232]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -374.4, -1477.6, 966.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -374.4, -1246.9, 966.9)
 script = ExtResource("2_terrain")
-height_source = 1
-heightmap = ExtResource("2_heightmap")
-height_span = 1708.6
-size = 4100.0
-resolution = 4.0
-height_scale = 96.0
-ridge_weight = 0.912
+heightfield_path = "res://assets/terrain/lola_pole_24k.hf"
 
 [node name="Beacon" type="Node3D" parent="." unique_id=95117728]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.390732, -140)

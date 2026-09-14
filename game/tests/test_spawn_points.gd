@@ -104,7 +104,7 @@ func _check_marker_drove_the_spawn(world: Node3D) -> void:
 
 ## Everything the world settles, checked against the rule it settles by.
 func _check_invariant_holds(world: Node3D) -> void:
-	var terrain := world.get_node_or_null("Terrain") as ProceduralTerrain
+	var terrain := world.get_node_or_null("Terrain") as TerrainSource
 	if terrain == null:
 		_fail("no Terrain in the world scene")
 		return
@@ -147,7 +147,7 @@ func _check_invariant_holds(world: Node3D) -> void:
 			_assert_grounded(terrain, n, float(n.get("ground_clearance")), n.name)
 
 
-func _assert_grounded(terrain: ProceduralTerrain, node: Node3D,
+func _assert_grounded(terrain: TerrainSource, node: Node3D,
 		clearance: float, label: String) -> void:
 	var at := node.global_position
 	var want := terrain.world_height_at(at.x, at.z) + clearance
@@ -164,7 +164,7 @@ func _assert_grounded(terrain: ProceduralTerrain, node: Node3D,
 ## one, which is what the editor snap writes and what a stale scene file can be
 ## checked against by eye.
 func _report_spawn_heights(world: Node3D) -> void:
-	var terrain := world.get_node_or_null("Terrain") as ProceduralTerrain
+	var terrain := world.get_node_or_null("Terrain") as TerrainSource
 	if terrain == null:
 		return
 	print("      terrain origin: ", terrain.global_position)

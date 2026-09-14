@@ -21,14 +21,12 @@ func _ready() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	var terrain := world.find_child("Terrain", true, false) as ProceduralTerrain
+	var terrain := world.find_child("Terrain", true, false) as TerrainSource
 	print("terrain origin   ", terrain.global_position)
-	print("terrain size     %.0f m, scale %s" % [terrain.size, terrain.scale])
-
-	var half := terrain.size * 0.5
-	var c := terrain.global_position
-	print("patch covers     x %.0f..%.0f   z %.0f..%.0f"
-		% [c.x - half, c.x + half, c.z - half, c.z + half])
+	var ground := terrain.extent()
+	print("ground covers    x %.0f..%.0f   z %.0f..%.0f   (%.0f m, %s m samples)"
+		% [ground.position.x, ground.end.x, ground.position.y, ground.end.y,
+			ground.size.x, String.num(terrain.sample_step(), 3)])
 
 	print("\nground height at world points:")
 	for p: Vector2 in [Vector2(0, 0), Vector2(0, 18), Vector2(-70, 40),

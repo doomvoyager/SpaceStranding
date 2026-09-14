@@ -66,6 +66,7 @@ mechanics. Mac makes their own scene edits between sessions.
 | Authored game tables (TSV) | `game/data/` - edit with `tools/tsv-editor.ps1` |
 | Terrain masters - gitignored, 420 MB, retired 2026-09-14 | `game/assets/terrain/_source/` - bake with `tools/bake-terrain.py` |
 | Lunar DEM windows, from NASA's LOLA over HTTP | `tools/lola-window.py` - needs numpy and tifffile; see [[Terrain]] |
+| The world's heightfield - 97 MB of raw float32, committed, never imported | `game/assets/terrain/lola_pole_24k.hf` - written by `tools/lola-window.py --raw`, read by `Heightfield.load_file` |
 
 `res://scripts/Foo.gd` on disk is `game/scripts/Foo.gd`.
 
@@ -258,6 +259,10 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_fo
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_wheel_dust.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_streamed_terrain.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -415,6 +420,13 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_p
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_eye_height.tscn
+```
+
+Can a terrain tile be built on a worker thread, and how long does one take?
+Headless is fine; it times the build and raycasts the result:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/probe_tile_threads.tscn
 ```
 
 Does a never-cleared SubViewport keep what is drawn into it? **Windowed** -
@@ -1105,6 +1117,32 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   that does `find_child("HUD") as CanvasItem` gets null, sets nothing, and
   keeps the controls card in every frame - the first view capture did. Cast to
   `CanvasLayer`, or to `Node` and `set("visible", false)`.
+- **`Mesh.create_trimesh_shape()` deadlocks on a worker thread.** It asks the
+  RenderingServer for the surface arrays back, and from any thread but the
+  main one that is a synchronous call that waits for the main thread to flush
+  the command queue - which was sitting in `wait_for_task_completion`. Eight
+  workers each printed "mesh done" and none printed "trimesh done", with no
+  error and no timeout. `ArrayMesh.add_surface_from_arrays` is fine on a
+  worker (a queued command; the mesh reads back and renders), and so is
+  building the `ConcavePolygonShape3D` yourself from the vertices and indices
+  in hand with `set_faces` - which is also four times faster on the main
+  thread (4.2 ms against 16.7 for a 129² tile). **Nothing on a worker may ask
+  a server for anything back.** `tests/probe_tile_threads.tscn`.
+- **A worker task holding a bound method outlives the node it was bound to.**
+  A `Callable` does not keep a `Node` alive, so a build still queued when the
+  node is freed runs against a dead object: "Cannot call method 'lock' on a
+  null value" from the task, then a segfault at exit - in every test that
+  freed the world scene with tiles in flight. Wait for the pending tasks in
+  `_exit_tree` (and on `NOTIFICATION_PREDELETE`, for a node freed outside the
+  tree); blocking there is safe precisely because of the fact above.
+  `StreamedTerrain._finish_pending`.
+- **Godot ignores a file with an extension it has no importer for**, and
+  `FileAccess` reads it from `res://` in one call - a 97 MB float32
+  heightfield in 50-70 ms. That is the way round the EXR importer expanding
+  one float channel to three, and it needs no `.import` and no `detect_3d`
+  guard. The catch is export: an exported build only packs non-resource
+  files that the export preset's filters name, so `*.hf` will have to be
+  added there when there is a preset. `Heightfield.load_file`.
 
 ---
 

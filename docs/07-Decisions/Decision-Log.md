@@ -1605,3 +1605,31 @@ would have left the steering genuinely wrong: measured on the corrected
 throttle, positive `steering` yaws left, which is already what `A` produces.
 **One sign fixed both.** Verified with
 `res://tests/probe_vehicle_axes.gd` - re-run it rather than reasoning about it.
+
+## 2026-09-14 - The heights are resident and the meshes stream; the file is raw
+
+Mac, that evening: "let's start on the streaming tiles", then "go with your
+suggestions". Three calls made on the proposal recorded in [[Terrain]]:
+
+**The height data is not streamed, only the meshes are.** The Lattice, the
+route planner and the map all need `world_height_at` to answer anywhere at
+any time, so the whole window stays in memory - 97 MB - and tiles are a view
+of it. Proposed over a windowed read because the consumers make it the only
+honest shape; a streamed heightfield would have moved the problem into every
+system that asks about distant ground.
+
+**The heightfield is a raw float32 file, committed.** Not an EXR, because the
+importer triples it to 290 MB and re-imports it lossy the first time a
+material touches it; a `.hf` with a 32-byte header that Godot never imports.
+Committed rather than fetched per machine so the MacBook and the PC agree
+byte for byte. It is the largest file in the repo by six times.
+
+**5 m data, 24,576 m across.** 5 m over 10 m because 10 m softens the slopes
+the drivability numbers were measured on. 24,576 rather than exactly 25 km
+so the root tiles are powers of two - 3 x 3 of 8192 m - at about 1.7 hours
+across either way.
+
+Rejected: rings hollowed out of coarse tiles, for a quadtree of one tile size
+where nothing has to be hollowed; `create_trimesh_shape()` on a worker, which
+deadlocks - measured; a fixed skirt depth, which cast shadows across the
+ground at a 5.5° sun; a texel-exact coverage mask, capped at 4096 a side.

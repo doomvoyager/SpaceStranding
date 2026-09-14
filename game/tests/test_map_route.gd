@@ -39,7 +39,7 @@ var _astronaut: Astronaut
 var _rover: Rover
 var _panel: MapPanel
 var _map: MapTerrain
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _frames := 0
 var _stage := 0
 var _waited := 0
@@ -181,8 +181,8 @@ func _stage_the_mesh_builds() -> void:
 	var expected := (_map.grid + 1) * (_map.grid + 1)
 	_expect(verts.size() == expected,
 		"map mesh has %d vertices, expected %d" % [verts.size(), expected])
-	_expect(is_equal_approx(_map.span(), _terrain.size),
-		"the map spans %.1f m but the terrain is %.1f" % [_map.span(), _terrain.size])
+	_expect(is_equal_approx(_map.span(), _terrain.extent().size.x),
+		"the map spans %.1f m but the terrain is %.1f" % [_map.span(), _terrain.extent().size.x])
 	# The relief is exaggerated on purpose; the picker has to agree with it or
 	# clicks land above or below the surface being drawn.
 	var here := Vector2(60.0, 60.0)

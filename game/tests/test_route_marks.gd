@@ -46,7 +46,7 @@ var _astronaut: Astronaut
 var _rover: Rover
 var _marks: RouteMarks
 var _scanner: Node
-var _terrain: ProceduralTerrain
+var _terrain: TerrainSource
 var _frames := 0
 var _stage := 0
 var _waited := 0

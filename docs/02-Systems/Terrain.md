@@ -1,19 +1,24 @@
 ---
 status: built
-verified: 2026-09-14
-godot: res://scripts/world/terrain.gd
+verified: 2026-09-15
+godot: res://scripts/world/streamed_terrain.gd
 tags: [system, world, scaffolding]
 ---
 
 # Terrain
 
-The world runs on an **authored heightmap** as of 2026-09-01. The procedural
-noise it replaced is still in the same script, one enum away, because the tests
-that build their own patch want ground with no 15 MB dependency attached.
+The world's ground is **streamed** as of 2026-09-14: one resident heightfield
+of the real south pole, 24.6 km across, and a quadtree of mesh tiles built
+around whoever is looking - "Streamed tiles", below. Everything above that
+section is the history of the single patch it replaced, kept because the
+patch (`res://scripts/world/terrain.gd`) and the mirrored field are still in
+the project for the tests that build their own ground, and because most of
+what was learned on them - the seam, the winding, the trimesh, `is_built()` -
+carried straight over.
 
-> Still a **single patch**: no streaming, no LOD, one `ArrayMesh` and one
-> trimesh collider. The shipping terrain will be a streamed, chunked setup
-> (Terrain3D or equivalent). Gameplay code must not depend on anything in here.
+> Gameplay code must not depend on anything in here beyond the seam:
+> `world_height_at`, `world_surface_at`, `extent()`, `sample_step()`,
+> `is_built()` and `rebuilt`, on `TerrainSource`.
 
 ## The masters, and why they are not in the repo
 
@@ -102,13 +107,19 @@ sixteen test files, so it is a deliberate TODO rather than drift.
 
 ## The world's numbers
 
+As of 2026-09-14, the streamed ground:
+
 | | |
 |---|---|
-| Footprint | 4096 m |
-| Mesh spacing | 4 m - a 1025² grid, ~2 M triangles, the same cost as the old 2048 m patch |
-| Relief | 210 m |
-| Grade | median 3°, p90 9°, p99 17°, steepest faces past 60° |
-| Terrain offset | (-470, 0, +1242) |
+| Footprint | 24,576 m tiled, of a 24,580 m window - 3 x 3 root tiles of 8192 m |
+| Data | LOLA 5 m/px, 4917² float32, 97 MB resident |
+| Mesh spacing | 4 m nearest, doubling per ring to 128 m; 1.85 M triangles at the spawn |
+| Relief | 4,830 m, -2,873 to +1,958 |
+| Grade | median 14.7°, p90 31.5°, p99 36.1°; 75% at or under the rover's 25° |
+| Terrain offset | (-374.4, -1246.9, +966.9) - the pole at the map's centre, the flat spot at the origin |
+
+The single patch these replaced, for the record: 4096 m at 4 m, 210 m of
+relief, median 3°, offset (-470, 0, +1242).
 
 **The offset is not decoration.** The map's peak sits at its centre, so at zero
 offset the world origin - where the astronaut, the rover and every crate spawn -
@@ -321,12 +332,12 @@ coupling rather than the height contract, and it belongs with the chunking.
 ## Where it is going, as of 2026-09-14
 
 Mac's call, in the [[Decision-Log]]: **the real south pole, composed per tile,
-about 25 km across, the Gaea master retired.** The plan, none of it built yet:
+about 25 km across, the Gaea master retired.** The plan; 1 and 5 are built,
+below, and the rest is not:
 
 1. **Base: LOLA.** NASA's south-pole DEM - 20 m/px for 80-90°S, 5 m/px inside
-   87°S, public domain, GeoTIFF. A window of it baked through
-   `tools/bake-terrain.py`, which already speaks EXR and has tifffile as a
-   dependency.
+   87°S, public domain, GeoTIFF. A window of it, fetched and baked by
+   `tools/lola-window.py`. **Built.**
 2. **Detail below the DEM.** A deterministic layer for what 5-20 m/px cannot
    hold and the rover sees: craters on the lunar size-frequency law (∝ D⁻²),
    fresh to soft, regolith undulation at 0.1-0.5 m, boulders seeded from the
@@ -339,9 +350,11 @@ about 25 km across, the Gaea master retired.** The plan, none of it built yet:
    map, the [[The-Lattice|Lattice]] and placement read one set of numbers and
    the seam contract below holds. A new `height_source`, not a new terrain.
 5. **Built around the player.** Rings of tiles at 4, 16 and 64 m with skirts,
-   built off the main thread, collision for the near ring only, and past the
-   horizon the curvature drop in the shared surface shader - the natural
-   cutoff [[The-Planet]] describes, in place of the fog the 09-03 plan assumed.
+   built off the main thread, collision for the near ring only. **Built**,
+   as a quadtree rather than rings - "Streamed tiles". Past the horizon the
+   curvature drop in the shared surface shader - the natural cutoff
+   [[The-Planet]] describes, in place of the fog the 09-03 plan assumed - is
+   still to do.
 
 Two things go before any of it is judged by eye: the sun-shadow probe in
 [[The-Planet]] - at a 5° sun the ground's look *is* its shadows and none render
@@ -373,14 +386,15 @@ from the pole with Shackleton's rim ~600 m off. `lola-pole-hill.png` and
 `lola-pole-slope.png` are the patch; the rim crest runs diagonally across it
 and the dark half is the wall.
 
-**In the scene:** the Terrain node's map is `lola_pole_4100.exr`, 1025² over
-4100 m (4 m, the 5 m data resampled), `height_span` 1708.6, offset
-(-374.4, -1477.6, 966.9) so the flat spot is the origin at y ≈ 0. Everything
-placed settled onto it correctly (`probe_world_placement`); the facilities
-kept their old X/Z. The frames are `lola-pole-terrain-*`, on a neutral grey
-with the retired colour bake off. Later the same day the material itself went
-grey, with the bake off for good and a noise normal map standing in for the
-detail layer - see [[The-Planet]], "The ground, and how it is lit".
+**In the scene, for the rest of that day:** the Terrain node's map was
+`lola_pole_4100.exr`, 1025² over 4100 m (4 m, the 5 m data resampled),
+`height_span` 1708.6, offset (-374.4, -1477.6, 966.9) so the flat spot was
+the origin at y ≈ 0. Everything placed settled onto it correctly
+(`probe_world_placement`); the facilities kept their old X/Z. Later the same
+day the material went grey, with the bake off for good and a noise normal map
+standing in for the detail layer - see [[The-Planet]], "The ground, and how
+it is lit" - and that evening the patch gave way to the streamed ground
+below. The 4.1 km bake stays in the repo until nothing references it.
 
 **What the frames say.** The macro is right: a plain, a crest, a wall dropping
 into shadow, small craters from the overview. Up close the ground is a smooth
@@ -388,11 +402,120 @@ sheet - 5 m data under a 4 m mesh has nothing between the samples - which is
 the case for the detail layer, not against the data. The 20 m product's "green"
 is 15-25° at 5 m; the metre scale will be rougher still, and boulders.
 
+## Streamed tiles
+
+**Built 2026-09-14**, the evening of the day the ground was decided. The
+Terrain node in `test_world.tscn` is a `StreamedTerrain`
+(`res://scripts/world/streamed_terrain.gd`) now.
+
+**The heights are resident; only the meshes stream.** The Lattice traces
+sight lines to relays kilometres off, the route planner samples across the
+map and the map panel draws all of it, so `world_height_at` has to answer
+anywhere at any time. The whole 24.6 km window lives in memory as a
+[Heightfield] (`res://scripts/world/heightfield.gd`) - 4917² float32 at 5 m,
+97 MB, read in 50-70 ms - and every seam question is a bilinear read on it.
+`is_built()` means the file loaded. Tiles are a view of the data, and every
+vertex of every tile at every level is an exact sample of the same function
+the seam answers, so a crate placed on `world_height_at` rests on the mesh
+exactly as it did on the patch.
+
+**Not a texture.** Godot's EXR importer expands one float channel to three,
+so the same window as a `CompressedTexture2D` would be 290 MB and carry the
+`detect_3d` trap. `tools/lola-window.py --raw` writes `lola_pole_24k.hf`: a
+32-byte header - magic, width, height, spacing, lowest, highest - then
+little-endian float32 rows, north up, in metres. Godot leaves an unknown
+extension alone, so it never meets an importer; `Heightfield.load_file`
+reads it with one `FileAccess` call. It is the largest file in the repo by a
+factor of six, and Mac chose to commit it over having each machine fetch it.
+
+**A quadtree of 65 x 65 tiles.** Six levels: 4 m spacing over 256 m at the
+finest, doubling to 128 m over 8192 m at the root, and 3 x 3 roots cover
+24,576 m of the 24,580 m window. A tile splits into its four children while
+the viewer is within `split_ratio` tile-widths of it, which makes the rings
+of the plan without hollowing coarse tiles around fine ones. Counted at the
+spawn on the real ground, `select_tiles` alone:
+
+| samples | ratio | tiles | triangles | 4 m ground out to |
+|---|---|---|---|---|
+| 65 | 1.0 | 139 | 1.21 M | 1.07 km |
+| 65 | **1.5** | **212** | **1.85 M** | **1.30 km** |
+| 65 | 2.0 | 310 | 2.70 M | 1.60 km |
+| 129 | 1.0 | 115 | 3.89 M | 2.0 km |
+| 129 | 1.5 | 170 | 5.74 M | 2.5 km |
+
+The first capture ran 129-sample tiles at 1.5 and cost 5.7 M; the old patch
+was 2 M, and that is the budget, so 65 at 1.5 is the default. Everything is
+on F1 under "Terrain".
+
+**Skirts hide what is between the shared points.** A coarse tile's edge
+passes through the same samples its finer neighbour's does, and between them
+the finer edge wanders off the coarse straight line. Each tile hangs a wall
+below every edge, as deep as the data dips under that edge - measured along
+it while the tile is built - plus half a metre. The first skirts were a
+whole spacing deep, which at a 5.5° sun is a 64 m wall throwing a 660 m
+shadow; they are their own mesh under the tile now, with shadow casting off,
+and nothing collides with them.
+
+**Built on worker threads, added on the main thread.** About 6 ms a tile at
+65 samples; `probe_tile_threads` measured 22 ms at 129 and eight at once in
+48 ms wall. Nearest first, `builds_per_frame` a frame. A tile is only retired
+once whatever covers its ground - its children, or its parent - is resident,
+so a swap never shows a hole; retired tiles wait hidden in a cache of
+`cache_tiles` so turning round costs nothing. Collision is a trimesh on every
+tile within `collision_radius` (1 km, 62 tiles at the spawn), and the tiles
+inside it at ready are built synchronously, so the rover has a floor before
+the first physics tick.
+
+**Two engine facts came out of it**, in `CLAUDE.md`:
+`Mesh.create_trimesh_shape()` deadlocks on a worker, and a worker holding a
+bound method outlives the node it was bound to.
+
+**What did not have to change.** UV2 on every tile spans the whole tiled
+extent 0..1 rather than the tile, so the coverage mask - built over
+`extent()` by `CoverageMap`, sampled through UV2 by the surface shader -
+works unchanged; it is capped at 4096 texels a side now, 6 m on this ground.
+Nothing that reads the seam was touched: the Lattice, the map, the route
+line, placement, the footprints and the tracks all run on the streamed ground
+as they did on the patch. Fourteen tests and captures that named
+`ProceduralTerrain` now name `TerrainSource`, which is what they meant. The
+rock scatter throws its `count` over a 4.1 km square around the origin
+instead of the whole extent, which keeps the spawn as dense as it was;
+scattering around the player is [[Scatter]]'s item.
+
+**The frames** - `previews/2026-09-14/terrain-streamed-v2-*`, six views:
+the spawn plain as it was; the rim; over the crest into the crater, with the
+rim's own shadow across the far wall; a 1500 m overview; the horizon from the
+crest; and the whole world from 8 km up, Shackleton entire. No seam shows at
+any range. Beside them, `terrain-patch-*` are the same first four shots from
+the single patch, which stop dead at its 4.1 km edge - the far walls were
+never drawn before. On those far walls, on the shadowed side, there are fine
+diagonal striations the near ground does not have; see the open item.
+
+Tests: `test_streamed_terrain.tscn` - the seam on a moved node, the
+selection tiling the ground exactly once, every vertex on `world_height_at`
+at two levels, the winding, the skirts, the hole-free swap frame by frame,
+collision following the viewer with a raycast to prove it, the Lattice
+finding the terrain and not a tile, and the real file's header.
+
 ## Known issues
 
-- [ ] Single patch, no streaming, no LOD. 2 M triangles resident at all times.
-- [ ] Rebuilds the whole mesh on any slider. ~150 ms of that is the map's range
-      scan, cached after the first read.
+- [ ] **Striations on the far crater walls.** Fine parallel lines on the
+      shadowed slopes 2-8 km out; the old patch never drew that ground.
+      **Not the data:** the wall re-lit from the heights and a 9-sample
+      high-pass of them (`lola-24k-wall-relit.png`, `-highpass.png`) show
+      per-pixel speckle of 0.54 m and no lines at all. So it is the
+      renderer - the shadow map at grazing incidence on a 32 to 128 m mesh,
+      or the detail normal map aliasing at range - and the sun-shadow probe
+      is the instrument. The speckle itself is worth knowing about: the 5 m
+      product carries about half a metre of noise per sample, which the
+      detail layer will want to smooth before it adds anything.
+- [ ] The detail layer below the DEM, and stamps: the composition slot is
+      `Heightfield`, and nothing composes yet. 5 m data under a 4 m mesh is
+      still a sheet underfoot.
+- [ ] No curvature drop past the horizon; `World.curvature_drop()` still has
+      no callers.
+- [ ] A slider on the Terrain rebuilds every tile; the near ring comes back
+      synchronously, the rest over a few frames.
 - [x] ~~The albedo is 1 m/texel and visibly soft underfoot.~~ The bake is
       off the material since 2026-09-14; the ground's colour is a flat albedo
       with noise-driven variation, and the sharpness underfoot is the detail

@@ -24,7 +24,7 @@ func _ready() -> void:
 	for i in 40:
 		await get_tree().physics_frame
 
-	var terrain := world.find_child("Terrain", true, false) as ProceduralTerrain
+	var terrain := world.find_child("Terrain", true, false) as TerrainSource
 	var hearth := world.find_child("Hearth", true, false) as Facility
 	var longshadow := world.find_child("Longshadow", true, false) as Facility
 	var a: Vector3 = hearth.mast_point()
@@ -76,7 +76,7 @@ func _ready() -> void:
 
 
 ## Smallest gap between the line and the terrain beneath it.
-func _clearance(terrain: ProceduralTerrain, from: Vector3, to: Vector3) -> float:
+func _clearance(terrain: TerrainSource, from: Vector3, to: Vector3) -> float:
 	var worst := INF
 	var steps := 40
 	for i in range(1, steps):

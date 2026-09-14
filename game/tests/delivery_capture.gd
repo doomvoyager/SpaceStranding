@@ -35,14 +35,14 @@ func _ready() -> void:
 
 	_astronaut = world.find_child("Astronaut", true, false) as Astronaut
 	_rover = world.find_child("Rover", true, false) as Rover
-	var terrain := world.find_child("Terrain", true, false) as ProceduralTerrain
+	var terrain := world.find_child("Terrain", true, false) as TerrainSource
 	var crates := world.find_child("Crates", true, false)
 
 	# Beside the rover, so the two are in frame together for scale.
 	var at := _rover.global_position + Vector3(7.0, 0.0, 0.0)
 	_pad = PAD.instantiate()
 	world.add_child(_pad)
-	_pad.global_position = Vector3(at.x, terrain.height_at(at.x, at.z), at.z)
+	_pad.global_position = terrain.world_surface_at(at.x, at.z)
 
 	for c in _find_cameras(world):
 		c.current = false

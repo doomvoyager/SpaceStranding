@@ -25,12 +25,19 @@ class_name CoverageMap
 ## map: a 45 m reach at 2 m per texel is about 2,000 texels and 45,000 height
 ## lookups per site, once, when the network changes.
 
-## Metres per mask texel. The mask spans the whole patch, so this trades memory
-## against how crisp a ridge-shadow can be: 2 m over a 4 km patch is a 2048²
-## R8 image, 4 MB.
+## Metres per mask texel. The mask spans the whole ground, so this trades
+## memory against how crisp a ridge-shadow can be: 2 m over a 4 km patch is a
+## 2048² R8 image, 4 MB. Over the 24.6 km world it would be 150 MB, which is
+## what `max_texels` is for: the mask is never wider than that, so on the big
+## ground it works out at 6 m per texel.
 @export_range(0.5, 32.0, 0.5) var metres_per_texel := 2.0:
 	set(v):
 		metres_per_texel = maxf(v, 0.5)
+		queue_rebuild()
+## Widest the mask is allowed to be, texels per side.
+@export_range(256, 8192, 256) var max_texels := 4096:
+	set(v):
+		max_texels = v
 		queue_rebuild()
 
 ## Metres over which coverage falls off as it reaches the range limit. The
@@ -114,7 +121,7 @@ func rebuild() -> void:
 
 	var ground := _terrain.extent()
 	var span := ground.size.x
-	_n = maxi(int(ceil(span / maxf(metres_per_texel, 0.5))), 4)
+	_n = clampi(int(ceil(span / maxf(metres_per_texel, 0.5))), 4, max_texels)
 	if _image == null or _image.get_width() != _n:
 		_image = Image.create_empty(_n, _n, false, Image.FORMAT_R8)
 		_texture = null
