@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dlyjm71la8l0j" path="res://scripts/vehicle/rover.gd" id="1_rover"]
 [ext_resource type="Script" uid="uid://dfpjydpesqij0" path="res://scripts/cargo/cargo_rack.gd" id="2_rack"]
-[ext_resource type="Script" path="res://scripts/vehicle/wheel_dust.gd" id="20_dust"]
+[ext_resource type="Script" uid="uid://dclppujtq214p" path="res://scripts/vehicle/wheel_dust.gd" id="20_dust"]
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_chassis"]
 size = Vector3(2, 1.0562134, 4.4)
@@ -259,15 +259,14 @@ margin = 0.4
 
 [node name="Camera3D" type="Camera3D" parent="CamPivot/SpringArm3D" unique_id=412705019]
 fov = 72.0
-far = 6000.0
+far = 30000.0
 
 [node name="Eye" type="Camera3D" parent="." unique_id=1377726611]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.12, -1.55)
-fov = 75.0
-far = 6000.0
+far = 30000.0
 
 [node name="ExitPoint" type="Marker3D" parent="." unique_id=443693781]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1668487, -0.5, -1.1470282)
 
-[node name="WheelDust" type="Node3D" parent="."]
+[node name="WheelDust" type="Node3D" parent="." unique_id=305725699]
 script = ExtResource("20_dust")

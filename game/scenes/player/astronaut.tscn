@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://deboldmeqejbe" path="res://scripts/player/astronaut.gd" id="1_astronaut"]
 [ext_resource type="Script" uid="uid://dfpjydpesqij0" path="res://scripts/cargo/cargo_rack.gd" id="2_rack"]
 [ext_resource type="PackedScene" uid="uid://ba8xrig0astro" path="res://scenes/player/astronaut_rig.tscn" id="3_rig"]
-[ext_resource type="Script" path="res://scripts/player/footprints.gd" id="9_footprints"]
+[ext_resource type="Script" uid="uid://0acsengmd1so" path="res://scripts/player/footprints.gd" id="9_footprints"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.4
@@ -21,9 +21,6 @@ shape = SubResource("CapsuleShape3D_body")
 [node name="Body" type="Node3D" parent="." unique_id=871382362]
 
 [node name="Rig" parent="Body" unique_id=2012498549 instance=ExtResource("3_rig")]
-
-[node name="Footprints" type="Node3D" parent="."]
-script = ExtResource("9_footprints")
 
 [node name="HeadLamp" type="SpotLight3D" parent="Body" unique_id=188112210]
 transform = Transform3D(1, 0, 0, 0, 0.98176897, 0.19007845, 0, -0.19007845, 0.98176897, 0, 1.66, -0.26175392)
@@ -46,6 +43,9 @@ transform = Transform3D(1, 0, 0, 0, 0.9950802, -0.09907361, 0, 0.09907361, 0.995
 [node name="DropPoint" type="Marker3D" parent="Body" unique_id=177215219]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.45, -1.15)
 
+[node name="Footprints" type="Node3D" parent="." unique_id=1474496238]
+script = ExtResource("9_footprints")
+
 [node name="CamPivot" type="Node3D" parent="." unique_id=1523963951]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0)
 
@@ -56,12 +56,11 @@ margin = 0.3
 [node name="Camera3D" type="Camera3D" parent="CamPivot/SpringArm3D" unique_id=704281901]
 current = true
 fov = 70.0
-far = 6000.0
+far = 30000.0
 
 [node name="Eye" type="Camera3D" parent="CamPivot" unique_id=1590211073]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, -0.05)
-fov = 75.0
-far = 6000.0
+far = 30000.0
 
 [node name="InteractZone" type="Area3D" parent="." unique_id=1213944727]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
