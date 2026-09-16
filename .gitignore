@@ -33,6 +33,12 @@ previews/*
 game/assets/terrain/_source/*
 !game/assets/terrain/_source/.gdignore
 
+# --- Texture masters ---
+# Same rule again: the 6016x4016 lens dust master is 55 MB, the copy the game
+# draws is 2.7 MB. `tools/bake-textures.py` writes the copies beside this folder.
+game/assets/textures/_source/*
+!game/assets/textures/_source/.gdignore
+
 # --- Asset download archives ---
 # The extracted folder beside it is what Godot imports; the zip is the same
 # bytes again. The repo holds what the game uses, not what it was delivered in.

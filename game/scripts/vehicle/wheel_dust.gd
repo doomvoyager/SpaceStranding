@@ -75,6 +75,10 @@ var _ground: GPUParticlesCollisionHeightField3D
 var _ground_at := Vector3.INF
 var _hull_box: GPUParticlesCollisionBox3D
 var _vehicle: VehicleBody3D
+## Per wheel, this tick: grains a second, and the direction they leave in.
+## Kept for `exposure_at()`.
+var _rates := PackedFloat32Array()
+var _throws := PackedVector3Array()
 
 
 func _ready() -> void:
@@ -89,6 +93,8 @@ func _ready() -> void:
 		if child is VehicleWheel3D:
 			_wheels.append(child)
 			_emitters.append(_make_emitter(child.name))
+			_rates.append(0.0)
+			_throws.append(Vector3.ZERO)
 	_ground = GPUParticlesCollisionHeightField3D.new()
 	_ground.name = "Ground"
 	_ground.top_level = true
@@ -115,6 +121,7 @@ func _physics_process(_delta: float) -> void:
 		var skid := 1.0 - clampf(wheel.get_skidinfo(), 0.0, 1.0)
 		var wanted := rate(speed, skid, wheel.is_in_contact(), max_rate, full_speed, skid_boost)
 		emitter.amount_ratio = ratio_for(wanted, amount, lifetime)
+		_rates[i] = maxf(wanted, 0.0)
 		if wanted <= 0.0:
 			continue
 		# Aim: behind the wheel along its travel, tilted up. The axle is the
@@ -125,6 +132,7 @@ func _physics_process(_delta: float) -> void:
 		if speed < 0.0:
 			travel = -travel
 		var throw := throw_direction(travel, throw_angle_deg)
+		_throws[i] = throw
 		var at := wheel.get_contact_point() + Vector3.UP * birth_lift - travel * birth_back
 		emitter.global_transform = Transform3D(Basis.looking_at(throw, Vector3.UP), at)
 		var material := emitter.process_material as ParticleProcessMaterial
@@ -168,6 +176,41 @@ static func throw_direction(travel: Vector3, angle_deg: float) -> Vector3:
 ## Metres a second the tyre's surface moves: rpm over the wheel's radius.
 static func surface_speed(wheel: VehicleWheel3D) -> float:
 	return wheel.get_rpm() * TAU / 60.0 * wheel.wheel_radius
+
+
+## How much of the spray is flying at `point`, as a share of every wheel
+## throwing at its full rate straight at it: 0 for none, above 1 while the
+## wheels skid. Direction and distance only, not ballistics - the lens it was
+## written for rides above where a real spray tops out; see `LensDust`.
+func exposure_at(point: Vector3, reach: float, sharpness: float) -> float:
+	if _emitters.is_empty() or max_rate <= 0.0:
+		return 0.0
+	var total := 0.0
+	for i in _emitters.size():
+		if _rates[i] <= 0.0:
+			continue
+		total += spray_toward(_rates[i] / max_rate, _throws[i],
+			point - _emitters[i].global_position, reach, sharpness)
+	return total / _emitters.size()
+
+
+## One wheel's part in `exposure_at()`. `share` is its rate over the full rate,
+## `throw` the way its grains leave, `offset` from the wheel to the point. On
+## the ground plane: nothing unless the point is on the throw's side, then the
+## cosine to it to the power `sharpness`, over 1 + (distance / reach)^2.
+static func spray_toward(share: float, throw: Vector3, offset: Vector3,
+		reach: float, sharpness: float) -> float:
+	if share <= 0.0:
+		return 0.0
+	var flat := Vector2(offset.x, offset.z)
+	var aim := Vector2(throw.x, throw.z)
+	if flat.length_squared() < 1e-8 or aim.length_squared() < 1e-8:
+		return 0.0
+	var along := aim.normalized().dot(flat.normalized())
+	if along <= 0.0:
+		return 0.0
+	var d := flat.length() / maxf(reach, 0.001)
+	return share * pow(along, sharpness) / (1.0 + d * d)
 
 
 func emitters() -> Array[GPUParticles3D]:

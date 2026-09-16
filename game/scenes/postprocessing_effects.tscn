@@ -1,9 +1,11 @@
-[gd_scene load_steps=2 format=3 uid="uid://kmvii0ij0k7g"]
+[gd_scene load_steps=3 format=3 uid="uid://kmvii0ij0k7g"]
 
 [ext_resource type="Material" path="res://shaders/post/film_material.tres" id="1_film"]
+[ext_resource type="Script" uid="uid://bdq3k4mjb45g0" path="res://scripts/ui/lens.gd" id="2_lens"]
 
 [node name="PostprocessingEffects" type="CanvasLayer" groups=["post"]]
-layer = 10
+layer = -1
+script = ExtResource("2_lens")
 
 [node name="Film" type="ColorRect" parent="."]
 material = ExtResource("1_film")

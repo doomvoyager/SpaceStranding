@@ -16,6 +16,12 @@ extends Node3D
 ##      to a plain copy and the effect silently vanishes. The four-node version
 ##      gets its mips from the BackBufferCopy in front of it; the single pass
 ##      has no node in front of it at all.
+##   3. What the camera's glass costs (added 2026-09-16): the same view of the
+##      sun with the flare, the dirt and a fully dusted lens, and with all of
+##      it skipped. Wall clock cannot see it - five rounds spread 0.3 ms and put
+##      the glass on the cheap side - so it reads the viewport's GPU time too:
+##      0.658 ms against 0.677, 0.019 ms, on an RTX 4080 at 1600x900, every
+##      round within 0.003 of its median. See [[Lens]].
 ##
 ## The scene tree is **paused** and the grain's time_scale forced to 0, so every
 ## configuration renders a byte-comparable frame and the difference between two
@@ -32,6 +38,8 @@ const OUT_DIR := "user://post_cost"
 
 const WARMUP := 40
 const TIMED := 200
+## Alternating rounds for the glass comparison; odd, so there is a median.
+const GLASS_ROUNDS := 5
 ## Every Nth pixel on each axis when diffing. 1600x900/16 is plenty to catch a
 ## missing glow and keeps the comparison to well under a second.
 const DIFF_STRIDE := 4
@@ -62,11 +70,15 @@ var _world: Node
 var _existing: CanvasLayer
 var _cam: Camera3D
 var _shots: Dictionary = {}
+## The viewport's own GPU time, averaged over the last `_measure`. Finer than
+## wall clock between frames, which carries the whole CPU side's noise.
+var _last_gpu_ms := 0.0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
+	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0
 
@@ -121,6 +133,44 @@ func _ready() -> void:
 	_diff("one ColorRect + 1 BBC", "01_scene_as_authored", "03_single_pass_bbc")
 	_diff("no post at all (control)", "01_scene_as_authored", "00_no_post")
 
+	# The camera's glass at its worst - the sun in the middle of the frame and
+	# every speck of dust landed - against the same view with the glass's work
+	# skipped: no sun ahead and a clean lens, which is what the shader branches
+	# on. The difference is what the flare, the dirt and the dust cost.
+	var lens := _existing as Lens
+	var dusty := LensDust.new()
+	dusty.fade_rate = 0.0
+	_cam.add_child(dusty)
+	dusty.coverage = 1.0
+	_cam.look_at(_cam.global_position - World.sun_direction(), Vector3.UP)
+	# A difference this small is inside one run's noise - measured, the rows
+	# above can put one pass under no pass at all - so the two alternate over
+	# several rounds and the medians are compared.
+	var glass: Array[float] = []
+	var bare: Array[float] = []
+	var glass_gpu: Array[float] = []
+	var bare_gpu: Array[float] = []
+	for pass_index in GLASS_ROUNDS:
+		_set_glass(lens, true)
+		glass.append(await _measure("04_glass_sun_and_dust", _existing))
+		glass_gpu.append(_last_gpu_ms)
+		if pass_index == 0:
+			print("")
+			print("  glass: sun ahead %s at %s, dust %.2f" % [lens.sun_ahead, lens.sun_uv, lens.dust])
+		_set_glass(lens, false)
+		bare.append(await _measure("05_same_view_glass_skipped", _existing))
+		bare_gpu.append(_last_gpu_ms)
+	_set_glass(lens, true)
+	for list in [glass, bare, glass_gpu, bare_gpu]:
+		list.sort()
+	var mid := GLASS_ROUNDS / 2
+	print("  median of %d alternating rounds; frame is wall clock, gpu the viewport's own:" % GLASS_ROUNDS)
+	print("  %-28s %9s %9s" % ["", "frame ms", "gpu ms"])
+	print("  %-28s %9.3f %9.3f" % ["sun view, glass skipped", bare[mid], bare_gpu[mid]])
+	print("  %-28s %9.3f %9.3f" % ["sun view, sun and full dust", glass[mid], glass_gpu[mid]])
+	print("  gpu rounds, skipped %s" % [bare_gpu])
+	print("  gpu rounds, glass   %s" % [glass_gpu])
+
 	print("")
 	print("stills in %s" % ProjectSettings.globalize_path(OUT_DIR))
 	print("--- end probe ---")
@@ -129,6 +179,15 @@ func _ready() -> void:
 	single_bbc.queue_free()
 	_existing.queue_free()
 	get_tree().quit(0)
+
+
+## The Lens pushing the sun and the dust as usual, or held off with the shader
+## told there is neither - which is what its branches skip on.
+func _set_glass(lens: Lens, on: bool) -> void:
+	lens.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
+	if not on:
+		RenderingServer.global_shader_parameter_set(&"lens_sun_ahead", 0.0)
+		RenderingServer.global_shader_parameter_set(&"lens_dust", 0.0)
 
 
 ## The grain animates off TIME, which would make two renders of the same frame
@@ -175,9 +234,12 @@ func _measure(shot_name: String, layer: CanvasLayer) -> float:
 		await RenderingServer.frame_post_draw
 
 	var started := Time.get_ticks_usec()
+	var gpu := 0.0
 	for i in TIMED:
 		await RenderingServer.frame_post_draw
+		gpu += RenderingServer.viewport_get_measured_render_time_gpu(get_viewport().get_viewport_rid())
 	var elapsed := Time.get_ticks_usec() - started
+	_last_gpu_ms = gpu / float(TIMED)
 
 	var image := get_viewport().get_texture().get_image()
 	image.save_png("%s/%s.png" % [OUT_DIR, shot_name])

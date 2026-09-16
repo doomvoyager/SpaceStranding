@@ -65,6 +65,7 @@ mechanics. Mac makes their own scene edits between sessions.
 | Standalone authoring tools | `tools/` at the repo root, **not** `game/tools/` |
 | Authored game tables (TSV) | `game/data/` - edit with `tools/tsv-editor.ps1` |
 | Terrain masters - gitignored, 420 MB, retired 2026-09-14 | `game/assets/terrain/_source/` - bake with `tools/bake-terrain.py` |
+| Texture masters - gitignored, the 55 MB lens dust | `game/assets/textures/_source/` - bake with `tools/bake-textures.py` |
 | Lunar DEM windows, from NASA's LOLA over HTTP | `tools/lola-window.py` - needs numpy and tifffile; see [[Terrain]] |
 | The world's heightfield - 97 MB of raw float32, committed, never imported | `game/assets/terrain/lola_pole_24k.hf` - written by `tools/lola-window.py --raw`, read by `Heightfield.load_file` |
 
@@ -263,6 +264,14 @@ engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_wh
 engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_streamed_terrain.tscn
 ```
 
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_lens_flare.tscn
+```
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --headless --path game res://tests/test_lens_dust.tscn
+```
+
 **Never add `--quit-after` to a test run.** It forces exit 0 when the frame
 budget runs out, so it converts both a hang and a genuine failure into a pass.
 It is a debugging aid for a scene that will not exit, nothing more.
@@ -361,6 +370,15 @@ Drive the rover and photograph the dust while it flies, five frames, sun only:
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/dust_capture.tscn -- --tag=after
 ```
 
+The camera's glass: the flare, the lit dirt and the lens dust, each still shot
+with the glass off and on and the share of the frame it moved printed; then the
+rover's chase camera driving sunward. `--set=key=value,...` overrides the film
+material for a sweep:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/flare_capture.tscn -- --tag=after --set=flare_halo=0.35
+```
+
 **Every rendered image that gets looked at is kept, in `previews/`.** A capture
 scene writes to Godot's `user://` first, because that is where a running game
 can write without touching the project; the shots are then copied into
@@ -435,6 +453,20 @@ five materials each - as drawn, Lambert, no skirts, flat, no detail map -
 
 ```bash
 engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_far_sheet.tscn
+```
+
+What does the post pass see where the sun is - clear, behind the rover,
+behind a rim - and can a canvas `vertex()` read the screen? **Windowed**:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_sun_disc.tscn
+```
+
+What the post stack costs, and the camera's glass at its worst, in frame time
+and in the viewport's own GPU time. **Windowed**:
+
+```bash
+engine/Godot.app/Contents/MacOS/Godot --path game res://tests/probe_post_cost.tscn
 ```
 
 Does a never-cleared SubViewport keep what is drawn into it? **Windowed** -
@@ -1165,6 +1197,44 @@ Measured on Godot 4.7.1 with Jolt. Each one caused, or would have caused, a bug.
   guard. The catch is export: an exported build only packs non-resource
   files that the export preset's filters name, so `*.hf` will have to be
   added there when there is a preset. `Heightfield.load_file`.
+- **A canvas_item `vertex()` can sample `hint_screen_texture`, and reads
+  exactly what `fragment()` reads** - measured at five views, tap for tap.
+  A full-screen `ColorRect` has four corners, so a value that is the same for
+  the whole frame (is the sun visible, the frame's mean colour) costs four
+  lookups a frame there and 1.44 million in `fragment()`. Pass it on with
+  `varying flat`, which canvas_item accepts. `tests/probe_sun_disc.tscn`.
+- **In the image the post pass reads, the sun's disc is pure white and
+  anything in front of it is dark** - 255 over 32-40 px at 1600x900, its
+  glare 130-150, the rover, terrain and a rim in front of it 22-32 (min
+  channel). Not luck: an occluder is seen from its unlit side. So the picture
+  is a sun-occlusion test exact at any distance, where a physics ray is blind
+  past the streamed collision and to the rover's shapeless wheels. What it
+  cannot tell is a white *interface* label over a hidden sun - which is one
+  reason the post layer draws under the HUD. See [[Lens]].
+- **A `CanvasLayer` at a negative layer still draws over the 3D view** when the
+  environment's background is a sky. Only `BG_CANVAS` puts low layers behind
+  3D. The post stack is at -1, under every interface layer and the default
+  canvas, and still processes the frame - measured by `flare_capture`.
+- **A node-typed `@export` written into a `.tscn` by hand needs
+  `node_paths=PackedStringArray("name")` on the node's header.** Without it
+  the `NodePath` value is quietly dropped and the property reads null - no
+  error, and the node sits there unwired. The editor writes the header; a
+  hand-written scene does not. The project's idiom, `*_path: NodePath`
+  resolved in `_ready`, has no such trap. Cost one failing check in
+  `test_lens_dust`.
+- **A post shader that fails to compile turns the whole frame white**, and a
+  capture carries on shooting it: one did, at luma 1.000 for every still. A
+  uniform named like a function is enough - "Redefinition of". The headless
+  boot *does* catch it, which is worth knowing because it is tempting to
+  assume otherwise: the dummy renderer still parses every shader it is handed
+  and prints the same `SHADER ERROR` (measured with a deliberate clash). So
+  boot headless after touching a shader, and read the first lines.
+- **Frame time between two `frame_post_draw`s cannot see a 0.02 ms change;
+  the viewport's GPU timer can.** Five alternating rounds of the same view
+  spread 0.3 ms of wall clock and put the more expensive shader on the cheap
+  side; `viewport_get_measured_render_time_gpu` (after
+  `viewport_set_measure_render_time`) held every round within 0.003 ms and
+  read 0.658 against 0.677. `tests/probe_post_cost.tscn` prints both.
 
 ---
 

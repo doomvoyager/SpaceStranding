@@ -9,6 +9,63 @@ anything.** Newest first.
 
 ---
 
+## 2026-09-16 - The lens: a flare that reads the picture, dust behind the spray
+
+Mac asked for a lens flare, lens dirt that shows when looking at the sun,
+and dust from the wheels building up on the chase camera, with two textures
+and a flare shader from godotshaders.com. Claude proposed; Mac took all four
+recommendations. The build is in [[Lens]].
+
+**In the one post pass.** The flare, the dirt and the dust are three more
+sections of `film.gdshader`, not a second pass - the single pass settled on
+2026-08-31 holds, and a second screen-reading pass is a second full-screen
+copy and mip chain. Measured: 0.019 ms of GPU time at its worst.
+
+**Whether the sun is visible is read off the picture.** The sky draws the
+disc far past white and anything in front of the sun is seen from its unlit
+side, so taps inside the disc answer the question exactly, at any distance.
+Measured before it was proposed (`tests/probe_sun_disc.tscn`): the disc 255,
+its glare 130-150, the rover, terrain and a rim in front of it 22-32.
+**Rejected: physics rays** - the streamed ground has no collision beyond
+`collision_radius`, so every far rim is invisible to one, and the rover's
+wheels have no shapes. **Rejected: a heightfield march** as the only test -
+exact for terrain and blind to everything else.
+
+**The post layer draws under the HUD - "for now", Mac's words.** At layer 10
+it drew over the HUD, so dust would have landed on the interface and a white
+label over a hidden sun would have read as the sun. It is at -1 now. What it
+cost: the HUD lost the grain and colour fringe it had since StarChef's stack
+came over.
+
+**Dust fades slowly and is wiped on exit** - Mac's pick over "only on exit"
+and an electrodynamic dust shield that sweeps the lens clean (offered, not
+built). It builds and fades only while its camera is on screen, so the cab
+view neither dusts nor cleans the chase lens.
+
+**The dust is the game's version.** A real rooster tail at 4 m/s tops out
+about 2.5 m up and the chase camera rides above it, so honest ballistics
+would never dust the lens. What is kept is the direction: behind the spray
+dusts, beside or in front of it does not, reversing throws it away.
+`WheelDust.exposure_at()` does it per wheel, so the rebuilt rover inherits it.
+
+**The 55 MB dust master stays out of git**, like the terrain masters: it is in
+`game/assets/textures/_source/`, and `tools/bake-textures.py` writes the
+3008x2008 copy the game loads.
+
+**The port's shader was fixed on the way in**, not taken as found: it did not
+compile in Godot 4 (`SCREEN_TEXTURE`), graded and dithered the whole frame
+with no sun in it, darkened every frame's corners, and had no occlusion. Its
+ghosts are unchanged; its broad halo got its own weight, because at the
+port's weight it washed the frame orange looking at the sun - which reads as
+air.
+
+Rejected along the way: node-typed exports in hand-written scenes (they need
+a `node_paths` header; the project's idiom is `*_path: NodePath`, which is
+what both scripts use), and a flat dust colour (dark specks vanish against a
+black sky; the specks are lit by the frame's mean instead).
+
+---
+
 ## 2026-09-14 - Wheel dust is thrown grains on parabolas, not a puff
 
 Mac asked for puffs of dust from under the wheels; Claude proposed the

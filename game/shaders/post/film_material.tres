@@ -1,4 +1,4 @@
-[gd_resource type="ShaderMaterial" load_steps=2 format=3]
+[gd_resource type="ShaderMaterial" load_steps=4 format=3]
 
 ; The post stack for Space Stranding, in one material.
 ;
@@ -10,8 +10,13 @@
 ;
 ; This file previously carried StarChef's tuning, which is a different look.
 ; Those values are in git history at 253e9f4 if they are ever wanted back.
+;
+; The Sun, Flare, Dirt and Dust groups are the camera's glass, added on
+; 2026-09-16 and tuned on tests/flare_capture.tscn; see docs/02-Systems/Lens.md.
 
 [ext_resource type="Shader" uid="uid://cicfdg8iufkc5" path="res://shaders/post/film.gdshader" id="1_film"]
+[ext_resource type="Texture2D" uid="uid://cvqa1p6vgb5fv" path="res://assets/textures/dirt_flare_1.jpg" id="2_dirt"]
+[ext_resource type="Texture2D" uid="uid://b1uugb6xhss2n" path="res://assets/textures/lens_dirt_2.png" id="3_dust"]
 
 [resource]
 resource_name = "Film (post stack)"
@@ -35,3 +40,23 @@ shader_parameter/grain_saturation = 0.562
 shader_parameter/min_lum = 0.019
 shader_parameter/max_lum = 0.487
 shader_parameter/time_scale = 0.079
+shader_parameter/sun_threshold = 0.95
+shader_parameter/sun_edge_margin = 0.12
+shader_parameter/flare_intensity = 1.0
+shader_parameter/flare_tint = Color(1, 0.9, 0.8, 1)
+shader_parameter/flare_halo = 0.35
+shader_parameter/flare_ghosts = 2.0
+shader_parameter/flare_whiten = 0.5
+shader_parameter/flare_whiten_ramp = 0.1
+shader_parameter/dirt_texture = ExtResource("2_dirt")
+shader_parameter/dirt_intensity = 0.4
+shader_parameter/dirt_floor = 0.1
+shader_parameter/dirt_spread = 0.4
+shader_parameter/dust_texture = ExtResource("3_dust")
+shader_parameter/dust_tint = Color(1, 1, 1, 1)
+shader_parameter/dust_density = 2.5
+shader_parameter/dust_ambient = 3.0
+shader_parameter/dust_softness = 1.0
+shader_parameter/dust_cells = 140.0
+shader_parameter/dust_arrival = 0.04
+shader_parameter/dust_glow = 0.6

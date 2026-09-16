@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-14
+verified: 2026-09-16
 godot: res://scripts/vehicle/wheel_dust.gd
 tags: [system, vehicle, look]
 ---
@@ -34,6 +34,11 @@ one `GPUParticles3D` per wheel. Every physics tick it:
   point, aimed back along the travel and up by `throw_angle_deg`, and writes
   the throw speed - `throw_fraction` of the tyre's - into that wheel's own
   copy of the process material.
+
+It also keeps each wheel's rate and throw for the tick, so
+`exposure_at(point, reach, sharpness)` can say how much of the spray is
+flying at a point - direction and distance only, not ballistics. That is what
+dusts the chase camera's lens; see [[Lens]].
 
 Grains land on a `GPUParticlesCollisionHeightField3D` that rides under the
 rover in steps of `ground_step`, seeing render layer 1 only (the terrain and
@@ -84,6 +89,9 @@ of them for a sheet to read. `dust-shaded-vs-fine.jpg`.
   round the hull, gravity the World's and following a change, no drag,
   hide-on-contact; boarded and driven, six of six throwing, aimed behind
   the travel and up, at a fraction of the tyre's speed. 28 checks.
+- `tests/test_lens_dust.tscn` - `spray_toward()`, each wheel's part in
+  `exposure_at()`, and the chase camera taking the spray while driving and
+  none of it while reversing.
 - `tests/dust_capture.tscn` - drives cross-sun and shoots from behind, from
   the side low, at a rear wheel, then braking and stopped, while moving.
 

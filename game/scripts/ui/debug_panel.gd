@@ -256,6 +256,13 @@ func _discover() -> Array[Target]:
 			out.append(_target(CLUSTER_DRIVING, "Wheel dust",
 				"how much the tyres throw and how; the grain is on its material", dust))
 
+		var lenses: Array = []
+		_collect(rover, "LensDust", lenses)
+		if not lenses.is_empty():
+			out.append(_target(CLUSTER_DRIVING, "Lens dust",
+				"how fast the chase camera dusts over and clears; the specks are on Post (Film)",
+				lenses))
+
 	var racks: Array = []
 	_collect(scene, "CargoRack", racks)
 	if not racks.is_empty():

@@ -1,6 +1,6 @@
 ---
 status: built
-verified: 2026-09-13
+verified: 2026-09-16
 godot: res://scripts/ui/debug_panel.gd
 tags: [system, tooling]
 ---
@@ -161,9 +161,13 @@ In screen order.
 |---|---|---|---|
 | Driving | Rover | the rover | the rover, then `refresh_load()` |
 | | Rover wheels | wheel 1 | all six |
+| | Wheel dust | the rover's WheelDust | the WheelDust |
+| | Lens dust | the chase camera's LensDust | the LensDust |
 | | Cargo racks | the first rack | every rack |
 | | Crates | the first crate | every crate, re-queried at write time |
-| On foot | Astronaut | the player | the player |
+| | Wheel tracks | the track map | the track map |
+| On foot | Footprints | the footprints | the footprints |
+| | Astronaut | the player | the player |
 | | Astronaut rig | the rig | the rig |
 | World | Planet | `World` | `World` |
 | | Terrain | the terrain | the terrain, on drag release only |

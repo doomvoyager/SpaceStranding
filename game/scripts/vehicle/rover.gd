@@ -875,7 +875,18 @@ func exit() -> void:
 	_set_brake_light(false)
 	view_camera().current = false
 	_draw_hull(true)
+	_wipe_lenses()
 	astronaut.disembark(exit_position(), heading)
+
+
+## Climbing out wipes the lenses, so whoever drives next starts with clean
+## glass. See `LensDust`.
+func _wipe_lenses() -> void:
+	for camera: Camera3D in [_camera, _eye]:
+		for child in camera.get_children():
+			var lens := child as LensDust
+			if lens != null and lens.clear_on_exit:
+				lens.clear()
 
 
 # --- Views --------------------------------------------------------------

@@ -269,3 +269,23 @@ scan_outline_power={
 "type": "float",
 "value": 2.2
 }
+lens_sun_uv={
+"type": "vec2",
+"value": Vector2(-1, -1)
+}
+lens_sun_radius={
+"type": "vec2",
+"value": Vector2(0, 0)
+}
+lens_sun_ahead={
+"type": "float",
+"value": 0.0
+}
+lens_sun_color={
+"type": "color",
+"value": Color(1, 0.97, 0.92, 1)
+}
+lens_dust={
+"type": "float",
+"value": 0.0
+}
